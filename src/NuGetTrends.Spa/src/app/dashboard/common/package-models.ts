@@ -4,8 +4,8 @@ export interface IPackageDownloadHistory {
 }
 
 export interface IDownloadPeriod {
-    period: Date,
-    downloads: number
+    period: Date;
+    downloads: number;
 }
 
 export interface PackageToColorMap {
