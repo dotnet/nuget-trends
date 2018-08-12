@@ -1,0 +1,13 @@
+@import 'variables';
+@import '../node_modules/font-awesome/scss/font-awesome';
+
+/* To have a sticky footer. https://philipwalton.github.io/solved-by-flexbox/demos/sticky-footer/*/
+.site {
+    display: flex;
+    min-height: 100vh;
+    flex-direction: column;
+  }
+  
+  .site-content {
+    flex: 1;
+  }
