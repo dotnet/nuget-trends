@@ -36,7 +36,7 @@ export class DashboardComponent implements OnInit {
 
   populateChart() {
     const data = this.getMockedData();
-    const chart_data = {labels: [], dataSets: []};
+    const chart_data = {labels: [], datasets: []};
 
     data.map((packageDataPerPeriod: IPackageDownloadHistory, i: number) => {
       // create the labels
@@ -46,7 +46,7 @@ export class DashboardComponent implements OnInit {
         });
       }
       // parse the result into a ChartDataSets type
-      chart_data.dataSets.push(this.parseDataSet(packageDataPerPeriod));
+      chart_data.datasets.push(this.parseDataSet(packageDataPerPeriod));
     });
 
     const chart_options: ChartOptions = {
