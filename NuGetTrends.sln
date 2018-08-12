@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.27906.1
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGetTrends", "src\NuGetTrends.Api\NuGetTrends.csproj", "{F277DE94-B6A9-4364-817E-EA00B62BF1D1}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGetTrends.Api", "src\NuGetTrends.Api\NuGetTrends.Api.csproj", "{74F6B811-9533-4C03-868C-BC1DBD3C4D22}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,10 +11,10 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{F277DE94-B6A9-4364-817E-EA00B62BF1D1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{F277DE94-B6A9-4364-817E-EA00B62BF1D1}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{F277DE94-B6A9-4364-817E-EA00B62BF1D1}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{F277DE94-B6A9-4364-817E-EA00B62BF1D1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{74F6B811-9533-4C03-868C-BC1DBD3C4D22}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{74F6B811-9533-4C03-868C-BC1DBD3C4D22}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{74F6B811-9533-4C03-868C-BC1DBD3C4D22}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{74F6B811-9533-4C03-868C-BC1DBD3C4D22}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
