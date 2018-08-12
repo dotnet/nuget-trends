@@ -61,7 +61,7 @@ namespace NuGetTrends.Api
                     if (_hostingEnvironment.IsDevelopment())
                     {
                         var logger = _loggerFactory.CreateLogger<Startup>();
-                        logger.LogWarning("Enabling EF Core " + nameof(options.EnableSensitiveDataLogging));
+                        logger.LogInformation("Enabling EF Core " + nameof(options.EnableSensitiveDataLogging));
                         options.EnableSensitiveDataLogging();
                     }
                 });

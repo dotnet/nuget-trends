@@ -143,8 +143,36 @@ export class DashboardComponent implements OnInit {
         id: 'dapper',
         data: [
           {
+            period: new Date(2018, 2, 18),
+            downloads: 1895642
+          },
+          {
+            period: new Date(2018, 2, 25),
+            downloads: 1850976
+          },
+          {
             period: new Date(2018, 3, 4),
             downloads: 1851476
+          },
+          {
+            period: new Date(2018, 3, 11),
+            downloads: 1852476
+          },
+          {
+            period: new Date(2018, 3, 18),
+            downloads: 1853476
+          },
+          {
+            period: new Date(2018, 3, 25),
+            downloads: 1854476
+          },
+          {
+            period: new Date(2018, 4, 1),
+            downloads: 1855476
+          },
+          {
+            period: new Date(2018, 4, 8),
+            downloads: 1856476
           },
           {
             period: new Date(2018, 4, 15),
