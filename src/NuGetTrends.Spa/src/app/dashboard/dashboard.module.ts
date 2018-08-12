@@ -1,10 +1,10 @@
-import {FormsModule} from '@angular/forms';
 import {NgModule} from '@angular/core';
 import {DashboardComponent} from './dashboard.component';
 import {PackagesService} from './common/packages.service';
+import {SharedModule} from '../shared/shared.module';
 
 @NgModule({
-  imports: [FormsModule],
+  imports: [SharedModule],
   declarations: [
     DashboardComponent
   ],

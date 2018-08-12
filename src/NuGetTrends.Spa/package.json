@@ -22,6 +22,7 @@
     "@angular/router": "^6.1.0",
     "@sentry/browser": "^4.0.0-beta.12",
     "@types/chart.js": "^2.7.30",
+    "bulma": "^0.7.1",
     "bulma-start": "^0.0.2",
     "chart.js": "^2.7.2",
     "core-js": "^2.5.4",

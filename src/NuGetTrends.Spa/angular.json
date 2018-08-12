@@ -23,7 +23,7 @@
               "src/assets"
             ],
             "styles": [
-              "./node_modules/bulma-start/css/main.css",
+              "./node_modules/bulma/bulma.sass",
               "src/styles.scss"
             ],
             "scripts": []

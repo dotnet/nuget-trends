@@ -1,0 +1,27 @@
+<section class="filter-wrapper">
+  <div class="keyword-wrapper">
+    <input class="input is-large" type="text" placeholder="" [formControl]="queryField"/>
+    <span class="icon is-medium is-left">
+      <i class="fa fa-search"></i>
+    </span>
+    <span class="icon is-medium is-right">
+      <i class="fa fa-empire"></i>
+    </span>
+  </div>
+  <ul class="filter-select">
+    <li *ngFor="let package of results" class="filter-select-list">
+      <article class="media" (click)="packageSelected(package.packageId)">
+        <figure class="media-left">
+          <p class="image is-32x32">
+            <img src="https://secure.gravatar.com/avatar/a82c03402497b2e58fd65038a3699b30?s=512&r=g&d=retro" alt=""
+                 width="50" height="50">
+          </p>
+        </figure>
+        <div class="media-content is-pulled-left">
+          <div class="content">
+            <p>{{package.packageId}}</p>
+          </div>
+        </div>
+      </article>
+  </ul>
+</section>
