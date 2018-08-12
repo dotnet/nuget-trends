@@ -1,8 +1,8 @@
-import { Component, OnInit } from '@angular/core';
-import { Chart, ChartDataSets } from 'chart.js';
-import { DatePipe } from '@angular/common';
+import {Component, OnInit} from '@angular/core';
+import {Chart, ChartDataSets, ChartOptions} from 'chart.js';
+import {DatePipe} from '@angular/common';
 
-import { IPackageDownloadHistory, IDownloadPeriod, PackageToColorMap } from './common/package-models';
+import {IPackageDownloadHistory, IDownloadPeriod, PackageToColorMap} from './common/package-models';
 
 @Component({
   selector: 'app-dashboard',
@@ -11,12 +11,13 @@ import { IPackageDownloadHistory, IDownloadPeriod, PackageToColorMap } from './c
 })
 export class DashboardComponent implements OnInit {
 
-  constructor(private datepipe: DatePipe) { }
+  constructor(private datePipe: DatePipe) {
+  }
 
   trendChart: Chart;
   canvas: any;
   ctx: any;
-  colorsMap: PackageToColorMap = { };
+  colorsMap: PackageToColorMap = {};
 
   ngOnInit() {
     this.colorsMap['entity-framework'] = '#B4F30D';
@@ -35,26 +36,38 @@ export class DashboardComponent implements OnInit {
 
   populateChart() {
     const data = this.getMockedData();
-    const chart_data = {labels: [], datasets: []};
+    const chart_data = {labels: [], dataSets: []};
 
     data.map((packageDataPerPeriod: IPackageDownloadHistory, i: number) => {
-
       // create the labels
       if (i === 0) {
         chart_data.labels = packageDataPerPeriod.data.map((download: IDownloadPeriod) => {
-          return this.datepipe.transform(download.period, 'MMM d');
+          return this.datePipe.transform(download.period, 'MMM d');
         });
       }
-
       // parse the result into a ChartDataSets type
-      chart_data.datasets.push(this.parseDataSet(packageDataPerPeriod));
+      chart_data.dataSets.push(this.parseDataSet(packageDataPerPeriod));
     });
 
-    const chart_options = {
-      scaleFontColor: '#000000',
+    const chart_options: ChartOptions = {
       responsive: true,
-      datasetFill: false,
       maintainAspectRatio: false,
+      scales: {
+        xAxes: [{
+          display: true,
+          scaleLabel: {
+            display: false,
+            labelString: 'Month'
+          }
+        }],
+        yAxes: [{
+          display: true,
+          scaleLabel: {
+            display: true,
+            labelString: 'Downloads'
+          }
+        }]
+      }
     };
 
     this.canvas = document.getElementById('trend-chart');
@@ -68,7 +81,7 @@ export class DashboardComponent implements OnInit {
   }
 
   private parseDataSet(packageHistory: IPackageDownloadHistory): ChartDataSets {
-    const totalDownlaodsInPeriod = packageHistory.data.map((data: IDownloadPeriod) => {
+    const totalDownloads = packageHistory.data.map((data: IDownloadPeriod) => {
       return data.downloads;
     });
 
@@ -76,15 +89,15 @@ export class DashboardComponent implements OnInit {
       label: packageHistory.id,
       backgroundColor: this.colorsMap[packageHistory.id],
       borderColor: this.colorsMap[packageHistory.id],
-      pointRadius: 5,
-      pointHoverRadius: 5,
+      pointRadius: 6,
+      pointHoverRadius: 8,
       pointBackgroundColor: this.colorsMap[packageHistory.id],
       pointBorderColor: '#fff',
       pointBorderWidth: 1,
       pointHoverBackgroundColor: '#ffffff',
       pointHoverBorderColor: this.colorsMap[packageHistory.id],
       fill: false,
-      data: totalDownlaodsInPeriod,
+      data: totalDownloads,
     };
   }
 
@@ -191,7 +204,7 @@ export class DashboardComponent implements OnInit {
     ];
   }
 
-  private getNextMockedData(): IPackageDownloadHistory  {
+  private getNextMockedData(): IPackageDownloadHistory {
     return {
       id: 'ef-core',
       data: [
