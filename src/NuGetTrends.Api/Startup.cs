@@ -1,39 +1,86 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using System;
+using System.IO;
+using System.Reflection;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
+using Newtonsoft.Json;
+using Swashbuckle.AspNetCore.Swagger;
 
 namespace NuGetTrends.Api
 {
     public class Startup
     {
-        public Startup(IConfiguration configuration)
-        {
-            Configuration = configuration;
-        }
-
+        private readonly IHostingEnvironment _hostingEnvironment;
+        private readonly ILoggerFactory _loggerFactory;
         public IConfiguration Configuration { get; }
 
-        // This method gets called by the runtime. Use this method to add services to the container.
-        public void ConfigureServices(IServiceCollection services)
+        public Startup(
+            IConfiguration configuration,
+            IHostingEnvironment hostingEnvironment,
+            ILoggerFactory loggerFactory)
         {
-            services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
+            _loggerFactory = loggerFactory;
+            Configuration = configuration;
+            _hostingEnvironment = hostingEnvironment;
         }
 
-        // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+        public void ConfigureServices(IServiceCollection services)
         {
-            if (env.IsDevelopment())
+            services.AddMvc()
+                .SetCompatibilityVersion(CompatibilityVersion.Version_2_1)
+                .AddJsonOptions(o => o.SerializerSettings.NullValueHandling = NullValueHandling.Ignore);
+
+            if (_hostingEnvironment.IsDevelopment())
             {
-                app.UseDeveloperExceptionPage();
+                services.AddCors(options =>
+                {
+                    options.AddPolicy("AllowAll",
+                        builder =>
+                        {
+                            builder
+                                .AllowAnyOrigin()
+                                .AllowAnyMethod()
+                                .AllowAnyHeader()
+                                .AllowCredentials()
+                                .SetPreflightMaxAge(TimeSpan.FromDays(1));
+                            ;
+                        });
+                });
+            }
+
+            services
+                .AddEntityFrameworkSqlServer()
+                .AddDbContext<NuGetMustHavesContext>(options =>
+                {
+                    options.UseSqlServer(Configuration.GetConnectionString("NuGetMustHaves"));
+                    if (_hostingEnvironment.IsDevelopment())
+                    {
+                        var logger = _loggerFactory.CreateLogger<Startup>();
+                        logger.LogWarning("Enabling EF Core " + nameof(options.EnableSensitiveDataLogging));
+                        options.EnableSensitiveDataLogging();
+                    }
+                });
+
+            services.AddSwaggerGen(c =>
+            {
+                c.SwaggerDoc("v1", new Info { Title = "NuGet Trends", Version = "v1" });
+                var xmlFile = Assembly.GetExecutingAssembly().GetName().Name + ".xml";
+                var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+                c.IncludeXmlComments(xmlPath);
+            });
+        }
+
+        public void Configure(IApplicationBuilder app)
+        {
+            if (_hostingEnvironment.IsDevelopment())
+            {
+                app.UseCors("AllowAll");
+                app.UseMiddleware<ExceptionInResponseMiddleware>();
             }
             else
             {
@@ -41,6 +88,17 @@ namespace NuGetTrends.Api
             }
 
             app.UseHttpsRedirection();
+
+            app.UseSwagger();
+            app.UseSwaggerUI(c =>
+            {
+                c.SwaggerEndpoint("/swagger/v1/swagger.json", "Sentry Ornigram");
+
+                c.DocumentTitle = "NuGet Trends API";
+                c.DocExpansion(DocExpansion.None);
+
+            });
+
             app.UseMvc();
         }
     }
