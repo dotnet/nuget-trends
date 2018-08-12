@@ -1,0 +1,11 @@
+version: '3.1'
+services:
+  mssql:
+    image: "microsoft/mssql-server-linux"
+    volumes:
+      - /tmp:/tmp
+    ports:
+      - "1433:1433"
+    environment:
+      SA_PASSWORD: "K6Zutakdo4ig7GP4VgGmnVRjLt"
+      ACCEPT_EULA: "Y"
