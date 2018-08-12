@@ -2,7 +2,8 @@ import {Component, OnInit} from '@angular/core';
 import {Chart, ChartDataSets, ChartOptions} from 'chart.js';
 import {DatePipe} from '@angular/common';
 
-import {IPackageDownloadHistory, IDownloadPeriod, PackageToColorMap} from './common/package-models';
+import {IPackageDownloadHistory, IDownloadPeriod, PackageToColorMap, IPackageSearchResult} from './common/package-models';
+import {PackagesService} from './common/packages.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -11,13 +12,14 @@ import {IPackageDownloadHistory, IDownloadPeriod, PackageToColorMap} from './com
 })
 export class DashboardComponent implements OnInit {
 
-  constructor(private datePipe: DatePipe) {
+  constructor(private datePipe: DatePipe, private packageService: PackagesService) {
   }
 
   trendChart: Chart;
   canvas: any;
   ctx: any;
   colorsMap: PackageToColorMap = {};
+  packages: IPackageSearchResult[];
 
   ngOnInit() {
     this.colorsMap['entity-framework'] = '#B4F30D';
@@ -25,6 +27,9 @@ export class DashboardComponent implements OnInit {
     this.colorsMap['ef-core'] = '#F30D30';
 
     this.populateChart();
+    this.packageService.searchPackage('a').subscribe((result: IPackageSearchResult[]) => {
+      this.packages = result;
+    });
   }
 
   addNextDataSet() {

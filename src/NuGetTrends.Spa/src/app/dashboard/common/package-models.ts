@@ -1,3 +1,8 @@
+export interface IPackageSearchResult {
+  packageId: string;
+  downloadCount: number;
+}
+
 export interface IPackageDownloadHistory {
     id: string;
     data: Array<IDownloadPeriod>;

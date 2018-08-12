@@ -2,11 +2,12 @@ import { BrowserModule } from '@angular/platform-browser';
 import { NgModule, ErrorHandler } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { init, captureException } from '@sentry/browser';
+import {HttpClientModule} from '@angular/common/http';
 
 import { AppComponent } from './app.component';
 import { AppRoutingModule } from './app-routes.module';
-import { DashboardComponent } from './dashboard/dashboard.component';
 import { environment } from '../environments/environment';
+import {DashboardModule} from './dashboard/dashboard.module';
 
 init({ dsn: 'https://99693a201d194623afee8262c4499e46@sentry.io/1260895', });
 export class SentryErrorHandler extends ErrorHandler {
@@ -20,12 +21,13 @@ export class SentryErrorHandler extends ErrorHandler {
 
 @NgModule({
   declarations: [
-    AppComponent,
-    DashboardComponent
+    AppComponent
   ],
   imports: [
     AppRoutingModule,
-    BrowserModule
+    BrowserModule,
+    HttpClientModule,
+    DashboardModule
   ],
   providers: [ DatePipe, { provide: ErrorHandler, useClass: SentryErrorHandler } ],
   bootstrap: [AppComponent]
