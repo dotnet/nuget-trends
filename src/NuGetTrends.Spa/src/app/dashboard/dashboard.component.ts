@@ -31,7 +31,7 @@ export class DashboardComponent implements OnInit {
     const dataSet = this.parseDataSet(nextPackage);
     this.trendChart.config.data.datasets.push(dataSet);
     this.trendChart.update();
-  }  
+  }
 
   populateChart() {
     let data = this.getMockedData();
@@ -46,7 +46,7 @@ export class DashboardComponent implements OnInit {
         });
         chart_data.labels = labels;
       }
-      
+
       // parse the result into a ChartDataSets type
       let dataset = this.parseDataSet(packageDataPerPeriod);
       chart_data.datasets.push(dataset);
@@ -62,15 +62,15 @@ export class DashboardComponent implements OnInit {
 
     this.canvas = document.getElementById('trend-chart');
     this.ctx = this.canvas.getContext('2d');
-    
+
     this.trendChart = new Chart(this.ctx, {
-      type: 'line', 
-      data: chart_data, 
+      type: 'line',
+      data: chart_data,
       options: chart_options
     });
   }
 
-  private parseDataSet(packageHistory: IPackageDownloadHistory) : ChartDataSets {    
+  private parseDataSet(packageHistory: IPackageDownloadHistory) : ChartDataSets {
     let totalDownlaodsInPeriod = packageHistory.data.map((data: IDownloadPeriod) => {
       return data.downloads;
     });
