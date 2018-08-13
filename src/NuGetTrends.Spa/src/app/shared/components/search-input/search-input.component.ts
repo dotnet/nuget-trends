@@ -13,7 +13,7 @@ import {debounceTime, distinctUntilChanged, filter, switchMap} from 'rxjs/operat
 export class SearchInputComponent implements OnInit {
 
   results: IPackageSearchResult[] = [];
-  queryField: FormControl = new FormControl();
+  queryField: FormControl = new FormControl('');
 
   constructor(private packagesService: PackagesService) {
   }
@@ -22,11 +22,12 @@ export class SearchInputComponent implements OnInit {
     this.queryField.valueChanges
       .pipe(
         debounceTime(300),
-        filter((value: string) => value !== null),
         distinctUntilChanged(),
-        switchMap((query: string) => this.packagesService.searchPackage(query))
+        filter((value: string) => !!value.trim()),
+        switchMap(query => this.packagesService.searchPackage(query))
       ).subscribe(result => this.results = result);
   }
+
   packageSelected(packageId: string) {
     console.log(packageId);
     this.queryField.setValue(null);
