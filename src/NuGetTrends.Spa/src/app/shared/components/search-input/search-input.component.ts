@@ -24,8 +24,8 @@ export class SearchInputComponent implements OnInit {
         debounceTime(300),
         distinctUntilChanged(),
         filter((value: string) => !!value.trim()),
-        switchMap(query => this.packagesService.searchPackage(query))
-      ).subscribe(result => this.results = result);
+        switchMap((query: string) => this.packagesService.searchPackage(query))
+      ).subscribe((result: IPackageSearchResult[]) => this.results = result);
   }
 
   packageSelected(packageId: string) {
