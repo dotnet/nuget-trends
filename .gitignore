@@ -15,3 +15,6 @@ obj/
 **/BenchmarkDotNet.Artifacts/*.log
 !**/BenchmarkDotNet.Artifacts/results/*github.md
 appsettings.local.json
+
+# ignore the host directory folder used on docker-compose
+sql-data/

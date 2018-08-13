@@ -3,7 +3,7 @@ services:
   mssql:
     image: "microsoft/mssql-server-linux"
     volumes:
-      - /tmp:/tmp
+      - ./sql-data:/tmp
     ports:
       - "1433:1433"
     environment:
