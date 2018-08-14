@@ -1,15 +1,12 @@
 <section class="filter-wrapper">
-  <div class="keyword-wrapper">
-    <input class="input is-large" type="text" placeholder="" [formControl]="queryField"/>
+  <div class="keyword-wrapper control" [ngClass]="{'is-large is-loading' : isSearching}">
+    <input class="input is-large" type="text" placeholder="" #searchBox [formControl]="queryField" />
     <span class="icon is-medium is-left">
       <i class="fa fa-search"></i>
     </span>
-    <span class="icon is-medium is-right">
-      <i class="fa fa-empire"></i>
-    </span>
   </div>
   <ul class="filter-select">
-    <li *ngFor="let package of results" class="filter-select-list">
+    <li *ngFor="let package of results$ | async" class="filter-select-list">
       <article class="media" (click)="packageSelected(package.packageId)">
         <figure class="media-left">
           <p class="image is-32x32">
