@@ -5,7 +5,7 @@
       <i class="fa fa-search"></i>
     </span>
   </div>
-  <ul class="filter-select">
+  <ul class="filter-select" #container *ngIf="showResults">
     <li *ngFor="let package of results$ | async" class="filter-select-list">
       <article class="media" (click)="packageSelected(package.packageId)">
         <figure class="media-left">

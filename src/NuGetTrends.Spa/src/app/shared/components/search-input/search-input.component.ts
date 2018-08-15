@@ -1,10 +1,10 @@
-import {AfterViewInit, Component, ElementRef, ViewChild} from '@angular/core';
+import {AfterViewInit, Component, ElementRef, HostListener, ViewChild} from '@angular/core';
+import {FormControl} from '@angular/forms';
+import {debounceTime, distinctUntilChanged, filter, map, switchMap, tap} from 'rxjs/operators';
+import {fromEvent, Observable} from 'rxjs';
+
 import {PackagesService} from '../../../dashboard/common/packages.service';
 import {IPackageSearchResult} from '../../../dashboard/common/package-models';
-import {FormControl} from '@angular/forms';
-
-import {debounceTime, distinctUntilChanged, filter, switchMap, tap, map} from 'rxjs/operators';
-import {Observable, fromEvent} from 'rxjs';
 
 @Component({
   selector: 'app-search-input',
@@ -17,8 +17,12 @@ export class SearchInputComponent implements AfterViewInit {
   queryField: FormControl = new FormControl('');
   results$: Observable<IPackageSearchResult[]>;
   isSearching = false;
+  showResults = true;
 
-  constructor(private packagesService: PackagesService) {
+  private readonly searchComponentNode: any;
+
+  constructor(private packagesService: PackagesService, private element: ElementRef) {
+    this.searchComponentNode = this.element.nativeElement.parentNode;
   }
 
   ngAfterViewInit(): void {
@@ -33,8 +37,23 @@ export class SearchInputComponent implements AfterViewInit {
         tap(() => this.isSearching = false));
   }
 
+  @HostListener('document:click', ['$event.path'])
+  @HostListener('document:touchstart', ['$event.path'])
+  onClickOutside($event: Array<any>) {
+    // showResults is true when the click happens inside the parentComponent <app-search-input>
+    // anywhere else it will be false, meaning should be closed
+    this.showResults = $event.find(node => node === this.searchComponentNode);
+  }
+
+  /**
+   * Calls api to get the historical data for the selected package
+   * @param packageId
+   */
   packageSelected(packageId: string) {
     this.packagesService.getPackageDownloadHistory(packageId)
       .subscribe(p => console.log(p));
+    this.showResults = false;
+    this.queryField.setValue('');
+    this.searchBox.nativeElement.focus();
   }
 }
