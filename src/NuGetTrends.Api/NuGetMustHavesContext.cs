@@ -18,5 +18,6 @@ namespace NuGetTrends.Api
         public string Version { get; set; }
         public int DownloadCount { get; set; }
         public string GalleryDetailsUrl { get; set; }
+        public string IconUrl { get; set; }
     }
 }

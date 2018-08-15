@@ -24,21 +24,21 @@ namespace NuGetTrends.Api.Controllers
                 .Select(p => new
                 {
                     p.PackageId,
-                    p.DownloadCount
+                    p.DownloadCount,
+                    p.IconUrl
                 })
                 .ToListAsync();
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<IEnumerable<object>>> GetDownloadHistory([FromRoute] string id)
+        public async Task<ActionResult<object>> GetDownloadHistory([FromRoute] string id)
             => await _context.NPackages
                 .AsNoTracking()
                 .Where(p => p.PackageId == id)
-                .Take(100)
                 .Select(p => new
                 {
                     p.PackageId,
                     p.DownloadCount
                 })
-                .ToListAsync();
+                .FirstOrDefaultAsync();
     }
 }

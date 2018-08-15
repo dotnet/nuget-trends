@@ -1,6 +1,7 @@
 export interface IPackageSearchResult {
   packageId: string;
   downloadCount: number;
+  iconUrl: string;
 }
 
 export interface IPackageDownloadHistory {
