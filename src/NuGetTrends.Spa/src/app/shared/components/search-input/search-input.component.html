@@ -10,8 +10,8 @@
       <article class="media" (click)="packageSelected(package.packageId)">
         <figure class="media-left">
           <p class="image is-32x32">
-            <img src="{{package.iconUrl}}" alt=""
-                 width="50" height="50">
+              <img src="{{package.iconUrl}}"
+                   onerror="this.onerror=null;this.src='https://nuget.org/Content/Images/packageDefaultIcon-50x50.png';" />
           </p>
         </figure>
         <div class="media-content is-pulled-left">
