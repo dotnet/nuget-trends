@@ -17,7 +17,10 @@ namespace NuGetTrends.Api.Controllers
         [HttpGet("search")]
         public async Task<ActionResult<IEnumerable<object>>> Search([FromQuery] string q)
             => await _context.NPackages
+                .AsNoTracking()
                 .Where(p => p.PackageId.Contains(q))
+                .OrderByDescending(p => p.DownloadCount)
+                .Take(100)
                 .Select(p => new
                 {
                     p.PackageId,
@@ -28,7 +31,9 @@ namespace NuGetTrends.Api.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<IEnumerable<object>>> GetDownloadHistory([FromRoute] string id)
             => await _context.NPackages
+                .AsNoTracking()
                 .Where(p => p.PackageId == id)
+                .Take(100)
                 .Select(p => new
                 {
                     p.PackageId,
