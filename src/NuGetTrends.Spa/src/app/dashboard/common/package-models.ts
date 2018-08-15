@@ -6,12 +6,12 @@ export interface IPackageSearchResult {
 
 export interface IPackageDownloadHistory {
     id: string;
-    data: Array<IDownloadPeriod>;
+    downloads: Array<IDownloadStats>;
 }
 
-export interface IDownloadPeriod {
-    period: Date;
-    downloads: number;
+export interface IDownloadStats {
+    date: Date;
+    count: number;
 }
 
 export interface PackageToColorMap {

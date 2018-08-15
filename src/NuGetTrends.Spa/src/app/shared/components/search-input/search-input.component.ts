@@ -34,6 +34,7 @@ export class SearchInputComponent implements AfterViewInit {
   }
 
   packageSelected(packageId: string) {
-    console.log(packageId);
+    this.packagesService.getPackageDownloadHistory(packageId)
+      .subscribe(p => console.log(p));
   }
 }

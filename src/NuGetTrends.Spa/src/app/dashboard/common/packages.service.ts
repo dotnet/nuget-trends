@@ -4,7 +4,7 @@ import { environment } from '../../../environments/environment';
 
 import { Observable } from 'rxjs';
 
-import {IPackageSearchResult} from './package-models';
+import {IPackageSearchResult, IPackageDownloadHistory} from './package-models';
 
 @Injectable()
 export class PackagesService {
@@ -14,5 +14,10 @@ export class PackagesService {
 
   searchPackage(term: string): Observable<any> {
     return this.httpClient.get<IPackageSearchResult>(`${this.baseUrl}/search?q=${term}`);
+  }
+
+  getPackageDownloadHistory(term: string): Observable<any> {
+    // TODO: hard coding 12 here until dataset is up-to-date
+    return this.httpClient.get<IPackageDownloadHistory>(`${this.baseUrl}/history/${term}?months=12`);
   }
 }

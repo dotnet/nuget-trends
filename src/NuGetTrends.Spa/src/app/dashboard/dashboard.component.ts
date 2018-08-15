@@ -2,7 +2,8 @@ import {Component, OnInit} from '@angular/core';
 import {Chart, ChartDataSets, ChartOptions} from 'chart.js';
 import {DatePipe} from '@angular/common';
 
-import {IPackageDownloadHistory, IDownloadPeriod, PackageToColorMap } from './common/package-models';
+import {IPackageDownloadHistory, IDownloadStats, PackageToColorMap } from './common/package-models';
+import {PackagesService} from "./common/packages.service";
 
 @Component({
   selector: 'app-dashboard',
@@ -11,7 +12,9 @@ import {IPackageDownloadHistory, IDownloadPeriod, PackageToColorMap } from './co
 })
 export class DashboardComponent implements OnInit {
 
-  constructor(private datePipe: DatePipe) {
+  constructor(
+    private packagesService: PackagesService,
+    private datePipe: DatePipe) {
   }
 
   trendChart: Chart;
@@ -41,8 +44,8 @@ export class DashboardComponent implements OnInit {
     data.map((packageDataPerPeriod: IPackageDownloadHistory, i: number) => {
       // create the labels
       if (i === 0) {
-        chart_data.labels = packageDataPerPeriod.data.map((download: IDownloadPeriod) => {
-          return this.datePipe.transform(download.period, 'MMM d');
+        chart_data.labels = packageDataPerPeriod.downloads.map((download: IDownloadStats) => {
+          return this.datePipe.transform(download.date, 'MMM d');
         });
       }
       // parse the result into a ChartDataSets type
@@ -81,8 +84,8 @@ export class DashboardComponent implements OnInit {
   }
 
   private parseDataSet(packageHistory: IPackageDownloadHistory): ChartDataSets {
-    const totalDownloads = packageHistory.data.map((data: IDownloadPeriod) => {
-      return data.downloads;
+    const totalDownloads = packageHistory.downloads.map((data: IDownloadStats) => {
+      return data.count;
     });
 
     return {
@@ -105,99 +108,99 @@ export class DashboardComponent implements OnInit {
     return [
       {
         id: 'entity-framework',
-        data: [
+        downloads: [
           {
-            period: new Date(2018, 2, 18),
-            downloads: 1995642
+            date: new Date(2018, 2, 18),
+            count: 1995642
           },
           {
-            period: new Date(2018, 2, 25),
-            downloads: 1950976
+            date: new Date(2018, 2, 25),
+            count: 1950976
           },
           {
-            period: new Date(2018, 3, 4),
-            downloads: 1951476
+            date: new Date(2018, 3, 4),
+            count: 1951476
           },
           {
-            period: new Date(2018, 3, 11),
-            downloads: 1952476
+            date: new Date(2018, 3, 11),
+            count: 1952476
           },
           {
-            period: new Date(2018, 3, 18),
-            downloads: 1953476
+            date: new Date(2018, 3, 18),
+            count: 1953476
           },
           {
-            period: new Date(2018, 3, 25),
-            downloads: 1954476
+            date: new Date(2018, 3, 25),
+            count: 1954476
           },
           {
-            period: new Date(2018, 4, 1),
-            downloads: 1955476
+            date: new Date(2018, 4, 1),
+            count: 1955476
           },
           {
-            period: new Date(2018, 4, 8),
-            downloads: 1956476
+            date: new Date(2018, 4, 8),
+            count: 1956476
           },
           {
-            period: new Date(2018, 4, 15),
-            downloads: 1957476
+            date: new Date(2018, 4, 15),
+            count: 1957476
           },
           {
-            period: new Date(2018, 4, 22),
-            downloads: 1958476
+            date: new Date(2018, 4, 22),
+            count: 1958476
           },
           {
-            period: new Date(2018, 4, 29),
-            downloads: 1959476
+            date: new Date(2018, 4, 29),
+            count: 1959476
           }
         ]
       },
       {
         id: 'dapper',
-        data: [
+        downloads: [
           {
-            period: new Date(2018, 2, 18),
-            downloads: 1895642
+            date: new Date(2018, 2, 18),
+            count: 1895642
           },
           {
-            period: new Date(2018, 2, 25),
-            downloads: 1850976
+            date: new Date(2018, 2, 25),
+            count: 1850976
           },
           {
-            period: new Date(2018, 3, 4),
-            downloads: 1851476
+            date: new Date(2018, 3, 4),
+            count: 1851476
           },
           {
-            period: new Date(2018, 3, 11),
-            downloads: 1852476
+            date: new Date(2018, 3, 11),
+            count: 1852476
           },
           {
-            period: new Date(2018, 3, 18),
-            downloads: 1853476
+            date: new Date(2018, 3, 18),
+            count: 1853476
           },
           {
-            period: new Date(2018, 3, 25),
-            downloads: 1854476
+            date: new Date(2018, 3, 25),
+            count: 1854476
           },
           {
-            period: new Date(2018, 4, 1),
-            downloads: 1855476
+            date: new Date(2018, 4, 1),
+            count: 1855476
           },
           {
-            period: new Date(2018, 4, 8),
-            downloads: 1856476
+            date: new Date(2018, 4, 8),
+            count: 1856476
           },
           {
-            period: new Date(2018, 4, 15),
-            downloads: 1857476
+            date: new Date(2018, 4, 15),
+            count: 1857476
           },
           {
-            period: new Date(2018, 4, 22),
-            downloads: 1858476
+            date: new Date(2018, 4, 22),
+            count: 1858476
           },
           {
-            period: new Date(2018, 4, 29),
-            downloads: 1859476
+            date: new Date(2018, 4, 29),
+            count: 1859476
           }
         ]
       }
@@ -207,50 +210,50 @@ export class DashboardComponent implements OnInit {
   private getNextMockedData(): IPackageDownloadHistory {
     return {
       id: 'ef-core',
-      data: [
+      downloads: [
         {
-          period: new Date(2018, 2, 18),
-          downloads: 1795642
+          date: new Date(2018, 2, 18),
+          count: 1795642
         },
         {
-          period: new Date(2018, 2, 25),
-          downloads: 1750976
+          date: new Date(2018, 2, 25),
+          count: 1750976
         },
         {
-          period: new Date(2018, 3, 4),
-          downloads: 1751476
+          date: new Date(2018, 3, 4),
+          count: 1751476
         },
         {
-          period: new Date(2018, 3, 11),
-          downloads: 1752476
+          date: new Date(2018, 3, 11),
+          count: 1752476
         },
         {
-          period: new Date(2018, 3, 18),
-          downloads: 1753476
+          date: new Date(2018, 3, 18),
+          count: 1753476
         },
         {
-          period: new Date(2018, 3, 25),
-          downloads: 1754476
+          date: new Date(2018, 3, 25),
+          count: 1754476
         },
         {
-          period: new Date(2018, 4, 1),
-          downloads: 1852676
+          date: new Date(2018, 4, 1),
+          count: 1852676
         },
         {
-          period: new Date(2018, 4, 8),
-          downloads: 2056476
+          date: new Date(2018, 4, 8),
+          count: 2056476
         },
         {
-          period: new Date(2018, 4, 15),
-          downloads: 2157476
+          date: new Date(2018, 4, 15),
+          count: 2157476
         },
         {
-          period: new Date(2018, 4, 22),
-          downloads: 2258476
+          date: new Date(2018, 4, 22),
+          count: 2258476
         },
         {
-          period: new Date(2018, 4, 29),
-          downloads: 2299476
+          date: new Date(2018, 4, 29),
+          count: 2299476
         }
       ]
     };

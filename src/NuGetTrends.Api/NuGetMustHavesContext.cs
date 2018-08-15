@@ -1,3 +1,5 @@
+using System;
+using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
 
 namespace NuGetTrends.Api
@@ -9,6 +11,7 @@ namespace NuGetTrends.Api
         { }
 
         public DbSet<NPackage> NPackages { get; set; }
+        public DbSet<Downloads> Downloads { get; set; }
     }
 
     public class NPackage
@@ -19,5 +22,15 @@ namespace NuGetTrends.Api
         public int DownloadCount { get; set; }
         public string GalleryDetailsUrl { get; set; }
         public string IconUrl { get; set; }
+    }
+
+    public class Downloads
+    {
+        public int Id { get; set; }
+        public int Count { get; set; }
+        public DateTime Date { get; set; }
+        [Column("Package_Id")]
+        public int PackageId { get; set; }
+
     }
 }
