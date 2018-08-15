@@ -55,7 +55,7 @@ namespace NuGetTrends.Api
 
             services
                 .AddEntityFrameworkSqlServer()
-                .AddDbContext<NuGetMustHavesContext>(options =>
+                .AddDbContextPool<NuGetMustHavesContext>(options =>
                 {
                     options.UseSqlServer(Configuration.GetConnectionString("NuGetMustHaves"));
                     if (_hostingEnvironment.IsDevelopment())
