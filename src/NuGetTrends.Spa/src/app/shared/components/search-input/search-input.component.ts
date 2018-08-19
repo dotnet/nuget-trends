@@ -61,4 +61,15 @@ export class SearchInputComponent implements AfterViewInit {
         this.searchBox.nativeElement.focus();
       });
   }
+
+  onBackspace() {
+   if (!this.searchBox.nativeElement.value) {
+     this.showResults = false;
+   }
+  }
+
+  onKeypress() {
+    this.showResults = true;
+  }
+
 }
