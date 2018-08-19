@@ -7,6 +7,20 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGetTrends.Api", "src\NuGe
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGet.Protocol.Catalog", "src\NuGet.Protocol.Catalog\NuGet.Protocol.Catalog.csproj", "{9691BF79-1E62-476B-85BA-5F7A06939E47}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NuGetTrends.Data", "src\NuGetTrends.Data\NuGetTrends.Data.csproj", "{473984CE-0211-406E-B545-C417BB5B79EC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NuGetTrends.Scheduler", "src\NuGetTrends.Scheduler\NuGetTrends.Scheduler.csproj", "{A6E228CA-5E81-4B3C-82E3-5CF18BB0784D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{AD05B453-E249-4C71-84C4-B30F527DF9DB}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+		.gitattributes = .gitattributes
+		.gitignore = .gitignore
+		src\Directory.Build.props = src\Directory.Build.props
+		docker-compose.yml = docker-compose.yml
+		global.json = global.json
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +35,14 @@ Global
 		{9691BF79-1E62-476B-85BA-5F7A06939E47}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9691BF79-1E62-476B-85BA-5F7A06939E47}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9691BF79-1E62-476B-85BA-5F7A06939E47}.Release|Any CPU.Build.0 = Release|Any CPU
+		{473984CE-0211-406E-B545-C417BB5B79EC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{473984CE-0211-406E-B545-C417BB5B79EC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{473984CE-0211-406E-B545-C417BB5B79EC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{473984CE-0211-406E-B545-C417BB5B79EC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A6E228CA-5E81-4B3C-82E3-5CF18BB0784D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A6E228CA-5E81-4B3C-82E3-5CF18BB0784D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A6E228CA-5E81-4B3C-82E3-5CF18BB0784D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A6E228CA-5E81-4B3C-82E3-5CF18BB0784D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

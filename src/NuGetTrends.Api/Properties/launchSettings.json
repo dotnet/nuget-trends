@@ -17,7 +17,7 @@
         "ASPNETCORE_ENVIRONMENT": "Development"
       }
     },
-    "NuGetTrends": {
+    "NuGetTrends.Api": {
       "commandName": "Project",
       "launchBrowser": true,
       "launchUrl": "swagger",

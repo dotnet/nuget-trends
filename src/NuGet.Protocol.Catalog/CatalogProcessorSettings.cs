@@ -1,4 +1,4 @@
-﻿// Copyright (c) .NET Foundation. All rights reserved.
+// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
@@ -7,7 +7,7 @@ namespace NuGet.Protocol.Catalog
 {
     /// <summary>
     /// Settings for how <see cref="CatalogProcessor" /> should behave. Defaults to processing all catalog items on
-    /// <see cref="https://api.nuget.org/v3/index.json"/>.
+    /// <see href="https://api.nuget.org/v3/index.json"/>.
     /// </summary>
     public class CatalogProcessorSettings
     {

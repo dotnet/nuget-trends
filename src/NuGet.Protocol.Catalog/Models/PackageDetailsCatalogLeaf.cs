@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 
-namespace NuGet.Protocol.Catalog
+namespace NuGet.Protocol.Catalog.Models
 {
     public class PackageDetailsCatalogLeaf : CatalogLeaf
     {

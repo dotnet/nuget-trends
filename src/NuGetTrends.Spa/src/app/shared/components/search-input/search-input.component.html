@@ -1,6 +1,6 @@
 <section class="filter-wrapper">
   <div class="keyword-wrapper control" [ngClass]="{'is-large is-loading' : isSearching}">
-    <input class="input is-large" type="text" placeholder="" #searchBox [formControl]="queryField" />
+    <input autofocus class="input is-large" type="text" placeholder="" #searchBox [formControl]="queryField" />
     <span class="icon is-medium is-left">
       <i class="fa fa-search"></i>
     </span>

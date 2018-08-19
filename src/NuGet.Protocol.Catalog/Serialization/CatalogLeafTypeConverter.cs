@@ -1,12 +1,13 @@
-﻿// Copyright (c) .NET Foundation. All rights reserved.
+// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json;
+using NuGet.Protocol.Catalog.Models;
 
-namespace NuGet.Protocol.Catalog
+namespace NuGet.Protocol.Catalog.Serialization
 {
     internal class CatalogLeafTypeConverter : BaseCatalogLeafConverter
     {

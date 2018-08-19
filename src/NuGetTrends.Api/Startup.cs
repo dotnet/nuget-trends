@@ -9,7 +9,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using NuGetTrends.Api.Importing;
+using NuGetTrends.Data;
 using Swashbuckle.AspNetCore.Swagger;
 
 namespace NuGetTrends.Api
@@ -83,10 +83,6 @@ namespace NuGetTrends.Api
                 var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
                 c.IncludeXmlComments(xmlPath);
             });
-
-            services.AddScoped<CatalogCursorStore>();
-            services.AddScoped<CatalogLeafProcessor>();
-            services.AddScoped<NuGetCatalogImporter>();
         }
 
         public void Configure(IApplicationBuilder app)

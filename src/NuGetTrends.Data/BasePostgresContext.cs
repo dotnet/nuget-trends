@@ -5,7 +5,7 @@ using Npgsql;
 using Npgsql.NameTranslation;
 using System.Text.RegularExpressions;
 
-namespace NuGetTrends.Api
+namespace NuGetTrends.Data
 {
     // https://github.com/npgsql/Npgsql.EntityFrameworkCore.PostgreSQL/issues/21
     public abstract class BasePostgresContext : DbContext
