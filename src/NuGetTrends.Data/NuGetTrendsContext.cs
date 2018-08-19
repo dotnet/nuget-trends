@@ -1,9 +1,8 @@
 using System;
 using Microsoft.EntityFrameworkCore;
-using NuGet.Protocol.Catalog;
-using NuGetTrends.Api.Importing;
+using NuGet.Protocol.Catalog.Models;
 
-namespace NuGetTrends.Api
+namespace NuGetTrends.Data
 {
     public class NuGetTrendsContext : BasePostgresContext
     {
@@ -23,7 +22,7 @@ namespace NuGetTrends.Api
                 .Entity<Cursor>()
                 .HasData(new Cursor
                 {
-                    Id = CatalogCursorStore.CursorId,
+                    Id = "CursorId",
                     Value = DateTimeOffset.MinValue
                 });
         }

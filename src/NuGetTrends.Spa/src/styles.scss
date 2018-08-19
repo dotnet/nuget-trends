@@ -1,15 +1,18 @@
-@import '../node_modules/bulma/sass/utilities/initial-variables';
+/* Font Awesome */
 $fa-font-path: "../node_modules/font-awesome/fonts";
 @import "../node_modules/font-awesome/scss/font-awesome.scss";
 
+/* Bulma Color Overrides*/
+@import './colors';
 
+@import '../node_modules/bulma/bulma.sass';
 /* To have a sticky footer. https://philipwalton.github.io/solved-by-flexbox/demos/sticky-footer/*/
 .site {
-    display: flex;
-    min-height: 100vh;
-    flex-direction: column;
-  }
-  
-  .site-content {
-    flex: 1;
-  }
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+}
+
+.site-content {
+  flex: 1;
+}

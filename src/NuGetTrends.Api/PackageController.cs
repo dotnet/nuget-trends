@@ -1,14 +1,11 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Razor.Language.Intermediate;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Query.Expressions;
 
-namespace NuGetTrends.Api.Packages
+namespace NuGetTrends.Api
 {
     [Route("api/[controller]")]
     [ApiController]
@@ -54,7 +51,7 @@ namespace NuGetTrends.Api.Packages
                         select new
                         {
                             dpw.Key.Date,
-                            Count = dpw.Sum(c => c.Count)
+                            Count = dpw.Average(c => c.Count)
                         } as object
                 } as object;
 
