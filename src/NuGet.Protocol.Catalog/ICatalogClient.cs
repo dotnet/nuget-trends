@@ -3,6 +3,7 @@
 
 using System;
 using System.Threading.Tasks;
+using NuGet.Protocol.Catalog.Models;
 
 namespace NuGet.Protocol.Catalog
 {

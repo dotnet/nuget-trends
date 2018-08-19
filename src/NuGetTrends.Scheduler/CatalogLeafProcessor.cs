@@ -1,6 +1,7 @@
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NuGet.Protocol.Catalog;
+using NuGet.Protocol.Catalog.Models;
 using NuGetTrends.Data;
 
 namespace NuGetTrends.Scheduler

@@ -1,6 +1,6 @@
 using System;
 using Microsoft.EntityFrameworkCore;
-using NuGet.Protocol.Catalog;
+using NuGet.Protocol.Catalog.Models;
 
 namespace NuGetTrends.Data
 {

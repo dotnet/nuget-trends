@@ -1,14 +1,10 @@
-using System;
-using System.IO;
-using System.Reflection;
+using Hangfire;
+using Hangfire.MemoryStorage;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using NuGetTrends.Data;
 
 namespace NuGetTrends.Scheduler
@@ -16,15 +12,12 @@ namespace NuGetTrends.Scheduler
     public class Startup
     {
         private readonly IHostingEnvironment _hostingEnvironment;
-        private readonly ILoggerFactory _loggerFactory;
         public IConfiguration Configuration { get; }
 
         public Startup(
             IConfiguration configuration,
-            IHostingEnvironment hostingEnvironment,
-            ILoggerFactory loggerFactory)
+            IHostingEnvironment hostingEnvironment)
         {
-            _loggerFactory = loggerFactory;
             Configuration = configuration;
             _hostingEnvironment = hostingEnvironment;
         }
@@ -42,6 +35,11 @@ namespace NuGetTrends.Scheduler
                     }
                 });
 
+            // TODO: Use Postgres storage instead:
+            // Install: Hangfire.PostgreSql
+            // Configure: config.UsePostgreSqlStorage(Configuration.GetConnectionString("HangfireConnection")
+            services.AddHangfire(config => config.UseStorage(new MemoryStorage()));
+
             services.AddScoped<CatalogCursorStore>();
             services.AddScoped<CatalogLeafProcessor>();
             services.AddScoped<NuGetCatalogImporter>();
@@ -51,12 +49,16 @@ namespace NuGetTrends.Scheduler
         {
             if (_hostingEnvironment.IsDevelopment())
             {
-                //app.UseMiddleware<ExceptionInResponseMiddleware>();
+                app.UseDeveloperExceptionPage();
             }
             else
             {
                 app.UseHsts();
             }
+
+            // TODO: access control
+            app.UseHangfireDashboard();
+            app.UseHangfireServer();
 
             app.UseHttpsRedirection();
         }
