@@ -50,7 +50,7 @@ namespace NuGetTrends.Api.Packages
                         let week = dc.Date.AddDays(-(int)dc.Date.DayOfWeek).Date
                         group dc by week
                         into dpw
-                        orderby dpw.Key descending
+                        orderby dpw.Key
                         select new
                         {
                             dpw.Key.Date,
