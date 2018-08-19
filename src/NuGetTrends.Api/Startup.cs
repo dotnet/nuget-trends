@@ -91,10 +91,6 @@ namespace NuGetTrends.Api
 
         public void Configure(IApplicationBuilder app)
         {
-            using (var p = app.ApplicationServices.CreateScope())
-            {
-                p.ServiceProvider.GetRequiredService<NuGetCatalogImporter>().Import().Wait();
-            }
             if (_hostingEnvironment.IsDevelopment())
             {
                 app.UseCors("AllowAll");
