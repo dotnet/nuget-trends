@@ -9,6 +9,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using NuGetTrends.Api.Importing;
 using Swashbuckle.AspNetCore.Swagger;
 
 namespace NuGetTrends.Api
@@ -64,6 +65,15 @@ namespace NuGetTrends.Api
                         logger.LogInformation("Enabling EF Core " + nameof(options.EnableSensitiveDataLogging));
                         options.EnableSensitiveDataLogging();
                     }
+                })
+                .AddEntityFrameworkNpgsql()
+                .AddDbContext<NuGetTrendsContext>(options =>
+                {
+                    options.UseNpgsql(Configuration.GetConnectionString("NuGetTrends"));
+                    if (_hostingEnvironment.IsDevelopment())
+                    {
+                        options.EnableSensitiveDataLogging();
+                    }
                 });
 
             services.AddSwaggerGen(c =>
@@ -73,10 +83,18 @@ namespace NuGetTrends.Api
                 var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
                 c.IncludeXmlComments(xmlPath);
             });
+
+            services.AddScoped<CatalogCursorStore>();
+            services.AddScoped<CatalogLeafProcessor>();
+            services.AddScoped<NuGetCatalogImporter>();
         }
 
         public void Configure(IApplicationBuilder app)
         {
+            using (var p = app.ApplicationServices.CreateScope())
+            {
+                p.ServiceProvider.GetRequiredService<NuGetCatalogImporter>().Import().Wait();
+            }
             if (_hostingEnvironment.IsDevelopment())
             {
                 app.UseCors("AllowAll");
