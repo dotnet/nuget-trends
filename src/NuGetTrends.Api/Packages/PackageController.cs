@@ -54,7 +54,7 @@ namespace NuGetTrends.Api.Packages
                         select new
                         {
                             dpw.Key.Date,
-                            Count = dpw.Sum(c => c.Count)
+                            Count = dpw.Average(c => c.Count)
                         } as object
                 } as object;
 
