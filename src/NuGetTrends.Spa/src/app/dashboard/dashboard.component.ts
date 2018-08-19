@@ -2,19 +2,26 @@ import {Component, OnInit} from '@angular/core';
 import {Chart, ChartDataSets, ChartOptions} from 'chart.js';
 import {DatePipe} from '@angular/common';
 
-import {IPackageDownloadHistory, IDownloadStats, PackageToColorMap } from './common/package-models';
-import {PackagesService} from "./common/packages.service";
+import {IPackageDownloadHistory, IDownloadStats, PackageToColorMap} from './common/package-models';
+import {PackagesService, AddPackageService} from './common/';
 
 @Component({
   selector: 'app-dashboard',
   templateUrl: './dashboard.component.html',
-  styleUrls: ['./dashboard.component.scss']
+  styleUrls: ['./dashboard.component.scss'],
+  providers: [AddPackageService]
 })
 export class DashboardComponent implements OnInit {
 
   constructor(
     private packagesService: PackagesService,
+    private addPackageService: AddPackageService,
     private datePipe: DatePipe) {
+
+    this.addPackageService.packageAdded$.subscribe(
+      (packageHistory: IPackageDownloadHistory) => {
+        this.addPackageToChart(packageHistory);
+      });
   }
 
   trendChart: Chart;
@@ -22,40 +29,65 @@ export class DashboardComponent implements OnInit {
   ctx: any;
   colorsMap: PackageToColorMap = {};
 
-  ngOnInit() {
-    this.colorsMap['entity-framework'] = '#B4F30D';
-    this.colorsMap['dapper'] = '#0D45F3';
-    this.colorsMap['ef-core'] = '#F30D30';
+  private chartData = {labels: [], datasets: []};
 
-    this.populateChart();
+  ngOnInit() {
+    this.colorsMap['EntityFramework'] = '#B4F30D';
+    this.colorsMap['Dapper'] = '#0D45F3';
+    this.colorsMap['ef-core'] = '#F30D30';
   }
 
-  addNextDataSet() {
-    const nextPackage = this.getNextMockedData();
-    const dataSet = this.parseDataSet(nextPackage);
-    this.trendChart.config.data.datasets.push(dataSet);
+  /**
+   * Added a new dataset to the chart
+   * @param packageHistory
+   */
+  private addPackageToChart(packageHistory: IPackageDownloadHistory) {
+    const dataSet = this.parseDataSet(packageHistory);
+
+    if (this.chartData.datasets.length === 0) {
+      this.initializeChart(packageHistory);
+    } else {
+      this.chartData.datasets.push(dataSet);
+    }
     this.trendChart.update();
   }
 
-  populateChart() {
-    const data = this.getMockedData();
-    const chart_data = {labels: [], datasets: []};
 
-    data.map((packageDataPerPeriod: IPackageDownloadHistory, i: number) => {
-      // create the labels
-      if (i === 0) {
-        chart_data.labels = packageDataPerPeriod.downloads.map((download: IDownloadStats) => {
-          return this.datePipe.transform(download.date, 'MMM d');
-        });
-      }
-      // parse the result into a ChartDataSets type
-      chart_data.datasets.push(this.parseDataSet(packageDataPerPeriod));
+  /**
+   * Initializes the chart with the first added package
+   * @param firstPackageData
+   */
+  private initializeChart(firstPackageData: IPackageDownloadHistory) {
+    this.chartData.labels = firstPackageData.downloads.map((download: IDownloadStats) => {
+      return this.datePipe.transform(download.date, 'MMM d');
     });
 
-    const chart_options: ChartOptions = {
+    this.chartData.datasets.push(this.parseDataSet(firstPackageData));
+
+    Chart.defaults.global.defaultFontSize = 13;
+
+    const chartOptions: ChartOptions = {
       responsive: true,
       maintainAspectRatio: false,
+      legend: {
+        display: false
+      },
+      tooltips: {
+        callbacks: {
+          label: (tooltipItem: any, data: any) => {
+            let label = data.datasets[tooltipItem.datasetIndex].label || 'NuGet Package';
+            if (label) {
+              label += ': ';
+            }
+            label += tooltipItem.yLabel.toLocaleString();
+            return label;
+          }
+        }
+      },
       scales: {
+        gridLines: {
+          display: true
+        },
         xAxes: [{
           display: true,
           scaleLabel: {
@@ -65,8 +97,11 @@ export class DashboardComponent implements OnInit {
         }],
         yAxes: [{
           display: true,
+          ticks: {
+            callback: (value: string, index: number, values: any) => value.toLocaleString(),
+          },
           scaleLabel: {
-            display: true,
+            display: false,
             labelString: 'Downloads'
           }
         }]
@@ -78,11 +113,15 @@ export class DashboardComponent implements OnInit {
 
     this.trendChart = new Chart(this.ctx, {
       type: 'line',
-      data: chart_data,
-      options: chart_options
+      data: this.chartData,
+      options: chartOptions
     });
   }
 
+  /**
+   * Parses an IPackageDownloadHistory to a Chart.js type
+   * @param packageHistory
+   */
   private parseDataSet(packageHistory: IPackageDownloadHistory): ChartDataSets {
     const totalDownloads = packageHistory.downloads.map((data: IDownloadStats) => {
       return data.count;
@@ -97,165 +136,10 @@ export class DashboardComponent implements OnInit {
       pointBackgroundColor: this.colorsMap[packageHistory.id],
       pointBorderColor: '#fff',
       pointBorderWidth: 1,
-      pointHoverBackgroundColor: '#ffffff',
+      pointHoverBackgroundColor: this.colorsMap[packageHistory.id],
       pointHoverBorderColor: this.colorsMap[packageHistory.id],
       fill: false,
       data: totalDownloads,
-    };
-  }
-
-  private getMockedData(): IPackageDownloadHistory[] {
-    return [
-      {
-        id: 'entity-framework',
-        downloads: [
-          {
-            date: new Date(2018, 2, 18),
-            count: 1995642
-          },
-          {
-            date: new Date(2018, 2, 25),
-            count: 1950976
-          },
-          {
-            date: new Date(2018, 3, 4),
-            count: 1951476
-          },
-          {
-            date: new Date(2018, 3, 11),
-            count: 1952476
-          },
-          {
-            date: new Date(2018, 3, 18),
-            count: 1953476
-          },
-          {
-            date: new Date(2018, 3, 25),
-            count: 1954476
-          },
-          {
-            date: new Date(2018, 4, 1),
-            count: 1955476
-          },
-          {
-            date: new Date(2018, 4, 8),
-            count: 1956476
-          },
-          {
-            date: new Date(2018, 4, 15),
-            count: 1957476
-          },
-          {
-            date: new Date(2018, 4, 22),
-            count: 1958476
-          },
-          {
-            date: new Date(2018, 4, 29),
-            count: 1959476
-          }
-        ]
-      },
-      {
-        id: 'dapper',
-        downloads: [
-          {
-            date: new Date(2018, 2, 18),
-            count: 1895642
-          },
-          {
-            date: new Date(2018, 2, 25),
-            count: 1850976
-          },
-          {
-            date: new Date(2018, 3, 4),
-            count: 1851476
-          },
-          {
-            date: new Date(2018, 3, 11),
-            count: 1852476
-          },
-          {
-            date: new Date(2018, 3, 18),
-            count: 1853476
-          },
-          {
-            date: new Date(2018, 3, 25),
-            count: 1854476
-          },
-          {
-            date: new Date(2018, 4, 1),
-            count: 1855476
-          },
-          {
-            date: new Date(2018, 4, 8),
-            count: 1856476
-          },
-          {
-            date: new Date(2018, 4, 15),
-            count: 1857476
-          },
-          {
-            date: new Date(2018, 4, 22),
-            count: 1858476
-          },
-          {
-            date: new Date(2018, 4, 29),
-            count: 1859476
-          }
-        ]
-      }
-    ];
-  }
-
-  private getNextMockedData(): IPackageDownloadHistory {
-    return {
-      id: 'ef-core',
-      downloads: [
-        {
-          date: new Date(2018, 2, 18),
-          count: 1795642
-        },
-        {
-          date: new Date(2018, 2, 25),
-          count: 1750976
-        },
-        {
-          date: new Date(2018, 3, 4),
-          count: 1751476
-        },
-        {
-          date: new Date(2018, 3, 11),
-          count: 1752476
-        },
-        {
-          date: new Date(2018, 3, 18),
-          count: 1753476
-        },
-        {
-          date: new Date(2018, 3, 25),
-          count: 1754476
-        },
-        {
-          date: new Date(2018, 4, 1),
-          count: 1852676
-        },
-        {
-          date: new Date(2018, 4, 8),
-          count: 2056476
-        },
-        {
-          date: new Date(2018, 4, 15),
-          count: 2157476
-        },
-        {
-          date: new Date(2018, 4, 22),
-          count: 2258476
-        },
-        {
-          date: new Date(2018, 4, 29),
-          count: 2299476
-        }
-      ]
     };
   }
 }

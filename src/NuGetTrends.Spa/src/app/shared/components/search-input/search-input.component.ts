@@ -3,8 +3,8 @@ import {FormControl} from '@angular/forms';
 import {debounceTime, distinctUntilChanged, filter, map, switchMap, tap} from 'rxjs/operators';
 import {fromEvent, Observable} from 'rxjs';
 
-import {PackagesService} from '../../../dashboard/common/packages.service';
-import {IPackageSearchResult} from '../../../dashboard/common/package-models';
+import {PackagesService, AddPackageService} from '../../../dashboard/common/';
+import {IPackageDownloadHistory, IPackageSearchResult} from '../../../dashboard/common/package-models';
 
 @Component({
   selector: 'app-search-input',
@@ -21,7 +21,10 @@ export class SearchInputComponent implements AfterViewInit {
 
   private readonly searchComponentNode: any;
 
-  constructor(private packagesService: PackagesService, private element: ElementRef) {
+  constructor(
+    private packagesService: PackagesService,
+    private addPackageService: AddPackageService,
+    private element: ElementRef) {
     this.searchComponentNode = this.element.nativeElement.parentNode;
   }
 
@@ -51,9 +54,11 @@ export class SearchInputComponent implements AfterViewInit {
    */
   packageSelected(packageId: string) {
     this.packagesService.getPackageDownloadHistory(packageId)
-      .subscribe(p => console.log(p));
-    this.showResults = false;
-    this.queryField.setValue('');
-    this.searchBox.nativeElement.focus();
+      .subscribe((packageHistory: IPackageDownloadHistory) => {
+        this.addPackageService.addPackage(packageHistory);
+        this.showResults = false;
+        this.queryField.setValue('');
+        this.searchBox.nativeElement.focus();
+      });
   }
 }

@@ -16,7 +16,7 @@ export class PackagesService {
     return this.httpClient.get<IPackageSearchResult>(`${this.baseUrl}/search?q=${term}`);
   }
 
-  getPackageDownloadHistory(term: string): Observable<any> {
+  getPackageDownloadHistory(term: string): Observable<IPackageDownloadHistory> {
     // TODO: hard coding 12 here until dataset is up-to-date
     return this.httpClient.get<IPackageDownloadHistory>(`${this.baseUrl}/history/${term}?months=12`);
   }

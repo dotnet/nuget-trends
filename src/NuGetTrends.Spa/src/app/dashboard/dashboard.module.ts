@@ -1,6 +1,6 @@
 import {NgModule} from '@angular/core';
 import {DashboardComponent} from './dashboard.component';
-import {PackagesService} from './common/packages.service';
+import {PackagesService, AddPackageService} from './common/';
 import {SharedModule} from '../shared/shared.module';
 
 @NgModule({
@@ -8,7 +8,7 @@ import {SharedModule} from '../shared/shared.module';
   declarations: [
     DashboardComponent
   ],
-  providers: [PackagesService],
+  providers: [PackagesService, AddPackageService],
   exports: [DashboardComponent]
 })
 export class DashboardModule {}
