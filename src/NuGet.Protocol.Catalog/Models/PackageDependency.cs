@@ -7,8 +7,10 @@ namespace NuGet.Protocol.Catalog.Models
 {
     public class PackageDependency
     {
+        public int Id { get; set; }
+
         [JsonProperty("id")]
-        public string Id { get; set; }
+        public string DependencyId { get; set; }
 
         [JsonProperty("range")]
         public string Range { get; set; }

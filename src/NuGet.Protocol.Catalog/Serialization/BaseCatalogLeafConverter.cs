@@ -24,8 +24,7 @@ namespace NuGet.Protocol.Catalog.Serialization
 
         public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
         {
-            string output;
-            if (_fromType.TryGetValue((CatalogLeafType)value, out output))
+            if (_fromType.TryGetValue((CatalogLeafType)value, out var output))
             {
                 writer.WriteValue(output);
             }

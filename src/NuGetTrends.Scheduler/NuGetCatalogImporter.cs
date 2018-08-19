@@ -1,6 +1,8 @@
 using System;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
+using Hangfire;
 using Microsoft.Extensions.Logging;
 using NuGet.Protocol.Catalog;
 
@@ -25,8 +27,12 @@ namespace NuGetTrends.Scheduler
             _loggerFactory = loggerFactory;
         }
 
-        public async Task Import()
+        public async Task Import(IJobCancellationToken token)
         {
+            var logger = _loggerFactory.CreateLogger<NuGetCatalogImporter>();
+
+            logger.LogInformation("Starting importing catalog.");
+
             var httpClient = _httpClientFactory.CreateClient("nuget");
             var catalogClient = new CatalogClient(httpClient, _loggerFactory.CreateLogger<CatalogClient>());
             var settings = new CatalogProcessorSettings
@@ -42,16 +48,9 @@ namespace NuGetTrends.Scheduler
                 settings,
                 _loggerFactory.CreateLogger<CatalogProcessor>());
 
-            bool success;
-            do
-            {
-                success = await catalogProcessor.ProcessAsync();
-                if (!success)
-                {
-                    Console.WriteLine("Processing the catalog leafs failed. Retrying.");
-                }
-            }
-            while (!success);
+            await catalogProcessor.ProcessAsync(token.ShutdownToken);
+
+            logger.LogInformation("Finished importing catalog.");
         }
     }
 }

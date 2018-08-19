@@ -3,6 +3,7 @@
 
 using System;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -26,7 +27,7 @@ namespace NuGet.Protocol.Catalog
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        public Task<DateTimeOffset?> GetAsync()
+        public Task<DateTimeOffset?> GetAsync(CancellationToken token)
         {
             try
             {
@@ -41,7 +42,7 @@ namespace NuGet.Protocol.Catalog
             }
         }
 
-        public Task SetAsync(DateTimeOffset value)
+        public Task SetAsync(DateTimeOffset value, CancellationToken token)
         {
             var data = new Data { Value = value };
             var jsonString = JsonConvert.SerializeObject(data);

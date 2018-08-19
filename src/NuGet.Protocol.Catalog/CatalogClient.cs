@@ -4,6 +4,7 @@
 using System;
 using System.IO;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -24,17 +25,17 @@ namespace NuGet.Protocol.Catalog
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        public Task<CatalogIndex> GetIndexAsync(string indexUrl)
+        public Task<CatalogIndex> GetIndexAsync(string indexUrl, CancellationToken token)
         {
-            return DeserializeUrlAsync<CatalogIndex>(indexUrl);
+            return DeserializeUrlAsync<CatalogIndex>(indexUrl, token);
         }
 
-        public Task<CatalogPage> GetPageAsync(string pageUrl)
+        public Task<CatalogPage> GetPageAsync(string pageUrl, CancellationToken token)
         {
-            return DeserializeUrlAsync<CatalogPage>(pageUrl);
+            return DeserializeUrlAsync<CatalogPage>(pageUrl, token);
         }
 
-        public async Task<CatalogLeaf> GetLeafAsync(string leafUrl)
+        public async Task<CatalogLeaf> GetLeafAsync(string leafUrl, CancellationToken token)
         {
             // Buffer all of the JSON so we can parse twice. Once to determine the leaf type and once to deserialize
             // the entire thing to the proper leaf type.
@@ -53,32 +54,32 @@ namespace NuGet.Protocol.Catalog
             }
         }
 
-        private async Task<CatalogLeaf> GetLeafAsync(CatalogLeafType type, string leafUrl)
+        private async Task<CatalogLeaf> GetLeafAsync(CatalogLeafType type, string leafUrl, CancellationToken token)
         {
             switch (type)
             {
                 case CatalogLeafType.PackageDetails:
-                    return await GetPackageDetailsLeafAsync(leafUrl);
+                    return await GetPackageDetailsLeafAsync(leafUrl, token);
                 case CatalogLeafType.PackageDelete:
-                    return await GetPackageDeleteLeafAsync(leafUrl);
+                    return await GetPackageDeleteLeafAsync(leafUrl, token);
                 default:
                     throw new NotSupportedException($"The catalog leaf type '{type}' is not supported.");
             }
         }
 
-        public Task<PackageDeleteCatalogLeaf> GetPackageDeleteLeafAsync(string leafUrl)
+        public Task<CatalogLeaf> GetPackageDeleteLeafAsync(string leafUrl, CancellationToken token)
         {
-            return GetAndValidateLeafAsync<PackageDeleteCatalogLeaf>(CatalogLeafType.PackageDelete, leafUrl);
+            return GetAndValidateLeafAsync<PackageDeleteCatalogLeaf>(CatalogLeafType.PackageDelete, leafUrl, token);
         }
 
-        public Task<PackageDetailsCatalogLeaf> GetPackageDetailsLeafAsync(string leafUrl)
+        public Task<CatalogLeaf> GetPackageDetailsLeafAsync(string leafUrl, CancellationToken token)
         {
-            return GetAndValidateLeafAsync<PackageDetailsCatalogLeaf>(CatalogLeafType.PackageDetails, leafUrl);
+            return GetAndValidateLeafAsync<PackageDetailsCatalogLeaf>(CatalogLeafType.PackageDetails, leafUrl, token);
         }
 
-        private async Task<T> GetAndValidateLeafAsync<T>(CatalogLeafType type, string leafUrl) where T : CatalogLeaf
+        public async Task<CatalogLeaf> GetAndValidateLeafAsync<T>(CatalogLeafType type, string leafUrl, CancellationToken token) where T : CatalogLeaf
         {
-            var leaf = await DeserializeUrlAsync<T>(leafUrl);
+            var leaf = await DeserializeUrlAsync<T>(leafUrl, token);
 
             if (leaf.Type != type)
             {
@@ -100,11 +101,12 @@ namespace NuGet.Protocol.Catalog
             }
         }
 
-        private async Task<T> DeserializeUrlAsync<T>(string documentUrl)
+        private async Task<T> DeserializeUrlAsync<T>(string documentUrl, CancellationToken token)
         {
             _logger.LogDebug("Downloading {documentUrl} as a stream.", documentUrl);
 
-            using (var stream = await _httpClient.GetStreamAsync(documentUrl))
+            using (var response = await _httpClient.GetAsync(documentUrl, token))
+            using (var stream = await response.Content.ReadAsStreamAsync())
             using (var textReader = new StreamReader(stream))
             using (var jsonReader = new JsonTextReader(textReader))
             {

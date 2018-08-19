@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using NuGet.Protocol.Catalog;
 using NuGetTrends.Data;
@@ -8,24 +9,23 @@ namespace NuGetTrends.Scheduler
     public class CatalogCursorStore : ICursor
     {
         internal const string CursorId = "Catalog";
+        private readonly object[] _id = { CursorId };
         private readonly NuGetTrendsContext _context;
 
         public CatalogCursorStore(NuGetTrendsContext context) => _context = context;
 
-        public async Task<DateTimeOffset?> GetAsync()
+        public async Task<DateTimeOffset?> GetAsync(CancellationToken token)
         {
-            return (await _context.Cursors.FindAsync(CursorId))?.Value;
+            return (await _context.Cursors.FindAsync(_id, token))?.Value;
         }
 
-        public async Task SetAsync(DateTimeOffset value)
+        public async Task SetAsync(DateTimeOffset value, CancellationToken token)
         {
-            var cursor = new Cursor
-            {
-                Id = CursorId,
-                Value = value
-            };
-            _context.Attach(cursor);
-            await _context.SaveChangesAsync();
+            var cursor = await _context.Cursors.FindAsync(CursorId);
+            cursor.Value = value;
+            _context.Update(cursor);
+            await _context.SaveChangesAsync(token);
+
         }
     }
 }

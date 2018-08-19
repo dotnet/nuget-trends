@@ -1,7 +1,8 @@
-﻿// Copyright (c) .NET Foundation. All rights reserved.
+// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace NuGet.Protocol.Catalog
@@ -16,12 +17,13 @@ namespace NuGet.Protocol.Catalog
         /// Get the value of the cursor.
         /// </summary>
         /// <returns>The cursor value. Null if the cursor has no value yet.</returns>
-        Task<DateTimeOffset?> GetAsync();
+        Task<DateTimeOffset?> GetAsync(CancellationToken token);
 
         /// <summary>
         /// Set the value of the cursor.
         /// </summary>
         /// <param name="value">The new cursor value.</param>
-        Task SetAsync(DateTimeOffset value);
+        /// <param name="token">Token</param>
+        Task SetAsync(DateTimeOffset value, CancellationToken token);
     }
 }

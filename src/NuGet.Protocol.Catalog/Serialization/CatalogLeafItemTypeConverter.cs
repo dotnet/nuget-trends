@@ -26,11 +26,9 @@ namespace NuGet.Protocol.Catalog.Serialization
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
-            string stringValue = reader.Value as string;
-            if (stringValue != null)
+            if (reader.Value is string stringValue)
             {
-                CatalogLeafType output;
-                if (FromString.TryGetValue(stringValue, out output))
+                if (FromString.TryGetValue(stringValue, out var output))
                 {
                     return output;
                 }

@@ -2,6 +2,9 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NuGet.Protocol.Catalog.Models;
@@ -53,57 +56,48 @@ namespace NuGet.Protocol.Catalog
         /// chronological order. After a commit is completed, its commit timestamp is written to the cursor, i.e. when
         /// transitioning from commit timestamp A to B, A is written to the cursor so that it never is processed again.
         /// </summary>
-        /// <returns>True if all of the catalog leaves found were processed successfully.</returns>
-        public async Task<bool> ProcessAsync()
+        public async Task ProcessAsync(CancellationToken token)
         {
-            var catalogIndexUrl = await GetCatalogIndexUrlAsync();
+            var catalogIndexUrl = await GetCatalogIndexUrlAsync(token);
 
-            var minCommitTimestamp = await GetMinCommitTimestamp();
+            var minCommitTimestamp = await GetMinCommitTimestamp(token);
+
             _logger.LogInformation(
                 "Using time bounds {min:O} (exclusive) to {max:O} (inclusive).",
                 minCommitTimestamp,
                 _settings.MaxCommitTimestamp);
 
-            return await ProcessIndexAsync(catalogIndexUrl, minCommitTimestamp);
+            await ProcessIndexAsync(catalogIndexUrl, minCommitTimestamp, token);
         }
 
-        private async Task<bool> ProcessIndexAsync(string catalogIndexUrl, DateTimeOffset minCommitTimestamp)
+        private async Task ProcessIndexAsync(string catalogIndexUrl, DateTimeOffset minCommitTimestamp, CancellationToken token)
         {
-            var index = await _client.GetIndexAsync(catalogIndexUrl);
+            var index = await _client.GetIndexAsync(catalogIndexUrl, token);
 
             var pageItems = index.GetPagesInBounds(
                 minCommitTimestamp,
                 _settings.MaxCommitTimestamp);
+
             _logger.LogInformation(
                 "{pages} pages were in the time bounds, out of {totalPages}.",
                 pageItems.Count,
                 index.Items.Count);
 
-            var success = true;
-            for (var i = 0; i < pageItems.Count; i++)
+            foreach (var pageItem in pageItems)
             {
-                success = await ProcessPageAsync(minCommitTimestamp, pageItems[i]);
-                if (!success)
-                {
-                    _logger.LogWarning(
-                        "{unprocessedPages} out of {pages} pages were left incomplete due to a processing failure.",
-                        pageItems.Count - i,
-                        pageItems.Count);
-                    break;
-                }
+                await ProcessPageAsync(minCommitTimestamp, pageItem, token);
             }
-
-            return success;
         }
 
-        private async Task<bool> ProcessPageAsync(DateTimeOffset minCommitTimestamp, CatalogPageItem pageItem)
+        private async Task ProcessPageAsync(DateTimeOffset minCommitTimestamp, CatalogPageItem pageItem, CancellationToken token)
         {
-            var page = await _client.GetPageAsync(pageItem.Url);
+            var page = await _client.GetPageAsync(pageItem.Url, token);
 
             var leafItems = page.GetLeavesInBounds(
                 minCommitTimestamp,
                 _settings.MaxCommitTimestamp,
                 _settings.ExcludeRedundantLeaves);
+
             _logger.LogInformation(
                 "On page {page}, {leaves} out of {totalLeaves} were in the time bounds.",
                 pageItem.Url,
@@ -111,82 +105,62 @@ namespace NuGet.Protocol.Catalog
                 page.Items.Count);
 
             DateTimeOffset? newCursor = null;
-            var success = true;
-            for (var i = 0; i < leafItems.Count; i++)
-            {
-                var leafItem = leafItems[i];
 
-                if (newCursor.HasValue && newCursor.Value != leafItem.CommitTimestamp)
+            foreach (var batch in leafItems
+                .Select((v, i) => new { Index = i, Value = v })
+                .GroupBy(v => v.Index / 50)
+                .Select(v => v.Select(p => p.Value).ToList()))
+            {
+                var tasks = new List<Task<CatalogLeaf>>();
+                foreach (var leafItem in batch)
                 {
-                    await _cursor.SetAsync(newCursor.Value);
+                    newCursor = leafItem.CommitTimestamp;
+
+                    tasks.Add(ProcessLeafAsync(leafItem, token));
                 }
 
-                newCursor = leafItem.CommitTimestamp;
+                await Task.WhenAll(tasks);
 
-                success = await ProcessLeafAsync(leafItem);
-                if (!success)
+                foreach (var task in tasks)
                 {
-                    _logger.LogWarning(
-                        "{unprocessedLeaves} out of {leaves} leaves were left incomplete due to a processing failure.",
-                        leafItems.Count - i,
-                        leafItems.Count);
-                    break;
+                    if (task.Result is PackageDeleteCatalogLeaf del)
+                    {
+                        await _leafProcessor.ProcessPackageDeleteAsync(del, token);
+                    }
+                    else if (task.Result is PackageDetailsCatalogLeaf detail)
+                    {
+                        await _leafProcessor.ProcessPackageDetailsAsync(detail, token);
+                    }
+                    else
+                    {
+                        _logger.LogError("Unsupported leaf type: {type}.", task.Result.GetType());
+                    }
+
                 }
             }
 
-            if (newCursor.HasValue && success)
+            if (newCursor.HasValue)
             {
-                await _cursor.SetAsync(newCursor.Value);
+                await _cursor.SetAsync(newCursor.Value, token);
             }
-
-            return success;
         }
 
-        private async Task<bool> ProcessLeafAsync(CatalogLeafItem leafItem)
+        private Task<CatalogLeaf> ProcessLeafAsync(CatalogLeafItem leafItem, CancellationToken token)
         {
-            bool success;
-            try
+            switch (leafItem.Type)
             {
-                switch (leafItem.Type)
-                {
-                    case CatalogLeafType.PackageDelete:
-                        var packageDelete = await _client.GetPackageDeleteLeafAsync(leafItem.Url);
-                        success = await _leafProcessor.ProcessPackageDeleteAsync(packageDelete);
-                        break;
-                    case CatalogLeafType.PackageDetails:
-                        var packageDetails = await _client.GetPackageDetailsLeafAsync(leafItem.Url);
-                        success = await _leafProcessor.ProcessPackageDetailsAsync(packageDetails);
-                        break;
-                    default:
-                        throw new NotSupportedException($"The catalog leaf type '{leafItem.Type}' is not supported.");
-                }
+                case CatalogLeafType.PackageDelete:
+                    return _client.GetPackageDeleteLeafAsync(leafItem.Url, token);
+                case CatalogLeafType.PackageDetails:
+                    return _client.GetPackageDetailsLeafAsync(leafItem.Url, token);
+                default:
+                    throw new NotSupportedException($"The catalog leaf type '{leafItem.Type}' is not supported.");
             }
-            catch (Exception exception)
-            {
-                _logger.LogError(
-                    0,
-                    exception,
-                    "An exception was thrown while processing leaf {leafUrl}.",
-                    leafItem.Url);
-                success = false;
-            }
-
-            if (!success)
-            {
-                _logger.LogWarning(
-                    "Failed to process leaf {leafUrl} ({packageId} {packageVersion}, {leafType}).",
-                    leafItem.Url,
-                    leafItem.PackageId,
-                    leafItem.PackageVersion,
-                    leafItem.Type);
-            }
-
-            return success;
         }
 
-        private async Task<DateTimeOffset> GetMinCommitTimestamp()
+        private async Task<DateTimeOffset> GetMinCommitTimestamp(CancellationToken token)
         {
-            var minCommitTimestamp = await _cursor.GetAsync();
+            var minCommitTimestamp = await _cursor.GetAsync(token);
 
             minCommitTimestamp = minCommitTimestamp
                 ?? _settings.DefaultMinCommitTimestamp
@@ -200,13 +174,12 @@ namespace NuGet.Protocol.Catalog
             return minCommitTimestamp.Value;
         }
 
-        private async Task<string> GetCatalogIndexUrlAsync()
+        private async Task<string> GetCatalogIndexUrlAsync(CancellationToken token)
         {
             _logger.LogInformation("Getting catalog index URL from {serviceIndexUrl}.", _settings.ServiceIndexUrl);
-            string catalogIndexUrl;
             var sourceRepository = Repository.Factory.GetCoreV3(_settings.ServiceIndexUrl, FeedType.HttpV3);
-            var serviceIndexResource = await sourceRepository.GetResourceAsync<ServiceIndexResourceV3>();
-            catalogIndexUrl = serviceIndexResource.GetServiceEntryUri(CatalogResourceType)?.AbsoluteUri;
+            var serviceIndexResource = await sourceRepository.GetResourceAsync<ServiceIndexResourceV3>(token);
+            var catalogIndexUrl = serviceIndexResource.GetServiceEntryUri(CatalogResourceType)?.AbsoluteUri;
             if (catalogIndexUrl == null)
             {
                 throw new InvalidOperationException(

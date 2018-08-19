@@ -22,7 +22,7 @@ namespace NuGetTrends.Data
                 .Entity<Cursor>()
                 .HasData(new Cursor
                 {
-                    Id = "CursorId",
+                    Id = "Catalog",
                     Value = DateTimeOffset.MinValue
                 });
         }

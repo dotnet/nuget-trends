@@ -59,7 +59,7 @@ namespace NuGetTrends.Scheduler
             }
 
             // TODO: access control
-            app.UseHangfireDashboard();
+            app.UseHangfireDashboard("");
             app.UseHangfireServer();
 
             app.UseHttpsRedirection();
