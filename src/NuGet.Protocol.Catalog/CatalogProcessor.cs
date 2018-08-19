@@ -106,12 +106,13 @@ namespace NuGet.Protocol.Catalog
 
             DateTimeOffset? newCursor = null;
 
+            var tasks = new List<Task<CatalogLeaf>>();
+
             foreach (var batch in leafItems
                 .Select((v, i) => new { Index = i, Value = v })
                 .GroupBy(v => v.Index / 25)
-                .Select(v => v.Select(p => p.Value).ToList()))
+                .Select(v => v.Select(p => p.Value)))
             {
-                var tasks = new List<Task<CatalogLeaf>>();
                 foreach (var leafItem in batch)
                 {
                     newCursor = leafItem.CommitTimestamp;
@@ -136,6 +137,8 @@ namespace NuGet.Protocol.Catalog
                         _logger.LogError("Unsupported leaf type: {type}.", task.Result.GetType());
                     }
                 }
+
+                tasks.Clear();
             }
 
             if (newCursor.HasValue)
