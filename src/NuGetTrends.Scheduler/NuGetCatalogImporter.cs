@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NuGet.Protocol.Catalog;
 
-namespace NuGetTrends.Api.Importing
+namespace NuGetTrends.Scheduler
 {
     public class NuGetCatalogImporter
     {

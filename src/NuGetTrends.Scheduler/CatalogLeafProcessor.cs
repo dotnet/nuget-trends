@@ -1,21 +1,20 @@
-using System;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NuGet.Protocol.Catalog;
+using NuGetTrends.Data;
 
-namespace NuGetTrends.Api.Importing
+namespace NuGetTrends.Scheduler
 {
     public class CatalogLeafProcessor : ICatalogLeafProcessor
     {
-        private readonly IServiceProvider _provider;
+        private readonly NuGetTrendsContext _context;
         private readonly ILogger<CatalogLeafProcessor> _logger;
 
         public CatalogLeafProcessor(
-            IServiceProvider provider,
+            NuGetTrendsContext context,
             ILogger<CatalogLeafProcessor> logger)
         {
-            _provider = provider;
+            _context = context;
             _logger = logger;
         }
 
@@ -27,10 +26,7 @@ namespace NuGetTrends.Api.Importing
 
         public async Task<bool> ProcessPackageDetailsAsync(PackageDetailsCatalogLeaf leaf)
         {
-            using (var context = _provider.GetRequiredService<NuGetTrendsContext>())
-            {
-                await context.PackageDetailsCatalogLeafs.AddAsync(leaf);
-            }
+            await _context.PackageDetailsCatalogLeafs.AddAsync(leaf);
             return true;
         }
     }

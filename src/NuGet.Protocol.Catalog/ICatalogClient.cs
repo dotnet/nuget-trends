@@ -1,6 +1,7 @@
-﻿// Copyright (c) .NET Foundation. All rights reserved.
+// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
+using System;
 using System.Threading.Tasks;
 
 namespace NuGet.Protocol.Catalog
@@ -30,7 +31,7 @@ namespace NuGet.Protocol.Catalog
         /// <param name="leafUrl">The catalog leaf URL.</param>
         /// <returns>The catalog leaf.</returns>
         Task<CatalogLeaf> GetLeafAsync(string leafUrl);
-        
+
         /// <summary>
         /// Gets the catalog leaf at the provided URL. The catalog leaf URL should be discovered from a catalog page.
         /// The type of the catalog leaf must be a package delete. If the actual document is not a package delete, an
