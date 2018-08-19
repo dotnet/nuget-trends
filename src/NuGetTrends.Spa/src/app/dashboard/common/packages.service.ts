@@ -12,8 +12,8 @@ export class PackagesService {
 
   constructor(private httpClient: HttpClient) { }
 
-  searchPackage(term: string): Observable<any> {
-    return this.httpClient.get<IPackageSearchResult>(`${this.baseUrl}/search?q=${term}`);
+  searchPackage(term: string): Observable<IPackageSearchResult[]> {
+    return this.httpClient.get<IPackageSearchResult[]>(`${this.baseUrl}/search?q=${term}`);
   }
 
   getPackageDownloadHistory(term: string): Observable<IPackageDownloadHistory> {
