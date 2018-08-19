@@ -5,8 +5,8 @@
       type="text" placeholder=""
       #searchBox
       [formControl]="queryField"
-      (keypress)="onKeypress()"
-      (keyup.backspace)="onBackspace()"/>
+      (keydown)="focusElementAndCheckForResults()"
+      />
     <span class="icon is-medium is-left">
       <i class="fa fa-search"></i>
     </span>

@@ -1,10 +1,9 @@
-import {AfterViewInit, Component, ElementRef, HostListener, ViewChild} from '@angular/core';
-import {FormControl} from '@angular/forms';
-import {debounceTime, distinctUntilChanged, filter, map, switchMap, tap} from 'rxjs/operators';
-import {fromEvent, Observable} from 'rxjs';
-
-import {PackagesService, AddPackageService} from '../../../dashboard/common/';
-import {IPackageDownloadHistory, IPackageSearchResult} from '../../../dashboard/common/package-models';
+import { AfterViewInit, Component, ElementRef, HostListener, ViewChild } from '@angular/core';
+import { FormControl } from '@angular/forms';
+import { catchError, debounceTime, distinctUntilChanged, filter, map, switchMap, tap } from 'rxjs/operators';
+import { EMPTY, fromEvent, Observable } from 'rxjs';
+import { PackagesService, AddPackageService } from '../../../dashboard/common/';
+import { IPackageDownloadHistory, IPackageSearchResult } from '../../../dashboard/common/package-models';
 
 @Component({
   selector: 'app-search-input',
@@ -32,20 +31,24 @@ export class SearchInputComponent implements AfterViewInit {
     this.results$ = fromEvent(this.searchBox.nativeElement, 'keyup')
       .pipe(
         map((event: KeyboardEvent) => (event.target as HTMLInputElement).value),
-        filter((value: string) => value && !!value.trim()),
-        debounceTime(300),
+        debounceTime(100),
+        tap((value: string) => {
+          this.showResults = !!value;
+        }),
         distinctUntilChanged(),
+        filter((value: string) => value && !!value.trim()),
         tap(() => this.isSearching = true),
         switchMap((query: string) => this.packagesService.searchPackage(query)),
+        catchError<IPackageSearchResult[], never>((err, caught) => {
+          // TODO: Show some message to the user that the search failed.
+          return EMPTY;
+        }),
         tap(() => this.isSearching = false));
   }
 
-  @HostListener('document:click', ['$event.path'])
-  @HostListener('document:touchstart', ['$event.path'])
-  onClickOutside($event: Array<any>) {
-    // showResults is true when the click happens inside the parentComponent <app-search-input>
-    // anywhere else it will be false, meaning should be closed
-    this.showResults = $event.find(node => node === this.searchComponentNode);
+  @HostListener('document:click', ['$event'])
+  checkIfInputWasClicked(event) {
+    this.showResults = this.searchBox.nativeElement.contains(event.target);
   }
 
   /**
@@ -62,14 +65,9 @@ export class SearchInputComponent implements AfterViewInit {
       });
   }
 
-  onBackspace() {
-   if (!this.searchBox.nativeElement.value) {
-     this.showResults = false;
-   }
-  }
-
-  onKeypress() {
-    this.showResults = true;
+  focusElementAndCheckForResults() {
+    this.searchBox.nativeElement.focus();
+    this.showResults = !!this.results$;
   }
 
 }
