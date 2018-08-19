@@ -40,6 +40,8 @@ namespace NuGetTrends.Scheduler
             // Configure: config.UsePostgreSqlStorage(Configuration.GetConnectionString("HangfireConnection")
             services.AddHangfire(config => config.UseStorage(new MemoryStorage()));
 
+            services.AddHttpClient("nuget"); // TODO: typed client? will be shared across all jobs
+
             services.AddScoped<CatalogCursorStore>();
             services.AddScoped<CatalogLeafProcessor>();
             services.AddScoped<NuGetCatalogImporter>();
@@ -61,6 +63,8 @@ namespace NuGetTrends.Scheduler
             app.UseHangfireServer();
 
             app.UseHttpsRedirection();
+
+            app.ScheduleJobs();
         }
     }
 }
