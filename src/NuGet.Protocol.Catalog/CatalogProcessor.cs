@@ -108,7 +108,7 @@ namespace NuGet.Protocol.Catalog
 
             foreach (var batch in leafItems
                 .Select((v, i) => new { Index = i, Value = v })
-                .GroupBy(v => v.Index / 50)
+                .GroupBy(v => v.Index / 25)
                 .Select(v => v.Select(p => p.Value).ToList()))
             {
                 var tasks = new List<Task<CatalogLeaf>>();
@@ -135,7 +135,6 @@ namespace NuGet.Protocol.Catalog
                     {
                         _logger.LogError("Unsupported leaf type: {type}.", task.Result.GetType());
                     }
-
                 }
             }
 
