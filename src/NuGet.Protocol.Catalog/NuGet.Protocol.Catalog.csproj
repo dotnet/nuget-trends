@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard1.3</TargetFramework>
+    <RootNamespace>NuGet.Protocol.Catalog</RootNamespace>
+    <PackageId>NuGet.Protocol.Catalog</PackageId>
+    <PackageVersion>0.2.0-beta</PackageVersion>
+    <Description>A .NET library for consuming the NuGet API's catalog resource.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions">
+      <Version>1.0.0</Version>
+    </PackageReference>
+    <PackageReference Include="Newtonsoft.Json">
+      <Version>9.0.1</Version>
+    </PackageReference>
+    <PackageReference Include="NuGet.Protocol">
+      <Version>4.4.0</Version>
+    </PackageReference>
+  </ItemGroup>
+
+</Project>
