@@ -7,13 +7,10 @@ export interface IPackageSearchResult {
 export interface IPackageDownloadHistory {
     id: string;
     downloads: Array<IDownloadStats>;
+    color?: string;
 }
 
 export interface IDownloadStats {
     date: Date;
     count: number;
-}
-
-export interface PackageToColorMap {
-    [packageId: string]: string;
 }
