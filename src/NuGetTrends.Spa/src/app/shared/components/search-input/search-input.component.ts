@@ -31,7 +31,7 @@ export class SearchInputComponent implements AfterViewInit {
     this.results$ = fromEvent(this.searchBox.nativeElement, 'keyup')
       .pipe(
         map((event: KeyboardEvent) => (event.target as HTMLInputElement).value),
-        debounceTime(100),
+        debounceTime(200),
         tap((value: string) => {
           this.showResults = !!value;
         }),
@@ -69,5 +69,4 @@ export class SearchInputComponent implements AfterViewInit {
     this.searchBox.nativeElement.focus();
     this.showResults = !!this.results$;
   }
-
 }
