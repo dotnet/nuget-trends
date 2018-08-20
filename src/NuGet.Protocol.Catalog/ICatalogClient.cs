@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using NuGet.Protocol.Catalog.Models;
 
@@ -14,24 +15,27 @@ namespace NuGet.Protocol.Catalog
         /// service index.
         /// </summary>
         /// <param name="indexUrl">The catalog index URL.</param>
+        /// <param name="token"></param>
         /// <returns>The catalog index.</returns>
-        Task<CatalogIndex> GetIndexAsync(string indexUrl);
+        Task<CatalogIndex> GetIndexAsync(string indexUrl, CancellationToken token);
 
         /// <summary>
         /// Get the catalog page at the provided URL. The catalog page URL should be discovered from the catalog
         /// index.
         /// </summary>
         /// <param name="pageUrl">The catalog page URL.</param>
+        /// <param name="token"></param>
         /// <returns>The catalog page.</returns>
-        Task<CatalogPage> GetPageAsync(string pageUrl);
+        Task<CatalogPage> GetPageAsync(string pageUrl, CancellationToken token);
 
         /// <summary>
         /// Gets the catalog leaf at the provided URL. The catalog leaf URL should be discovered from a catalog page.
         /// The type of the catalog leaf is automatically determined from the fetched document.
         /// </summary>
         /// <param name="leafUrl">The catalog leaf URL.</param>
+        /// <param name="token"></param>
         /// <returns>The catalog leaf.</returns>
-        Task<CatalogLeaf> GetLeafAsync(string leafUrl);
+        Task<CatalogLeaf> GetLeafAsync(string leafUrl, CancellationToken token);
 
         /// <summary>
         /// Gets the catalog leaf at the provided URL. The catalog leaf URL should be discovered from a catalog page.
@@ -39,9 +43,10 @@ namespace NuGet.Protocol.Catalog
         /// exception is thrown.
         /// </summary>
         /// <param name="leafUrl">The catalog leaf URL.</param>
+        /// <param name="token"></param>
         /// <exception cref="ArgumentException">Thrown if the actual document is not a package delete.</exception>
         /// <returns>The catalog leaf.</returns>
-        Task<PackageDeleteCatalogLeaf> GetPackageDeleteLeafAsync(string leafUrl);
+        Task<CatalogLeaf> GetPackageDeleteLeafAsync(string leafUrl, CancellationToken token);
 
         /// <summary>
         /// Gets the catalog leaf at the provided URL. The catalog leaf URL should be discovered from a catalog page.
@@ -49,8 +54,9 @@ namespace NuGet.Protocol.Catalog
         /// exception is thrown.
         /// </summary>
         /// <param name="leafUrl">The catalog leaf URL.</param>
+        /// <param name="token"></param>
         /// <exception cref="ArgumentException">Thrown if the actual document is not package details.</exception>
         /// <returns>The catalog leaf.</returns>
-        Task<PackageDetailsCatalogLeaf> GetPackageDetailsLeafAsync(string leafUrl);
+        Task<CatalogLeaf> GetPackageDetailsLeafAsync(string leafUrl, CancellationToken token);
     }
 }

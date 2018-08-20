@@ -1,6 +1,7 @@
 // Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
+using System.Threading;
 using System.Threading.Tasks;
 using NuGet.Protocol.Catalog.Models;
 
@@ -20,8 +21,9 @@ namespace NuGet.Protocol.Catalog
         /// <see cref="CatalogProcessor" />.
         /// </summary>
         /// <param name="leaf">The leaf document.</param>
+        /// <param name="token"></param>
         /// <returns>True, if the leaf was successfully processed. False, otherwise.</returns>
-        Task<bool> ProcessPackageDetailsAsync(PackageDetailsCatalogLeaf leaf);
+        Task ProcessPackageDetailsAsync(PackageDetailsCatalogLeaf leaf, CancellationToken token);
 
         /// <summary>
         /// Process a catalog leaf containing a package delete. This method should return false or throw an exception
@@ -31,7 +33,8 @@ namespace NuGet.Protocol.Catalog
         /// <see cref="CatalogProcessor" />.
         /// </summary>
         /// <param name="leaf">The leaf document.</param>
+        /// <param name="token"></param>
         /// <returns>True, if the leaf was successfully processed. False, otherwise.</returns>
-        Task<bool> ProcessPackageDeleteAsync(PackageDeleteCatalogLeaf leaf);
+        Task ProcessPackageDeleteAsync(PackageDeleteCatalogLeaf leaf, CancellationToken token);
     }
 }

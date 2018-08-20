@@ -1,4 +1,8 @@
+using System;
+using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NuGet.Protocol.Catalog;
 using NuGet.Protocol.Catalog.Models;
@@ -8,27 +12,58 @@ namespace NuGetTrends.Scheduler
 {
     public class CatalogLeafProcessor : ICatalogLeafProcessor
     {
-        private readonly NuGetTrendsContext _context;
+        private readonly IServiceProvider _provider;
         private readonly ILogger<CatalogLeafProcessor> _logger;
+        private int _counter;
+
+        private IServiceScope _scope;
+        private NuGetTrendsContext _context;
 
         public CatalogLeafProcessor(
-            NuGetTrendsContext context,
-            ILogger<CatalogLeafProcessor> logger)
+                IServiceProvider provider,
+                ILogger<CatalogLeafProcessor> logger)
         {
-            _context = context;
+            _provider = provider;
             _logger = logger;
+
+            _scope = _provider.CreateScope();
+            _context = _scope.ServiceProvider.GetRequiredService<NuGetTrendsContext>();
         }
 
-        public Task<bool> ProcessPackageDeleteAsync(PackageDeleteCatalogLeaf leaf)
+        private async ValueTask Save(CancellationToken token)
         {
-            _logger.LogWarning("Deleted: {leaf}", leaf);
-            return Task.FromResult(true);
+            _counter++;
+
+            if (_counter == 100) // Save and recycle the DbContext
+            {
+                await _context.SaveChangesAsync(token);
+                _scope.Dispose();
+                _scope = _provider.CreateScope();
+                _context = _scope.ServiceProvider.GetRequiredService<NuGetTrendsContext>();
+                _counter = 0;
+            }
         }
 
-        public async Task<bool> ProcessPackageDetailsAsync(PackageDetailsCatalogLeaf leaf)
+        public async Task ProcessPackageDeleteAsync(PackageDeleteCatalogLeaf leaf, CancellationToken token)
         {
-            await _context.PackageDetailsCatalogLeafs.AddAsync(leaf);
-            return true;
+            var deleted = await _context.PackageDetailsCatalogLeafs.FirstOrDefaultAsync(p =>
+                p.PackageId == leaf.PackageId && p.PackageVersion == leaf.PackageVersion, token);
+
+            if (deleted == null)
+            {
+                _logger.LogError("Deleted event but not found with: {Id}, {Version}", leaf.PackageId, leaf.PackageVersion);
+            }
+            else
+            {
+                _context.PackageDetailsCatalogLeafs.Remove(deleted);
+                await Save(token);
+            }
+        }
+
+        public async Task ProcessPackageDetailsAsync(PackageDetailsCatalogLeaf leaf, CancellationToken token)
+        {
+            _context.PackageDetailsCatalogLeafs.Add(leaf);
+            await Save(token);
         }
     }
 }

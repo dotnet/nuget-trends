@@ -38,8 +38,7 @@ namespace NuGet.Protocol.Catalog.Serialization
 
             foreach (var type in types.OfType<string>())
             {
-                CatalogLeafType output;
-                if (FromString.TryGetValue(type, out output))
+                if (FromString.TryGetValue(type, out var output))
                 {
                     return output;
                 }
