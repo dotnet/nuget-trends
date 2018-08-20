@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -34,9 +35,10 @@ namespace NuGetTrends.Scheduler
         {
             _counter++;
 
-            if (_counter == 100) // Save and recycle the DbContext
+            await _context.SaveChangesAsync(token);
+
+            if (_counter == 100) // recycle the DbContext
             {
-                await _context.SaveChangesAsync(token);
                 _scope.Dispose();
                 _scope = _provider.CreateScope();
                 _context = _scope.ServiceProvider.GetRequiredService<NuGetTrendsContext>();
@@ -46,24 +48,42 @@ namespace NuGetTrends.Scheduler
 
         public async Task ProcessPackageDeleteAsync(PackageDeleteCatalogLeaf leaf, CancellationToken token)
         {
-            var deleted = await _context.PackageDetailsCatalogLeafs.FirstOrDefaultAsync(p =>
-                p.PackageId == leaf.PackageId && p.PackageVersion == leaf.PackageVersion, token);
+            var deletedItems = _context.PackageDetailsCatalogLeafs.Where(p =>
+                p.PackageId == leaf.PackageId && p.PackageVersion == leaf.PackageVersion);
 
-            if (deleted == null)
+            var deleted = await deletedItems.ToListAsync(token);
+            if (deleted.Count == 0)
             {
-                _logger.LogError("Deleted event but not found with: {Id}, {Version}", leaf.PackageId, leaf.PackageVersion);
+                _logger.LogWarning("Deleted event but not found with: {Id}, {Version}", leaf.PackageId, leaf.PackageVersion);
             }
             else
             {
-                _context.PackageDetailsCatalogLeafs.Remove(deleted);
+                if (deleted.Count > 1)
+                {
+                    _logger.LogError("Expected 1 item but found {count} for {id} and {version}.",
+                        deleted.Count,
+                        leaf.PackageId,
+                        leaf.PackageVersion);
+                }
+
+                foreach (var del in deleted)
+                {
+                    _context.PackageDetailsCatalogLeafs.Remove(del);
+                }
                 await Save(token);
             }
         }
 
         public async Task ProcessPackageDetailsAsync(PackageDetailsCatalogLeaf leaf, CancellationToken token)
         {
-            _context.PackageDetailsCatalogLeafs.Add(leaf);
-            await Save(token);
+            var exists = await _context.PackageDetailsCatalogLeafs.AnyAsync(
+                p => p.PackageId == leaf.PackageId && p.PackageVersion == leaf.PackageVersion, token);
+
+            if (!exists)
+            {
+                _context.PackageDetailsCatalogLeafs.Add(leaf);
+                await Save(token);
+            }
         }
     }
 }

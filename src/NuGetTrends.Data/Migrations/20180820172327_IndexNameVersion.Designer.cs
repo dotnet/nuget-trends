@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using NuGetTrends.Data;
@@ -10,9 +11,10 @@ using NuGetTrends.Data;
 namespace NuGetTrends.Data.Migrations
 {
     [DbContext(typeof(NuGetTrendsContext))]
-    partial class NuGetTrendsContextModelSnapshot : ModelSnapshot
+    [Migration("20180820172327_IndexNameVersion")]
+    partial class IndexNameVersion
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -37,8 +39,6 @@ namespace NuGetTrends.Data.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_package_dependency");
-
-                    b.HasIndex("DependencyId");
 
                     b.HasIndex("PackageDependencyGroupId")
                         .HasName("ix_package_dependency_package_dependency_group_id");
@@ -151,8 +151,7 @@ namespace NuGetTrends.Data.Migrations
                     b.HasKey("Id")
                         .HasName("pk_package_details_catalog_leafs");
 
-                    b.HasIndex("PackageId", "PackageVersion")
-                        .IsUnique();
+                    b.HasIndex("PackageId", "PackageVersion");
 
                     b.ToTable("package_details_catalog_leafs");
                 });
@@ -196,8 +195,7 @@ namespace NuGetTrends.Data.Migrations
                     b.HasOne("NuGet.Protocol.Catalog.Models.PackageDependencyGroup")
                         .WithMany("Dependencies")
                         .HasForeignKey("PackageDependencyGroupId")
-                        .HasConstraintName("fk_package_dependency_package_dependency_group_package_dependenc~")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .HasConstraintName("fk_package_dependency_package_dependency_group_package_dependenc~");
                 });
 
             modelBuilder.Entity("NuGet.Protocol.Catalog.Models.PackageDependencyGroup", b =>
@@ -205,8 +203,7 @@ namespace NuGetTrends.Data.Migrations
                     b.HasOne("NuGet.Protocol.Catalog.Models.PackageDetailsCatalogLeaf")
                         .WithMany("DependencyGroups")
                         .HasForeignKey("PackageDetailsCatalogLeafId")
-                        .HasConstraintName("fk_package_dependency_group_package_details_catalog_leafs_package~")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .HasConstraintName("fk_package_dependency_group_package_details_catalog_leafs_package~");
                 });
 #pragma warning restore 612, 618
         }

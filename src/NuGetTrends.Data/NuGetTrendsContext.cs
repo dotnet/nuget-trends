@@ -25,6 +25,27 @@ namespace NuGetTrends.Data
                     Id = "Catalog",
                     Value = DateTimeOffset.MinValue
                 });
+
+            modelBuilder
+                .Entity<PackageDetailsCatalogLeaf>()
+                .HasIndex(p => new { p.PackageId, p.PackageVersion })
+                .IsUnique();
+
+            modelBuilder
+                .Entity<PackageDetailsCatalogLeaf>()
+                .HasMany(p => p.DependencyGroups)
+                .WithOne()
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder
+                .Entity<PackageDependencyGroup>()
+                .HasMany(p => p.Dependencies)
+                .WithOne()
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder
+                .Entity<PackageDependency>()
+                .HasIndex(p => p.DependencyId);
         }
     }
 

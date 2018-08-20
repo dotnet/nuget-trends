@@ -8,6 +8,7 @@ using NuGet.Protocol.Catalog;
 
 namespace NuGetTrends.Scheduler
 {
+    [DisableConcurrentExecution(timeoutInSeconds: 48 * 60 * 60)]
     public class NuGetCatalogImporter
     {
         private readonly IHttpClientFactory _httpClientFactory;

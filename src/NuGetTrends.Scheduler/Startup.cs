@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using NuGetTrends.Data;
+using Sentry.Extensibility;
 
 namespace NuGetTrends.Scheduler
 {
@@ -24,6 +25,8 @@ namespace NuGetTrends.Scheduler
 
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddTransient<ISentryEventExceptionProcessor, DbUpdateExceptionProcessor>();
+
             services
                 .AddEntityFrameworkNpgsql()
                 .AddDbContext<NuGetTrendsContext>(options =>
