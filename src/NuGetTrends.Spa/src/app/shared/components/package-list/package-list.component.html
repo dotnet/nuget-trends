@@ -1,30 +1,9 @@
-<!-- Tags -->
 <section class="section">
   <div class="columns is-mobile is-centered">
     <div class="tags">
-      <span class="tag is-primary is-large">
-        Dapper
-        <button class="delete"></button>
-      </span>
-      <span class="tag is-info is-large">
-        Entity Framework
-        <button class="delete"></button>
-      </span>
-      <span class="tag is-link is-large">
-        log4Net
-        <button class="delete"></button>
-      </span>
-      <span class="tag is-success is-large">
-        serilog
-        <button class="delete"></button>
-      </span>
-      <span class="tag is-warning is-large">
-        automapper
-        <button class="delete"></button>
-      </span>
-      <span class="tag is-danger is-large">
-        newtonsoft.json
-        <button class="delete"></button>
+      <span class="tag is-large has-text-white" [ngStyle]="{'background-color': packageHistory.color}" *ngFor="let packageHistory of packageList">
+        {{packageHistory.id}}
+        <button class="delete" (click)="removePackage(packageHistory)"></button>
       </span>
     </div>
   </div>

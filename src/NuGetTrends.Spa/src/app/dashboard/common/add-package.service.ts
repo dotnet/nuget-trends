@@ -5,25 +5,35 @@ import {IPackageDownloadHistory} from './package-models';
 @Injectable()
 export class AddPackageService {
 
-  private packageAddedSource = new Subject<IPackageDownloadHistory>();
+  private packageSelectedSource = new Subject<IPackageDownloadHistory>();
+  private packagePlottedSource = new Subject<IPackageDownloadHistory>();
   private packageRemovedSource = new Subject<string>();
 
-  packageAdded$ = this.packageAddedSource.asObservable();
+  packageSelected$ = this.packageSelectedSource.asObservable();
+  packagePlotted$ = this.packagePlottedSource.asObservable();
   packageRemoved$ = this.packageRemovedSource.asObservable();
 
   /**
-   * Fires the event that adds a package download history to the chart
+   * Fires the event that adds a package to the package list component
    * @param packageHistory
    */
-  addPackage(packageHistory: IPackageDownloadHistory) {
-    this.packageAddedSource.next(packageHistory);
+  selectPackage(packageHistory: IPackageDownloadHistory) {
+    this.packageSelectedSource.next(packageHistory);
+  }
+
+  /**
+   * Fires the event that plots the package on the chart
+   * @param packageHistory
+   */
+  plotPackage(packageHistory: IPackageDownloadHistory) {
+    this.packagePlottedSource.next(packageHistory);
   }
 
   /**
    * Fires the event that removes a package from the chart
-   * @param astronaut
+   * @param packageId
    */
-  removePackage(astronaut: string) {
-    this.packageRemovedSource.next(astronaut);
+  removePackage(packageId: string) {
+    this.packageRemovedSource.next(packageId);
   }
 }

@@ -1,8 +1,8 @@
-import {Component, OnInit} from '@angular/core';
+import {Component} from '@angular/core';
 import {Chart, ChartDataSets, ChartOptions} from 'chart.js';
 import {DatePipe} from '@angular/common';
 
-import {IPackageDownloadHistory, IDownloadStats, PackageToColorMap} from './common/package-models';
+import {IPackageDownloadHistory, IDownloadStats} from './common/package-models';
 import {PackagesService, AddPackageService} from './common/';
 
 @Component({
@@ -11,37 +11,32 @@ import {PackagesService, AddPackageService} from './common/';
   styleUrls: ['./dashboard.component.scss'],
   providers: [AddPackageService]
 })
-export class DashboardComponent implements OnInit {
+export class DashboardComponent {
+
+  private trendChart: Chart;
+  private canvas: any;
+  private ctx: any;
+  private chartData = {labels: [], datasets: []};
 
   constructor(
     private packagesService: PackagesService,
     private addPackageService: AddPackageService,
     private datePipe: DatePipe) {
 
-    this.addPackageService.packageAdded$.subscribe(
+    this.addPackageService.packagePlotted$.subscribe(
       (packageHistory: IPackageDownloadHistory) => {
-        this.addPackageToChart(packageHistory);
+        this.plotPackage(packageHistory);
       });
-  }
 
-  trendChart: Chart;
-  canvas: any;
-  ctx: any;
-  colorsMap: PackageToColorMap = {};
-
-  private chartData = {labels: [], datasets: []};
-
-  ngOnInit() {
-    this.colorsMap['EntityFramework'] = '#B4F30D';
-    this.colorsMap['Dapper'] = '#0D45F3';
-    this.colorsMap['ef-core'] = '#F30D30';
+    this.addPackageService.packageRemoved$.subscribe(
+      (packageId: string) => this.removePackage(packageId));
   }
 
   /**
-   * Added a new dataset to the chart
+   * Handles the plotPackage event
    * @param packageHistory
    */
-  private addPackageToChart(packageHistory: IPackageDownloadHistory) {
+  private plotPackage(packageHistory: IPackageDownloadHistory) {
     const dataSet = this.parseDataSet(packageHistory);
 
     if (this.chartData.datasets.length === 0) {
@@ -49,6 +44,15 @@ export class DashboardComponent implements OnInit {
     } else {
       this.chartData.datasets.push(dataSet);
     }
+    this.trendChart.update();
+  }
+
+  /**
+   * Handles the removePackage event
+   * @param packageId
+   */
+  private removePackage(packageId: string) {
+    this.chartData.datasets = this.chartData.datasets.filter(d => d.label !== packageId);
     this.trendChart.update();
   }
 
@@ -63,7 +67,6 @@ export class DashboardComponent implements OnInit {
     });
 
     this.chartData.datasets.push(this.parseDataSet(firstPackageData));
-
     Chart.defaults.global.defaultFontSize = 13;
 
     const chartOptions: ChartOptions = {
@@ -129,15 +132,15 @@ export class DashboardComponent implements OnInit {
 
     return {
       label: packageHistory.id,
-      backgroundColor: this.colorsMap[packageHistory.id],
-      borderColor: this.colorsMap[packageHistory.id],
+      backgroundColor: packageHistory.color,
+      borderColor: packageHistory.color,
       pointRadius: 6,
       pointHoverRadius: 8,
-      pointBackgroundColor: this.colorsMap[packageHistory.id],
+      pointBackgroundColor: packageHistory.color,
       pointBorderColor: '#fff',
       pointBorderWidth: 1,
-      pointHoverBackgroundColor: this.colorsMap[packageHistory.id],
-      pointHoverBorderColor: this.colorsMap[packageHistory.id],
+      pointHoverBackgroundColor: packageHistory.color,
+      pointHoverBorderColor: packageHistory.color,
       fill: false,
       data: totalDownloads,
     };

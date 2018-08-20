@@ -58,7 +58,7 @@ export class SearchInputComponent implements AfterViewInit {
   packageSelected(packageId: string) {
     this.packagesService.getPackageDownloadHistory(packageId)
       .subscribe((packageHistory: IPackageDownloadHistory) => {
-        this.addPackageService.addPackage(packageHistory);
+        this.addPackageService.selectPackage(packageHistory);
         this.showResults = false;
         this.queryField.setValue('');
         this.searchBox.nativeElement.focus();
