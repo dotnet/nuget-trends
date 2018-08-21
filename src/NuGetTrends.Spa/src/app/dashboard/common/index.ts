@@ -1,2 +1,2 @@
 export * from './packages.service';
-export * from './add-package.service';
+export * from './package-interaction.service';

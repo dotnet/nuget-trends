@@ -2,7 +2,7 @@ import { AfterViewInit, Component, ElementRef, HostListener, ViewChild } from '@
 import { FormControl } from '@angular/forms';
 import { catchError, debounceTime, distinctUntilChanged, filter, map, switchMap, tap } from 'rxjs/operators';
 import { EMPTY, fromEvent, Observable } from 'rxjs';
-import { PackagesService, AddPackageService } from '../../../dashboard/common/';
+import { PackagesService, PackageInteractionService } from '../../../dashboard/common/';
 import { IPackageDownloadHistory, IPackageSearchResult } from '../../../dashboard/common/package-models';
 
 @Component({
@@ -22,7 +22,7 @@ export class SearchInputComponent implements AfterViewInit {
 
   constructor(
     private packagesService: PackagesService,
-    private addPackageService: AddPackageService,
+    private addPackageService: PackageInteractionService,
     private element: ElementRef) {
     this.searchComponentNode = this.element.nativeElement.parentNode;
   }

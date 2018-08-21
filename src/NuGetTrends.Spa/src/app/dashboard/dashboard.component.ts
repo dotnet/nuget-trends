@@ -3,13 +3,13 @@ import {Chart, ChartDataSets, ChartOptions} from 'chart.js';
 import {DatePipe} from '@angular/common';
 
 import {IPackageDownloadHistory, IDownloadStats} from './common/package-models';
-import {PackagesService, AddPackageService} from './common/';
+import {PackagesService, PackageInteractionService} from './common/';
 
 @Component({
   selector: 'app-dashboard',
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.scss'],
-  providers: [AddPackageService]
+  providers: [PackageInteractionService]
 })
 export class DashboardComponent {
 
@@ -20,7 +20,7 @@ export class DashboardComponent {
 
   constructor(
     private packagesService: PackagesService,
-    private addPackageService: AddPackageService,
+    private addPackageService: PackageInteractionService,
     private datePipe: DatePipe) {
 
     this.addPackageService.packagePlotted$.subscribe(
@@ -36,7 +36,7 @@ export class DashboardComponent {
    * Handles the plotPackage event
    * @param packageHistory
    */
-  private plotPackage(packageHistory: IPackageDownloadHistory) {
+  private plotPackage(packageHistory: IPackageDownloadHistory): void {
     const dataSet = this.parseDataSet(packageHistory);
 
     if (this.chartData.datasets.length === 0) {
@@ -51,7 +51,7 @@ export class DashboardComponent {
    * Handles the removePackage event
    * @param packageId
    */
-  private removePackage(packageId: string) {
+  private removePackage(packageId: string): void {
     this.chartData.datasets = this.chartData.datasets.filter(d => d.label !== packageId);
     this.trendChart.update();
   }
@@ -61,7 +61,7 @@ export class DashboardComponent {
    * Initializes the chart with the first added package
    * @param firstPackageData
    */
-  private initializeChart(firstPackageData: IPackageDownloadHistory) {
+  private initializeChart(firstPackageData: IPackageDownloadHistory): void {
     this.chartData.labels = firstPackageData.downloads.map((download: IDownloadStats) => {
       return this.datePipe.transform(download.date, 'MMM d');
     });

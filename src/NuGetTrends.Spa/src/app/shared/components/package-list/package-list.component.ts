@@ -1,5 +1,5 @@
 import {Component} from '@angular/core';
-import {AddPackageService} from '../../../dashboard/common';
+import {PackageInteractionService} from '../../../dashboard/common';
 import {IPackageDownloadHistory} from '../../../dashboard/common/package-models';
 import {IPackageColor, TagColor} from '../common/component-models';
 
@@ -20,7 +20,7 @@ export class PackageListComponent {
     new TagColor('#DB9D47')
   ];
 
-  constructor(private addPackageService: AddPackageService) {
+  constructor(private addPackageService: PackageInteractionService) {
     this.packageList = [];
     this.addPackageService.packageSelected$.subscribe(
       (packageHistory: IPackageDownloadHistory) => {

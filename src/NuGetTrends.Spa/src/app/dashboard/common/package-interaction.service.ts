@@ -3,7 +3,7 @@ import {Subject} from 'rxjs';
 import {IPackageDownloadHistory} from './package-models';
 
 @Injectable()
-export class AddPackageService {
+export class PackageInteractionService {
 
   private packageSelectedSource = new Subject<IPackageDownloadHistory>();
   private packagePlottedSource = new Subject<IPackageDownloadHistory>();
