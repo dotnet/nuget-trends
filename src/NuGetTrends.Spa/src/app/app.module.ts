@@ -8,6 +8,7 @@ import { AppComponent } from './app.component';
 import { AppRoutingModule } from './app-routes.module';
 import { environment } from '../environments/environment';
 import {DashboardModule} from './dashboard/dashboard.module';
+import {NavigationComponent, FooterComponent} from './_layout/';
 
 init({ dsn: 'https://85a592e835c64ca3a97d93776c12e947@sentry.io/1266321', });
 export class SentryErrorHandler extends ErrorHandler {
@@ -21,7 +22,9 @@ export class SentryErrorHandler extends ErrorHandler {
 
 @NgModule({
   declarations: [
-    AppComponent
+    AppComponent,
+    NavigationComponent,
+    FooterComponent
   ],
   imports: [
     AppRoutingModule,
