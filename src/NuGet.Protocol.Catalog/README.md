@@ -11,6 +11,10 @@ Removed the bool return value and let exceptions bubble up.
 Use of C# 7  features to get rid of the IDE 'messages'
 Added cancellation token support
 Running multiple http requests concurrently
-batching by 50
+batching by 25
+on failed deserialization, log and return default
+if leaf type is unknown, log and continue
+retargeted to netstandard2.0
+added log scopes
 
 Check files history for details

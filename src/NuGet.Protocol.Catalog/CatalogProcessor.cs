@@ -85,7 +85,10 @@ namespace NuGet.Protocol.Catalog
 
             foreach (var pageItem in pageItems)
             {
-                await ProcessPageAsync(minCommitTimestamp, pageItem, token);
+                using (_logger.BeginScope(("page", pageItem)))
+                {
+                    await ProcessPageAsync(minCommitTimestamp, pageItem, token);
+                }
             }
         }
 
@@ -134,7 +137,7 @@ namespace NuGet.Protocol.Catalog
                     }
                     else
                     {
-                        _logger.LogError("Unsupported leaf type: {type}.", task.Result.GetType());
+                        _logger.LogError("Unsupported leaf type: {type}.", task.Result?.GetType());
                     }
                 }
 

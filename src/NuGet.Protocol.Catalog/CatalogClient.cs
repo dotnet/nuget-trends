@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Threading;
@@ -79,16 +80,22 @@ namespace NuGet.Protocol.Catalog
 
         public async Task<CatalogLeaf> GetAndValidateLeafAsync<T>(CatalogLeafType type, string leafUrl, CancellationToken token) where T : CatalogLeaf
         {
-            var leaf = await DeserializeUrlAsync<T>(leafUrl, token);
-
-            if (leaf.Type != type)
+            using (_logger.BeginScope(new Dictionary<string, string>
             {
-                throw new ArgumentException(
-                    $"The leaf type found in the document does not match the expected '{type}' type.",
-                    nameof(type));
-            }
+                { "type", type.ToString()},
+                { "leafUrl", leafUrl},
+            }))
+            {
+                _logger.LogInformation("Getting package leaf: {type}, {leafUrl}", type, leafUrl);
+                var leaf = await DeserializeUrlAsync<T>(leafUrl, token);
 
-            return leaf;
+                if (leaf != null && leaf.Type != type)
+                {
+                    _logger.LogError("The leaf type found in the document does not match the expected '{type}' type.", type);
+                }
+
+                return leaf;
+            }
         }
 
         private T DeserializeBytes<T>(byte[] jsonBytes)
@@ -110,7 +117,15 @@ namespace NuGet.Protocol.Catalog
             using (var textReader = new StreamReader(stream))
             using (var jsonReader = new JsonTextReader(textReader))
             {
-                return JsonSerializer.Deserialize<T>(jsonReader);
+                try
+                {
+                    return JsonSerializer.Deserialize<T>(jsonReader);
+                }
+                catch (JsonReaderException e)
+                {
+                    _logger.LogError(new EventId(0, documentUrl), e, "Failed to deserialize.");
+                    return default;
+                }
             }
         }
     }
