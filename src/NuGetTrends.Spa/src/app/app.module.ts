@@ -9,7 +9,7 @@ import { AppRoutingModule } from './app-routes.module';
 import { environment } from '../environments/environment';
 import {DashboardModule} from './dashboard/dashboard.module';
 
-init({ dsn: 'https://99693a201d194623afee8262c4499e46@sentry.io/1260895', });
+init({ dsn: 'https://85a592e835c64ca3a97d93776c12e947@sentry.io/1266321', });
 export class SentryErrorHandler extends ErrorHandler {
   handleError(err: any): void {
     captureException(err.originalError || err);
