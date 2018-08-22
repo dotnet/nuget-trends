@@ -1,14 +1,15 @@
-import {Component} from '@angular/core';
-import {PackageInteractionService} from '../../../dashboard/common';
-import {IPackageDownloadHistory} from '../../../dashboard/common/package-models';
+import {Component, OnDestroy} from '@angular/core';
+import {PackageInteractionService} from '../../common';
+import {IPackageDownloadHistory} from '../../common/package-models';
 import {IPackageColor, TagColor} from '../common/component-models';
+import {Subscription} from 'rxjs/';
 
 @Component({
   selector: 'app-package-list',
   templateUrl: './package-list.component.html',
   styleUrls: ['./package-list.component.scss']
 })
-export class PackageListComponent {
+export class PackageListComponent implements OnDestroy {
   packageList: Array<IPackageColor>;
 
   private colorsList: Array<TagColor> = [
@@ -20,12 +21,18 @@ export class PackageListComponent {
     new TagColor('#DB9D47')
   ];
 
+  private packageSelectedSubscription: Subscription;
+
   constructor(private addPackageService: PackageInteractionService) {
     this.packageList = [];
-    this.addPackageService.packageSelected$.subscribe(
+    this.packageSelectedSubscription = this.packageSelectedSubscription = this.addPackageService.packageSelected$.subscribe(
       (packageHistory: IPackageDownloadHistory) => {
         this.addPackageToList(packageHistory);
       });
+  }
+
+  ngOnDestroy(): void {
+    this.packageSelectedSubscription.unsubscribe();
   }
 
   /**

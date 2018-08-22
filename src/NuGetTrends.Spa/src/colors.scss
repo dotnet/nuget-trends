@@ -1,4 +1,12 @@
 @import '../node_modules/bulma/sass/utilities/initial-variables.sass';
 
-// TODO: Add the project color schema overrides here
+// brand colors
+$blue-light: #D0D1CD;
+$blue-lighter: #EFF0EB;
+
+// Update some of Bulma's component variables
+$body-background-color: $blue-lighter;
+$control-border-width: 2px;
+$input-border-color: transparent;
+$input-shadow: none;
 
