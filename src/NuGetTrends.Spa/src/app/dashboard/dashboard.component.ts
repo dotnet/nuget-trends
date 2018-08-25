@@ -1,58 +1,84 @@
-import {Component} from '@angular/core';
+import {Component, OnDestroy} from '@angular/core';
 import {Chart, ChartDataSets, ChartOptions} from 'chart.js';
 import {DatePipe} from '@angular/common';
 
-import {IPackageDownloadHistory, IDownloadStats} from './common/package-models';
-import {PackagesService, AddPackageService} from './common/';
+import {IPackageDownloadHistory, IDownloadStats} from '../shared/common/package-models';
+import {PackagesService, PackageInteractionService} from '../shared/common/';
+import {animate, style, transition, trigger} from '@angular/animations';
+import {Subscription} from 'rxjs';
 
 @Component({
   selector: 'app-dashboard',
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.scss'],
-  providers: [AddPackageService]
+  animations: [
+    trigger('slideInOut', [
+      transition(':enter', [
+        style({opacity: 0}),
+        animate(300, style({opacity: 1}))
+      ]),
+      transition(':leave', [
+        animate(300, style({opacity: 0}))
+      ])
+    ])
+  ]
 })
-export class DashboardComponent {
+export class DashboardComponent implements OnDestroy {
 
   private trendChart: Chart;
   private canvas: any;
   private ctx: any;
-  private chartData = {labels: [], datasets: []};
+  chartData = {labels: [], datasets: []};
+  loaded = false;
+
+  private plotPackageSubscription: Subscription;
+  private removePackageSubscription: Subscription;
 
   constructor(
     private packagesService: PackagesService,
-    private addPackageService: AddPackageService,
+    private addPackageService: PackageInteractionService,
     private datePipe: DatePipe) {
-
-    this.addPackageService.packagePlotted$.subscribe(
+    this.plotPackageSubscription = this.addPackageService.packagePlotted$.subscribe(
       (packageHistory: IPackageDownloadHistory) => {
         this.plotPackage(packageHistory);
       });
 
-    this.addPackageService.packageRemoved$.subscribe(
+    this.removePackageSubscription = this.addPackageService.packageRemoved$.subscribe(
       (packageId: string) => this.removePackage(packageId));
+  }
+
+  ngOnDestroy(): void {
+    this.plotPackageSubscription.unsubscribe();
+    this.removePackageSubscription.unsubscribe();
   }
 
   /**
    * Handles the plotPackage event
    * @param packageHistory
    */
-  private plotPackage(packageHistory: IPackageDownloadHistory) {
-    const dataSet = this.parseDataSet(packageHistory);
+  private plotPackage(packageHistory: IPackageDownloadHistory): void {
+    if (packageHistory) {
+      this.loaded = true;
+      const dataSet = this.parseDataSet(packageHistory);
 
-    if (this.chartData.datasets.length === 0) {
-      this.initializeChart(packageHistory);
-    } else {
-      this.chartData.datasets.push(dataSet);
+      setTimeout(() => {
+        if (this.chartData.datasets.length === 0) {
+          this.initializeChart(packageHistory);
+        } else {
+          this.chartData.datasets.push(dataSet);
+        }
+        this.trendChart.update();
+      }, 0);
     }
-    this.trendChart.update();
   }
 
   /**
    * Handles the removePackage event
    * @param packageId
    */
-  private removePackage(packageId: string) {
+  private removePackage(packageId: string): void {
     this.chartData.datasets = this.chartData.datasets.filter(d => d.label !== packageId);
+    this.loaded = this.chartData.datasets.length > 0;
     this.trendChart.update();
   }
 
@@ -61,7 +87,7 @@ export class DashboardComponent {
    * Initializes the chart with the first added package
    * @param firstPackageData
    */
-  private initializeChart(firstPackageData: IPackageDownloadHistory) {
+  private initializeChart(firstPackageData: IPackageDownloadHistory): void {
     this.chartData.labels = firstPackageData.downloads.map((download: IDownloadStats) => {
       return this.datePipe.transform(download.date, 'MMM d');
     });

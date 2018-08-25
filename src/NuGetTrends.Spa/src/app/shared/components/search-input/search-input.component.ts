@@ -1,9 +1,11 @@
 import { AfterViewInit, Component, ElementRef, HostListener, ViewChild } from '@angular/core';
 import { FormControl } from '@angular/forms';
+import {Router} from '@angular/router';
 import { catchError, debounceTime, distinctUntilChanged, filter, map, switchMap, tap } from 'rxjs/operators';
 import { EMPTY, fromEvent, Observable } from 'rxjs';
-import { PackagesService, AddPackageService } from '../../../dashboard/common/';
-import { IPackageDownloadHistory, IPackageSearchResult } from '../../../dashboard/common/package-models';
+
+import { PackagesService, PackageInteractionService } from '../../common/';
+import { IPackageDownloadHistory, IPackageSearchResult } from '../../common/package-models';
 
 @Component({
   selector: 'app-search-input',
@@ -21,8 +23,9 @@ export class SearchInputComponent implements AfterViewInit {
   private readonly searchComponentNode: any;
 
   constructor(
+    private router: Router,
     private packagesService: PackagesService,
-    private addPackageService: AddPackageService,
+    private addPackageService: PackageInteractionService,
     private element: ElementRef) {
     this.searchComponentNode = this.element.nativeElement.parentNode;
   }
@@ -55,17 +58,19 @@ export class SearchInputComponent implements AfterViewInit {
    * Calls api to get the historical data for the selected package
    * @param packageId
    */
-  packageSelected(packageId: string) {
+  packageSelected(packageId: string): void{
     this.packagesService.getPackageDownloadHistory(packageId)
       .subscribe((packageHistory: IPackageDownloadHistory) => {
-        this.addPackageService.selectPackage(packageHistory);
-        this.showResults = false;
-        this.queryField.setValue('');
-        this.searchBox.nativeElement.focus();
+        this.router.navigate(['/nuget-packages']).then(() => {
+          this.addPackageService.selectPackage(packageHistory);
+          this.showResults = false;
+          this.queryField.setValue('');
+          this.searchBox.nativeElement.focus();
+        });
       });
   }
 
-  focusElementAndCheckForResults() {
+  focusElementAndCheckForResults(): void {
     this.searchBox.nativeElement.focus();
     this.showResults = !!this.results$;
   }

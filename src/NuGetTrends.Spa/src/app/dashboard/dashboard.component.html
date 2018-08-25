@@ -1,50 +1,12 @@
-<nav class="navbar has-shadow">
-  <div class="container">
-    <div class="navbar-brand">
-      <a class="navbar-item" href="../">
-        <img src="assets/nugettrends-logo-nav.png" alt="NuGet Trends - Find the history of your packages" />
-      </a>
-    </div>
-    <div class="navbar-menu">
-      <div class="navbar-end">
-        <a class="navbar-item is-active">
-          Home
-        </a>
-        <span class="navbar-item">
-          <a class="button is-dark is-medium">
-            <span class="icon">
-              <i class="fab fa fa-github"></i>
-            </span>
-            <span>Check it out</span>
-          </a>
-        </span>
-      </div>
-    </div>
-  </div>
-</nav>
-<section class="hero is-dark">
-  <div class="hero-body">
-    <div class="container has-text-centered">
-      <h3 class="title is-3">
-        Find the history of your packages
-      </h3>
-      <div class="columns">
-        <div class="column is-8 is-offset-2">
-          <div class="control has-icons-left has-icons-right">
-            <app-search-input></app-search-input>
-          </div>
+<div>
+  <app-package-list></app-package-list>
+  <section class="section" [@slideInOut]>
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-8">
+        <div class="box is-shadowless">
+          <canvas id="trend-chart" width="400" height="350"></canvas>
         </div>
       </div>
     </div>
-  </div>
-</section>
-<app-package-list></app-package-list>
-<section class="section">
-  <div class="columns is-centered has-text-centered">
-    <div class="column is-8">
-      <div class="box is-shadowless">
-        <canvas id="trend-chart" width="400" height="400"></canvas>
-      </div>
-    </div>
-  </div>
-</section>
+  </section>
+</div>

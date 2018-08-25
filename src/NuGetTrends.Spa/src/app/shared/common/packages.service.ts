@@ -6,7 +6,9 @@ import { Observable } from 'rxjs';
 
 import {IPackageSearchResult, IPackageDownloadHistory} from './package-models';
 
-@Injectable()
+@Injectable({
+  providedIn: 'root'
+})
 export class PackagesService {
   baseUrl = `${environment.API_URL}/api/package`;
 

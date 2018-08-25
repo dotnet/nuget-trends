@@ -1,9 +1,11 @@
 import {Injectable} from '@angular/core';
 import {Subject} from 'rxjs';
-import {IPackageDownloadHistory} from './package-models';
+import {IPackageDownloadHistory} from './shared/common/package-models';
 
-@Injectable()
-export class AddPackageService {
+@Injectable({
+  providedIn: 'root'
+})
+export class PackageInteractionService {
 
   private packageSelectedSource = new Subject<IPackageDownloadHistory>();
   private packagePlottedSource = new Subject<IPackageDownloadHistory>();
@@ -17,7 +19,7 @@ export class AddPackageService {
    * Fires the event that adds a package to the package list component
    * @param packageHistory
    */
-  selectPackage(packageHistory: IPackageDownloadHistory) {
+  selectPackage(packageHistory: IPackageDownloadHistory): void {
     this.packageSelectedSource.next(packageHistory);
   }
 
@@ -25,7 +27,7 @@ export class AddPackageService {
    * Fires the event that plots the package on the chart
    * @param packageHistory
    */
-  plotPackage(packageHistory: IPackageDownloadHistory) {
+  plotPackage(packageHistory: IPackageDownloadHistory): void {
     this.packagePlottedSource.next(packageHistory);
   }
 
