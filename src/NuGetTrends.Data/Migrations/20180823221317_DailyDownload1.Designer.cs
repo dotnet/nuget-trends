@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using NuGetTrends.Data;
@@ -10,9 +11,10 @@ using NuGetTrends.Data;
 namespace NuGetTrends.Data.Migrations
 {
     [DbContext(typeof(NuGetTrendsContext))]
-    partial class NuGetTrendsContextModelSnapshot : ModelSnapshot
+    [Migration("20180823221317_DailyDownload1")]
+    partial class DailyDownload1
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -176,7 +178,7 @@ namespace NuGetTrends.Data.Migrations
                     );
                 });
 
-            modelBuilder.Entity("NuGetTrends.Data.DailyDownload", b =>
+            modelBuilder.Entity("NuGetTrends.Data.NuGetTrendsContext+DailyDownload", b =>
                 {
                     b.Property<string>("PackageId")
                         .HasColumnName("package_id");
@@ -184,7 +186,7 @@ namespace NuGetTrends.Data.Migrations
                     b.Property<DateTime>("Date")
                         .HasColumnName("date");
 
-                    b.Property<long?>("DownloadCount")
+                    b.Property<int?>("DownloadCount")
                         .HasColumnName("download_count");
 
                     b.HasKey("PackageId", "Date");

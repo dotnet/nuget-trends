@@ -25,9 +25,14 @@ namespace NuGetTrends.Scheduler
             var jobManager = app.ApplicationServices.GetRequiredService<IRecurringJobManager>();
 
             jobManager.AddOrUpdate<NuGetCatalogImporter>(
-                "EmployeeImporterJob",
+                "NuGetCatalogImporter",
                 j => j.Import(JobCancellationToken.Null), // Hangfire passes in a token on activation
                 Cron.Hourly());
+
+            jobManager.AddOrUpdate<DailyDownloadPackageIdPublisher>(
+                "DownloadCountImporter",
+                j => j.Import(JobCancellationToken.Null),
+                Cron.Daily());
         }
     }
 }
