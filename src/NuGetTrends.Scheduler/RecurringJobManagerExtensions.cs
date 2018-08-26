@@ -32,7 +32,8 @@ namespace NuGetTrends.Scheduler
             jobManager.AddOrUpdate<DailyDownloadPackageIdPublisher>(
                 "DownloadCountImporter",
                 j => j.Import(JobCancellationToken.Null),
-                Cron.Daily());
+                // Runs at 1 AM UTC
+                Cron.Daily(1));
         }
     }
 }

@@ -36,6 +36,10 @@ namespace NuGetTrends.Data
 
             modelBuilder
                 .Entity<PackageDetailsCatalogLeaf>()
+                .HasIndex(p => p.PackageId);
+
+            modelBuilder
+                .Entity<PackageDetailsCatalogLeaf>()
                 .HasMany(p => p.DependencyGroups)
                 .WithOne()
                 .OnDelete(DeleteBehavior.Cascade);

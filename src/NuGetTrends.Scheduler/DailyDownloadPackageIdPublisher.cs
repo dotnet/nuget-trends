@@ -48,34 +48,43 @@ namespace NuGetTrends.Scheduler
                 properties.Persistent = true;
                 properties.Expiration = "43200000";
 
-                using (var conn = _context.Database.GetDbConnection())
+                var messageCount = 0;
+                try
                 {
-                    conn.Open();
-
-                    // Insert some data
-                    using (var cmd = new NpgsqlCommand("SELECT package_id FROM pending_packages_daily_downloads", (NpgsqlConnection)conn))
-                    using (var reader = cmd.ExecuteReader())
+                    using (var conn = _context.Database.GetDbConnection())
                     {
-                        var batchSize = 25; // TODO: Configurable
-                        var batch = new List<string>(batchSize);
+                        conn.Open();
 
-                        while (await reader.ReadAsync())
+                        // Insert some data
+                        using (var cmd = new NpgsqlCommand("SELECT package_id FROM pending_packages_daily_downloads", (NpgsqlConnection)conn))
+                        using (var reader = cmd.ExecuteReader())
                         {
-                            batch.Add((string)reader[0]);
+                            var batchSize = 25; // TODO: Configurable
+                            var batch = new List<string>(batchSize);
 
-                            if (batch.Count == batchSize)
+                            while (await reader.ReadAsync())
+                            {
+                                messageCount++;
+                                batch.Add((string)reader[0]);
+
+                                if (batch.Count == batchSize)
+                                {
+                                    Queue(batch, channel, queueName, properties);
+
+                                    batch.Clear();
+                                }
+                            }
+
+                            if (batch.Count != 0)
                             {
                                 Queue(batch, channel, queueName, properties);
-
-                                batch.Clear();
                             }
                         }
-
-                        if (batch.Count != 0)
-                        {
-                            Queue(batch, channel, queueName, properties);
-                        }
                     }
+                }
+                finally
+                {
+                    _logger.LogInformation("Finished publishing messages. Messages queued: {count}", messageCount);
                 }
             }
         }

@@ -145,7 +145,7 @@ namespace NuGetTrends.Scheduler
                         context.DailyDownloads.Add(new DailyDownload
                         {
                             PackageId = packageMetadata.Identity.Id,
-                            Date = DateTime.Today,
+                            Date = DateTime.UtcNow.Date,
                             DownloadCount = packageMetadata.DownloadCount
                         });
                     }
