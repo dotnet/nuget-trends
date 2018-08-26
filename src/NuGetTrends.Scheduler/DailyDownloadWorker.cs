@@ -68,7 +68,7 @@ namespace NuGetTrends.Scheduler
 
             defaultConsumer.Received += (s, e) =>
             {
-                Console.WriteLine(e);
+                _logger.LogWarning("DefaultConsumer fired: {message}", Convert.ToBase64String(e.Body));
             };
 
             _channel.DefaultConsumer = defaultConsumer;
@@ -78,8 +78,6 @@ namespace NuGetTrends.Scheduler
 
         private async Task OnConsumerOnReceived(object sender, BasicDeliverEventArgs ea)
         {
-            //await Task.Yield();
-
             List<string> packageIds = null;
             try
             {

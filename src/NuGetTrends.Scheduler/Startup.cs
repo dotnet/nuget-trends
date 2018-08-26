@@ -5,10 +5,10 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using NuGetTrends.Data;
 using RabbitMQ.Client;
 using Sentry.Extensibility;
-using IHostingEnvironment = Microsoft.AspNetCore.Hosting.IHostingEnvironment;
 
 namespace NuGetTrends.Scheduler
 {
@@ -37,18 +37,21 @@ namespace NuGetTrends.Scheduler
             services.AddSingleton<INuGetSearchService, NuGetSearchService>();
             services.AddTransient<ISentryEventExceptionProcessor, DbUpdateExceptionProcessor>();
 
-            services.AddSingleton<IConnectionFactory>(_ =>
+            services.Configure<RabbitMqOptions>(Configuration.GetSection("RabbitMq"));
+
+            services.AddSingleton<IConnectionFactory>(c =>
             {
+                var options = c.GetRequiredService<IOptions<RabbitMqOptions>>().Value;
                 var factory = new ConnectionFactory
                 {
-                    HostName = "localhost",
-                    Password = "KZRDZQskRLtTQaVLXDtfGNoHcc",
-                    UserName = "rabbitmq",
+                    HostName = options.Hostname,
+                    Password = options.Password,
+                    UserName = options.Username,
                     // For some reason you have to opt-in to have async code:
                     // If you don't set this, subscribing to Received with AsyncEventingBasicConsumer will silently fail.
                     // DefaultConsumer doesn't fire either!
                     DispatchConsumersAsync = true
-                }; // TODO: Configurable
+                };
 
                 return factory;
             });
