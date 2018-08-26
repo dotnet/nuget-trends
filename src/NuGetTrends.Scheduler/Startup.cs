@@ -5,7 +5,9 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using NuGetTrends.Data;
+using RabbitMQ.Client;
 using Sentry.Extensibility;
 
 namespace NuGetTrends.Scheduler
@@ -25,7 +27,34 @@ namespace NuGetTrends.Scheduler
 
         public void ConfigureServices(IServiceCollection services)
         {
+            // TODO: make worker count configurable
+            var workerCount = 2; //Environment.ProcessorCount;
+            for (var _ = 0; _ < workerCount; _++)
+            {
+                services.AddHostedService<DailyDownloadWorker>();
+            }
+
+            services.AddSingleton<INuGetSearchService, NuGetSearchService>();
             services.AddTransient<ISentryEventExceptionProcessor, DbUpdateExceptionProcessor>();
+
+            services.Configure<RabbitMqOptions>(Configuration.GetSection("RabbitMq"));
+
+            services.AddSingleton<IConnectionFactory>(c =>
+            {
+                var options = c.GetRequiredService<IOptions<RabbitMqOptions>>().Value;
+                var factory = new ConnectionFactory
+                {
+                    HostName = options.Hostname,
+                    Password = options.Password,
+                    UserName = options.Username,
+                    // For some reason you have to opt-in to have async code:
+                    // If you don't set this, subscribing to Received with AsyncEventingBasicConsumer will silently fail.
+                    // DefaultConsumer doesn't fire either!
+                    DispatchConsumersAsync = true
+                };
+
+                return factory;
+            });
 
             services
                 .AddEntityFrameworkNpgsql()
@@ -63,7 +92,10 @@ namespace NuGetTrends.Scheduler
 
             // TODO: access control
             app.UseHangfireDashboard("");
-            app.UseHangfireServer();
+            app.UseHangfireServer(new BackgroundJobServerOptions
+            {
+                WorkerCount = 1 // TODO: Configurable
+            });
 
             app.UseHttpsRedirection();
 

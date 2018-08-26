@@ -102,7 +102,7 @@ namespace NuGetTrends.Api
             app.UseSwagger();
             app.UseSwaggerUI(c =>
             {
-                c.SwaggerEndpoint("/swagger/v1/swagger.json", "Sentry Ornigram");
+                c.SwaggerEndpoint("/swagger/v1/swagger.json", "NuGet Trends");
 
                 c.DocumentTitle = "NuGet Trends API";
                 c.DocExpansion(DocExpansion.None);
