@@ -6,7 +6,7 @@ import {Component} from '@angular/core';
     <div class="container">
       <div class="navbar-brand">
         <a class="navbar-item" href="../">
-          <img src="../../assets/images/logo-transparent.png" alt="NuGet Trends brand logo" />
+          <img src="../../assets/images/logo.png" alt="NuGet Trends brand logo" />
         </a>
       </div>
       <div class="navbar-menu">
