@@ -15,6 +15,9 @@ obj/
 **/BenchmarkDotNet.Artifacts/*.log
 !**/BenchmarkDotNet.Artifacts/results/*github.md
 appsettings.local.json
+src/NuGetTrends.Api/wwwroot
+*.tar.gz
+node_modules
 
 # ignore the host directory folder used on docker-compose
 sql-data/
