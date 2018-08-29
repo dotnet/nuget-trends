@@ -53,7 +53,7 @@ export class PackageListComponent implements OnDestroy {
    * @param packageHistory
    */
   private addPackageToList(packageHistory: IPackageDownloadHistory): void {
-    if (packageHistory) {
+    if (packageHistory && !this.packageList.some(p => p.id === packageHistory.id)) {
       const color = this.colorsList.find(p => p.isInUse() === false);
       color.setUsed();
       packageHistory.color = color.code;
