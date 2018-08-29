@@ -93,27 +93,17 @@ namespace NuGetTrends.Api
             {
                 app.UseCors("AllowAll");
                 app.UseMiddleware<ExceptionInResponseMiddleware>();
-            }
-            else
-            {
-                app.UseHsts();
-            }
 
-            app.UseHttpsRedirection();
+                app.UseSwaggerUI(c =>
+                {
+                    c.SwaggerEndpoint("/swagger/v1/swagger.json", "NuGet Trends");
 
-            app.UseDefaultFiles();
-            app.UseSpaStaticFiles();
+                    c.DocumentTitle = "NuGet Trends API";
+                    c.DocExpansion(DocExpansion.None);
+                });
+            }
 
             app.UseSwagger();
-            app.UseSwaggerUI(c =>
-            {
-                c.SwaggerEndpoint("/swagger/v1/swagger.json", "NuGet Trends");
-
-                c.DocumentTitle = "NuGet Trends API";
-                c.DocExpansion(DocExpansion.None);
-
-            });
-
             app.UseMvc();
         }
     }
