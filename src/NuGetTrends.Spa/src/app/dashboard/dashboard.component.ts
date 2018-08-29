@@ -11,7 +11,7 @@ import {ActivatedRoute, Params, Router} from '@angular/router';
   selector: 'app-dashboard',
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.scss'],
-  animations: [ AppAnimations.slideInOutAnimation ]
+  animations: [AppAnimations.slideInOutAnimation]
 })
 export class DashboardComponent implements OnInit, OnDestroy {
 
@@ -81,6 +81,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.loaded = this.chartData.datasets.length > 0;
     this.trendChart.update();
     this.removePackageFromUrl(packageId);
+
+    if (!this.chartData.datasets.length) {
+      this.route.navigate(['/home']);
+    }
   }
 
 
