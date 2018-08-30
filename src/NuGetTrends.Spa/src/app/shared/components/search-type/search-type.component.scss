@@ -1,33 +1,69 @@
 @import '../../../../colors';
 
-$borderWidth: 3px;
-$border-radius: 35px;
-
-.packages-group {
+.switch {
+  position: relative;
   display: inline-block;
-  margin: 20px;
-  border-radius: $border-radius;
-  overflow: hidden;
-  background-color: #0087e0; // TODO: Define a better color
-  font-size: 1.1em;
+  width: 220px;
+  height: 45px;
 }
 
-input[type=radio] {
+.switch input {display:none;}
+
+.slider {
   position: absolute;
-  visibility: hidden;
-  display: none;
-}
-
-label {
-  display: inline-block;
   cursor: pointer;
-  padding: 20px 40px;
-  border-radius: $border-radius;
-  color: $white-ter;
-  font-weight: bold;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: $blue-darker;
+  -webkit-transition: .10s;
+  transition: .10s;
 }
 
-input[type=radio]:checked + label {
-  color: $blue-darker;
-  background: $grey-lighter;
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 45px;
+  width: 110px;
+  left: 0px;
+  background-color: #00c144;
+  color:black;
+  -webkit-transition: .5s;
+  transition: .5s;
+}
+
+input:not(:checked) + .slider:before {
+  -webkit-transform: translateX(110px);
+  -ms-transform: translateX(110px);
+  transform: translateX(110px);
+}
+
+.slider.round {
+   border-radius: 34px;
+}
+
+.slider.round:before {
+  border-radius: 34px;
+}
+
+.toggle-label {
+  position:absolute;
+  cursor: pointer;
+  color: #afafaf;
+  font-weight: 500;
+}
+
+.toggle-label-left {  
+  top: 10px;
+  left: 20px; 
+}
+
+.toggle-label-right {
+  top: 10px;
+  right: 10px;  
+}
+
+.label-inverted-color {
+  color: $white-ter;
 }

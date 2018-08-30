@@ -7,6 +7,8 @@ import { Component, OnInit } from '@angular/core';
 })
 export class SearchTypeComponent implements OnInit {
 
+  isNugetPackage = true;
+  
   constructor() { }
 
   ngOnInit() {
