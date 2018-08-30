@@ -1,10 +1,5 @@
 @import '../../../../colors';
 
-.filter-wrapper,
-.keyword-wrapper {
-  //display: flex;
-  //justify-content: center;
-}
 .filter-wrapper {
   position: relative;
 }
@@ -12,6 +7,7 @@
   width: 100%;
   position: relative;
 }
+
 #keyword {
   border: 1px solid #ccc;
   padding: 10px;
@@ -61,4 +57,26 @@
 .filter-select-list:hover {
   background:  $cyan;
   color: #fff
+}
+
+
+/* Extra styles to make the input a little nicer on the header */
+input:focus{
+  border: none;
+}
+
+::-webkit-input-placeholder {
+  text-align: center;
+}
+
+:-moz-placeholder { /* Firefox 18- */
+  text-align: center;  
+}
+
+::-moz-placeholder {  /* Firefox 19+ */
+  text-align: center;  
+}
+
+:-ms-input-placeholder {  
+  text-align: center; 
 }
