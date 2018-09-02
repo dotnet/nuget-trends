@@ -17,8 +17,13 @@ namespace NuGetTrends.Scheduler
         public static IWebHostBuilder CreateWebHostBuilder(string[] args) =>
             WebHost.CreateDefaultBuilder(args)
                 .UseShutdownTimeout(TimeSpan.FromSeconds(30))
-                .ConfigureAppConfiguration((_, c) => c.AddJsonFile("appsettings.local.json", optional: true, reloadOnChange: true))
-                .UseSentry(o =>
+                .ConfigureAppConfiguration((w, c) =>
+                {
+                    if (w.HostingEnvironment.IsDevelopment())
+                    {
+                        c.AddJsonFile("appsettings.local.json", optional: true, reloadOnChange: true);
+                    }
+                }).UseSentry(o =>
                 {
                     o.Filters = new[]
                     {

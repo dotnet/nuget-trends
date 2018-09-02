@@ -85,10 +85,6 @@ namespace NuGetTrends.Scheduler
             {
                 app.UseDeveloperExceptionPage();
             }
-            else
-            {
-                app.UseHsts();
-            }
 
             // TODO: access control
             app.UseHangfireDashboard("");
@@ -96,8 +92,6 @@ namespace NuGetTrends.Scheduler
             {
                 WorkerCount = 1 // TODO: Configurable
             });
-
-            app.UseHttpsRedirection();
 
             app.ScheduleJobs();
         }
