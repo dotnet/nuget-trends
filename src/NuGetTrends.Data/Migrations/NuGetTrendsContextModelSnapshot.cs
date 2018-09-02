@@ -151,6 +151,8 @@ namespace NuGetTrends.Data.Migrations
                     b.HasKey("Id")
                         .HasName("pk_package_details_catalog_leafs");
 
+                    b.HasIndex("PackageId");
+
                     b.HasIndex("PackageId", "PackageVersion")
                         .IsUnique();
 
@@ -176,19 +178,20 @@ namespace NuGetTrends.Data.Migrations
                     );
                 });
 
-            modelBuilder.Entity("NuGetTrends.Data.PackageRegistration", b =>
+            modelBuilder.Entity("NuGetTrends.Data.DailyDownload", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnName("id");
-
                     b.Property<string>("PackageId")
                         .HasColumnName("package_id");
 
-                    b.HasKey("Id")
-                        .HasName("pk_package_registrations");
+                    b.Property<DateTime>("Date")
+                        .HasColumnName("date");
 
-                    b.ToTable("package_registrations");
+                    b.Property<long?>("DownloadCount")
+                        .HasColumnName("download_count");
+
+                    b.HasKey("PackageId", "Date");
+
+                    b.ToTable("daily_downloads");
                 });
 
             modelBuilder.Entity("NuGet.Protocol.Catalog.Models.PackageDependency", b =>

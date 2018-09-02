@@ -1,13 +1,9 @@
-<section class="section">
-  <div class="columns is-mobile is-centered">
-    <div class="tags">
-      <span
-        class="tag is-large has-text-white"
-        [ngStyle]="{'background-color': packageHistory.color}"
-        *ngFor="let packageHistory of packageList">
-        {{packageHistory.id}}
-        <button class="delete" (click)="removePackage(packageHistory)"></button>
-      </span>
-    </div>
-  </div>
-</section>
+<div class="tags">
+    <span
+      class="tag is-large has-text-white"
+      [ngStyle]="{'background-color': packageHistory.color}"
+      *ngFor="let packageHistory of packageList">
+      {{packageHistory.id}}
+      <button class="delete" (click)="removePackage(packageHistory)"></button>
+    </span>
+</div>

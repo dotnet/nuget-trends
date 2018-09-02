@@ -83,6 +83,8 @@ namespace NuGetTrends.Api
                 var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
                 c.IncludeXmlComments(xmlPath);
             });
+
+            services.AddSpaStaticFiles(p => p.RootPath = "wwwroot");
         }
 
         public void Configure(IApplicationBuilder app)
@@ -99,10 +101,13 @@ namespace NuGetTrends.Api
 
             app.UseHttpsRedirection();
 
+            app.UseDefaultFiles();
+            app.UseSpaStaticFiles();
+
             app.UseSwagger();
             app.UseSwaggerUI(c =>
             {
-                c.SwaggerEndpoint("/swagger/v1/swagger.json", "Sentry Ornigram");
+                c.SwaggerEndpoint("/swagger/v1/swagger.json", "NuGet Trends");
 
                 c.DocumentTitle = "NuGet Trends API";
                 c.DocExpansion(DocExpansion.None);

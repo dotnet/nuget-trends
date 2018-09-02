@@ -1,11 +1,16 @@
 @import '../node_modules/bulma/sass/utilities/initial-variables.sass';
 
 // brand colors
-$blue-light: #D0D1CD;
-$blue-lighter: #EFF0EB;
+$blue-dark: #215C84;
+$blue-darker: #153B54;
+$blue-light: #A2BACB;
+$bg-color: #EFF0EB;
 
-// Update some of Bulma's component variables
-$body-background-color: $blue-lighter;
+// Bulma Overrides
+$primary: $blue-dark;
+
+$body-background-color: $bg-color;
+$navbar-item-img-max-height: 3rem;
 $control-border-width: 2px;
 $input-border-color: transparent;
 $input-shadow: none;

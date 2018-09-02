@@ -1,11 +1,12 @@
-<app-navigation></app-navigation>
 <div class="site-content">
-  <section class="hero is-dark">
-    <div class="hero-body">
-      <div class="container has-text-centered">
-        <h3 class="title is-3">
-          Find the history of your packages
-        </h3>
+  <section class="hero search-pattern is-primary">
+    <div class="hero-body main-header">
+      <div class="container">
+        <div class="columns">
+          <div class="column has-text-centered is-12">
+            <a [routerLink]="['/home']"><img src="../assets/images/logo-inverted.png" width="400" alt="NuGet Trends brand logo"></a>
+          </div>
+        </div>
         <div class="columns">
           <div class="column is-8 is-offset-2">
             <div class="control has-icons-left has-icons-right">
@@ -13,9 +14,14 @@
             </div>
           </div>
         </div>
+        <div class="columns">
+          <div class="column has-text-centered is-12">
+            <app-search-type></app-search-type>
+          </div>
+        </div>
       </div>
     </div>
   </section>
-    <router-outlet></router-outlet>
+  <router-outlet></router-outlet>
 </div>
 <app-footer></app-footer>

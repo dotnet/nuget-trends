@@ -1,8 +1,8 @@
 import {Component, OnDestroy} from '@angular/core';
+import {Subscription} from 'rxjs/';
 import {PackageInteractionService} from '../../common';
 import {IPackageDownloadHistory} from '../../common/package-models';
-import {IPackageColor, TagColor} from '../common/component-models';
-import {Subscription} from 'rxjs/';
+import {IPackageColor, TagColor} from './component-models';
 
 @Component({
   selector: 'app-package-list',
@@ -53,7 +53,7 @@ export class PackageListComponent implements OnDestroy {
    * @param packageHistory
    */
   private addPackageToList(packageHistory: IPackageDownloadHistory): void {
-    if (packageHistory) {
+    if (packageHistory && !this.packageList.some(p => p.id === packageHistory.id)) {
       const color = this.colorsList.find(p => p.isInUse() === false);
       color.setUsed();
       packageHistory.color = color.code;

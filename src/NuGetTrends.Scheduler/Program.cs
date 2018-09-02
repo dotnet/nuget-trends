@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
@@ -21,7 +20,7 @@ namespace NuGetTrends.Scheduler
                 .ConfigureAppConfiguration((_, c) => c.AddJsonFile("appsettings.local.json", optional: true, reloadOnChange: true))
                 .UseSentry(o =>
                 {
-                    o.Logging.Filters = o.Logging.Filters.Union(new[]
+                    o.Filters = new[]
                     {
                         new DelegateLogEventFilter((category, level, eventId, exception)
                             => eventId.ToString() ==
@@ -30,7 +29,7 @@ namespace NuGetTrends.Scheduler
                                    category,
                                    "Microsoft.EntityFrameworkCore.Model.Validation",
                                    StringComparison.Ordinal))
-                    }).ToArray();
+                    };
                 })
                 .UseStartup<Startup>();
     }
