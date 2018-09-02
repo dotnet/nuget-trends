@@ -14,8 +14,14 @@ namespace NuGetTrends.Api
         public static IWebHostBuilder CreateWebHostBuilder(string[] args) =>
             WebHost.CreateDefaultBuilder(args)
                 .UseKestrel(c => c.AddServerHeader = false)
-                .ConfigureAppConfiguration((_, c) => c.AddJsonFile("appsettings.local.json", optional: true, reloadOnChange: true))
-                .UseSentry()
+                .ConfigureAppConfiguration((b, c) =>
+                {
+                    if (b.HostingEnvironment.IsDevelopment())
+                    {
+                        c.AddJsonFile("appsettings.local.json", optional: true, reloadOnChange: true);
+                    }
+                })
+                .UseSentry(o => o.Debug = true)
                 .UseStartup<Startup>();
     }
 }

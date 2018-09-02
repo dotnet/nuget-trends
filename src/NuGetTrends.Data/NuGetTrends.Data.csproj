@@ -15,4 +15,28 @@
 
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="Migrations\20180819193931_Init.cs" />
+    <Compile Remove="Migrations\20180819193931_Init.Designer.cs" />
+    <Compile Remove="Migrations\20180820172327_IndexNameVersion.cs" />
+    <Compile Remove="Migrations\20180820172327_IndexNameVersion.Designer.cs" />
+    <Compile Remove="Migrations\20180820201732_CanscadeDelete.cs" />
+    <Compile Remove="Migrations\20180820201732_CanscadeDelete.Designer.cs" />
+    <Compile Remove="Migrations\20180820210206_Index.cs" />
+    <Compile Remove="Migrations\20180820210206_Index.Designer.cs" />
+    <Compile Remove="Migrations\20180823220923_DailyDownload.cs" />
+    <Compile Remove="Migrations\20180823220923_DailyDownload.Designer.cs" />
+    <Compile Remove="Migrations\20180823221317_DailyDownload1.cs" />
+    <Compile Remove="Migrations\20180823221317_DailyDownload1.Designer.cs" />
+    <Compile Remove="Migrations\20180825172954_PendingDailyDownload.cs" />
+    <Compile Remove="Migrations\20180825172954_PendingDailyDownload.Designer.cs" />
+    <Compile Remove="Migrations\20180825230816_IndexPacakgeIdMigration.cs" />
+    <Compile Remove="Migrations\20180825230816_IndexPacakgeIdMigration.Designer.cs" />
+    <Compile Remove="Migrations\NuGetTrendsContextModelSnapshot.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Migrations" />
+  </ItemGroup>
+
 </Project>
