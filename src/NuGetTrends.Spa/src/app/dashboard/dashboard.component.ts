@@ -3,8 +3,7 @@ import {Chart, ChartDataSets, ChartOptions} from 'chart.js';
 import {DatePipe} from '@angular/common';
 
 import {IPackageDownloadHistory, IDownloadStats} from '../shared/common/package-models';
-import {PackagesService, PackageInteractionService} from '../shared/common/';
-import {animate, style, transition, trigger} from '@angular/animations';
+import {PackagesService, PackageInteractionService, AppAnimations} from '../shared/common/';
 import {Subscription} from 'rxjs';
 import {ActivatedRoute, Params, Router} from '@angular/router';
 
@@ -12,17 +11,7 @@ import {ActivatedRoute, Params, Router} from '@angular/router';
   selector: 'app-dashboard',
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.scss'],
-  animations: [
-    trigger('slideInOut', [
-      transition(':enter', [
-        style({opacity: 0}),
-        animate(300, style({opacity: 1}))
-      ]),
-      transition(':leave', [
-        animate(300, style({opacity: 0}))
-      ])
-    ])
-  ]
+  animations: [AppAnimations.slideInOutAnimation]
 })
 export class DashboardComponent implements OnInit, OnDestroy {
 
@@ -92,6 +81,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.loaded = this.chartData.datasets.length > 0;
     this.trendChart.update();
     this.removePackageFromUrl(packageId);
+
+    if (!this.chartData.datasets.length) {
+      this.route.navigate(['/home']);
+    }
   }
 
 

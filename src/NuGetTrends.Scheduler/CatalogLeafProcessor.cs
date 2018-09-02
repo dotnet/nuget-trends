@@ -31,7 +31,7 @@ namespace NuGetTrends.Scheduler
             _context = _scope.ServiceProvider.GetRequiredService<NuGetTrendsContext>();
         }
 
-        private async ValueTask Save(CancellationToken token)
+        private async Task Save(CancellationToken token)
         {
             _counter++;
 

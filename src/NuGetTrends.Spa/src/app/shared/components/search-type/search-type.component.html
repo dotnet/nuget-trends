@@ -1,6 +1,6 @@
-<div class="packages-group">
-  <input type="radio" id="package" name="selector" checked>
-  <label for="package">Packages</label>
-  <input type="radio" id="framework" name="selector">
-  <label for="framework">Frameworks</label>
-</div>
+<label class="switch">
+  <input type="checkbox" [(ngModel)]="isNugetPackage" />
+  <span class="slider round"></span>
+  <span class="toggle-label toggle-label-left" [ngClass]="{'label-inverted-color': isNugetPackage}">Packages</span>
+  <span class="toggle-label toggle-label-right" [ngClass]="{'label-inverted-color': !isNugetPackage}">Frameworks</span>
+</label>
