@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using NuGetTrends.Data;
 
 namespace NuGetTrends.Api
 {
@@ -11,21 +12,21 @@ namespace NuGetTrends.Api
     [ApiController]
     public class PackageController : ControllerBase
     {
-        private readonly NuGetMustHavesContext _context;
+        private readonly NuGetTrendsContext _context;
 
-        public PackageController(NuGetMustHavesContext context) => _context = context;
+        public PackageController(NuGetTrendsContext context) => _context = context;
 
         [HttpGet("search")]
         public async Task<ActionResult<IEnumerable<object>>> Search([FromQuery] string q)
-            => await _context.NPackages
+            => await _context.PackageDetailsCatalogLeafs
                 .AsNoTracking()
                 .Where(p => p.PackageId.Contains(q))
-                .OrderByDescending(p => p.DownloadCount)
+//                .OrderByDescending(p => p.DownloadCount)
                 .Take(100)
                 .Select(p => new
                 {
                     p.PackageId,
-                    p.DownloadCount,
+//                    p.DownloadCount,
                     p.IconUrl
                 })
                 .ToListAsync();
@@ -33,16 +34,16 @@ namespace NuGetTrends.Api
         [HttpGet("history/{id}")]
         public Task<object> GetDownloadHistory([FromRoute] string id, [FromQuery] int months = 3)
         {
-            var query = from p in _context.NPackages.AsNoTracking()
+            var query = from p in _context.PackageDetailsCatalogLeafs.AsNoTracking()
                 where p.PackageId == id
                 select new
                 {
                     Id = p.PackageId,
                     p.IconUrl,
-                    Downloads = from d in _context.Downloads.AsNoTracking()
-                        where d.PackageId == p.Id
+                    Downloads = from d in _context.DailyDownloads.AsNoTracking()
+                        where d.PackageId == p.PackageId
                               && d.Date > DateTime.UtcNow.AddMonths(-months).Date
-                        select new {d.Date, d.Count}
+                        select new {d.Date, d.DownloadCount}
                         into dc
                         let week = dc.Date.AddDays(-(int)dc.Date.DayOfWeek).Date
                         group dc by week
@@ -51,7 +52,7 @@ namespace NuGetTrends.Api
                         select new
                         {
                             dpw.Key.Date,
-                            Count = dpw.Average(c => c.Count)
+                            Count = dpw.Average(c => c.DownloadCount)
                         } as object
                 } as object;
 

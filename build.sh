@@ -8,7 +8,9 @@ pushd src/NuGetTrends.Spa
 yarn install
 yarn prod
 
-cp -r dist/nuget-trends/* $root/src/NuGetTrends.Api/wwwroot
+pushd dist/nuget-trends/
+tar -zcvf $root/nuget-trends-spa.tar.gz .
+popd
 popd
 
 # API
@@ -18,7 +20,7 @@ export framework=netcoreapp2.1
 dotnet publish -c Release -f $framework
 
 pushd bin/Release/$framework/publish/
-tar -zcvf $root/nuget-trends-web.tar.gz .
+tar -zcvf $root/nuget-trends-api.tar.gz .
 popd
 popd
 
