@@ -1,4 +1,5 @@
 using Hangfire;
+using Hangfire.Dashboard;
 using Hangfire.MemoryStorage;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -38,6 +39,7 @@ namespace NuGetTrends.Scheduler
             services.AddTransient<ISentryEventExceptionProcessor, DbUpdateExceptionProcessor>();
 
             services.Configure<RabbitMqOptions>(Configuration.GetSection("RabbitMq"));
+            services.Configure<BackgroundJobServerOptions>(Configuration.GetSection("Hangfire"));
 
             services.AddSingleton<IConnectionFactory>(c =>
             {
@@ -86,12 +88,19 @@ namespace NuGetTrends.Scheduler
                 app.UseDeveloperExceptionPage();
             }
 
-            // TODO: access control
-            app.UseHangfireDashboard("");
-            app.UseHangfireServer(new BackgroundJobServerOptions
-            {
-                WorkerCount = 1 // TODO: Configurable
-            });
+            app.UseHangfireDashboard(
+                pathMatch: "",
+                options: new DashboardOptions
+                {
+                    Authorization = new IDashboardAuthorizationFilter[]
+                    {
+                        // Process not expected to be exposed to the internet
+                        new PublicAccessDashboardAuthorizationFilter()
+                    }
+                });
+
+            var hangfireOptions = app.ApplicationServices.GetRequiredService<IOptions<BackgroundJobServerOptions>>().Value;
+            app.UseHangfireServer(hangfireOptions);
 
             app.ScheduleJobs();
         }
