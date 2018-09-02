@@ -11,8 +11,8 @@ using NuGetTrends.Data;
 namespace NuGetTrends.Data.Migrations
 {
     [DbContext(typeof(NuGetTrendsContext))]
-    [Migration("20180820201732_CanscadeDelete")]
-    partial class CanscadeDelete
+    [Migration("20180902180031_Init")]
+    partial class Init
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
@@ -153,6 +153,8 @@ namespace NuGetTrends.Data.Migrations
                     b.HasKey("Id")
                         .HasName("pk_package_details_catalog_leafs");
 
+                    b.HasIndex("PackageId");
+
                     b.HasIndex("PackageId", "PackageVersion")
                         .IsUnique();
 
@@ -178,19 +180,45 @@ namespace NuGetTrends.Data.Migrations
                     );
                 });
 
-            modelBuilder.Entity("NuGetTrends.Data.PackageRegistration", b =>
+            modelBuilder.Entity("NuGetTrends.Data.DailyDownload", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnName("id");
-
                     b.Property<string>("PackageId")
                         .HasColumnName("package_id");
 
-                    b.HasKey("Id")
-                        .HasName("pk_package_registrations");
+                    b.Property<DateTime>("Date")
+                        .HasColumnName("date");
 
-                    b.ToTable("package_registrations");
+                    b.Property<long?>("DownloadCount")
+                        .HasColumnName("download_count");
+
+                    b.HasKey("PackageId", "Date");
+
+                    b.ToTable("daily_downloads");
+                });
+
+            modelBuilder.Entity("NuGetTrends.Data.PackageDownload", b =>
+                {
+                    b.Property<string>("PackageId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnName("package_id");
+
+                    b.Property<string>("IconUrl")
+                        .HasColumnName("icon_url");
+
+                    b.Property<long?>("LatestDownloadCount")
+                        .HasColumnName("latest_download_count");
+
+                    b.Property<DateTime>("LatestDownloadCountCheckedUtc")
+                        .HasColumnName("latest_download_count_checked_utc");
+
+                    b.Property<string>("PackageIdLowered")
+                        .HasColumnName("package_id_lowered");
+
+                    b.HasKey("PackageId");
+
+                    b.HasIndex("PackageIdLowered");
+
+                    b.ToTable("package_downloads");
                 });
 
             modelBuilder.Entity("NuGet.Protocol.Catalog.Models.PackageDependency", b =>

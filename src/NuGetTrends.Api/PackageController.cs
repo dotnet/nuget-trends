@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
@@ -18,23 +19,23 @@ namespace NuGetTrends.Api
 
         [HttpGet("search")]
         public async Task<ActionResult<IEnumerable<object>>> Search([FromQuery] string q)
-            => await _context.PackageDetailsCatalogLeafs
+            => await _context.PackageDownloads
                 .AsNoTracking()
-                .Where(p => p.PackageId.Contains(q))
-//                .OrderByDescending(p => p.DownloadCount)
-                .Take(100)
+                .Where(p => p.PackageIdLowered.Contains(q.ToLower(CultureInfo.InvariantCulture)))
+                .OrderByDescending(p => p.LatestDownloadCount)
+                .Take(20)
                 .Select(p => new
                 {
                     p.PackageId,
-//                    p.DownloadCount,
-                    p.IconUrl
+                    p.LatestDownloadCount,
+                    IconUrl = p.IconUrl ?? "https://www.nuget.org/Content/gallery/img/default-package-icon.svg"
                 })
                 .ToListAsync();
 
         [HttpGet("history/{id}")]
         public Task<object> GetDownloadHistory([FromRoute] string id, [FromQuery] int months = 3)
         {
-            var query = from p in _context.PackageDetailsCatalogLeafs.AsNoTracking()
+            var query = from p in _context.PackageDownloads.AsNoTracking()
                 where p.PackageId == id
                 select new
                 {

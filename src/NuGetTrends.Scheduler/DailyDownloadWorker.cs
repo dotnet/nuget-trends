@@ -146,6 +146,32 @@ namespace NuGetTrends.Scheduler
                             Date = DateTime.UtcNow.Date,
                             DownloadCount = packageMetadata.DownloadCount
                         });
+
+                        void Update(PackageDownload package, IPackageSearchMetadata metadata)
+                        {
+                            if (metadata.IconUrl?.ToString() is string url)
+                            {
+                                package.IconUrl = url;
+                            }
+                            package.LatestDownloadCount = metadata.DownloadCount;
+                            package.LatestDownloadCountCheckedUtc = DateTime.UtcNow;
+                        }
+
+                        var pkgDownload = await context.PackageDownloads.FirstOrDefaultAsync(p => p.PackageId == packageMetadata.Identity.Id);
+                        if (pkgDownload == null)
+                        {
+                            pkgDownload = new PackageDownload
+                            {
+                                PackageId = packageMetadata.Identity.Id.ToLower(),
+                            };
+                            Update(pkgDownload, packageMetadata);
+                            context.PackageDownloads.Add(pkgDownload);
+                        }
+                        else
+                        {
+                            Update(pkgDownload, packageMetadata);
+                            context.PackageDownloads.Update(pkgDownload);
+                        }
                     }
 
                     try

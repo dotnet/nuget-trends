@@ -194,6 +194,31 @@ namespace NuGetTrends.Data.Migrations
                     b.ToTable("daily_downloads");
                 });
 
+            modelBuilder.Entity("NuGetTrends.Data.PackageDownload", b =>
+                {
+                    b.Property<string>("PackageId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnName("package_id");
+
+                    b.Property<string>("IconUrl")
+                        .HasColumnName("icon_url");
+
+                    b.Property<long?>("LatestDownloadCount")
+                        .HasColumnName("latest_download_count");
+
+                    b.Property<DateTime>("LatestDownloadCountCheckedUtc")
+                        .HasColumnName("latest_download_count_checked_utc");
+
+                    b.Property<string>("PackageIdLowered")
+                        .HasColumnName("package_id_lowered");
+
+                    b.HasKey("PackageId");
+
+                    b.HasIndex("PackageIdLowered");
+
+                    b.ToTable("package_downloads");
+                });
+
             modelBuilder.Entity("NuGet.Protocol.Catalog.Models.PackageDependency", b =>
                 {
                     b.HasOne("NuGet.Protocol.Catalog.Models.PackageDependencyGroup")

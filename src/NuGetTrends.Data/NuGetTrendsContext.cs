@@ -4,6 +4,15 @@ using NuGet.Protocol.Catalog.Models;
 
 namespace NuGetTrends.Data
 {
+    public class PackageDownload
+    {
+        public string PackageId { get; set; }
+        public string PackageIdLowered { get; set; }
+        public long? LatestDownloadCount { get; set; }
+        public DateTime LatestDownloadCountCheckedUtc { get; set; }
+        public string IconUrl { get; set; }
+    }
+
     public class NuGetTrendsContext : BasePostgresContext
     {
         public NuGetTrendsContext(DbContextOptions<NuGetTrendsContext> options)
@@ -13,6 +22,7 @@ namespace NuGetTrends.Data
         public DbSet<PackageDetailsCatalogLeaf> PackageDetailsCatalogLeafs { get; set; }
         public DbSet<Cursor> Cursors { get; set; }
         public DbSet<DailyDownload> DailyDownloads { get; set; }
+        public DbSet<PackageDownload> PackageDownloads { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -53,6 +63,15 @@ namespace NuGetTrends.Data
             modelBuilder
                 .Entity<PackageDependency>()
                 .HasIndex(p => p.DependencyId);
+
+            modelBuilder
+                .Entity<PackageDownload>()
+                .HasKey(c => c.PackageId);
+
+            modelBuilder
+                .Entity<PackageDownload>()
+                .HasIndex(c => c.PackageIdLowered)
+                .IsUnique();
         }
     }
 }

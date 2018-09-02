@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -72,6 +72,21 @@ namespace NuGetTrends.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "package_downloads",
+                columns: table => new
+                {
+                    package_id = table.Column<string>(nullable: false),
+                    package_id_lowered = table.Column<string>(nullable: true),
+                    latest_download_count = table.Column<long>(nullable: true),
+                    latest_download_count_checked_utc = table.Column<DateTime>(nullable: false),
+                    icon_url = table.Column<string>(nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_package_downloads", x => x.package_id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "package_dependency_group",
                 columns: table => new
                 {
@@ -112,6 +127,13 @@ namespace NuGetTrends.Data.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
+            migrationBuilder.Sql(@"CREATE VIEW pending_packages_daily_downloads AS
+SELECT l.package_id FROM PACKAGE_DETAILS_CATALOG_LEAFS l
+LEFT OUTER JOIN DAILY_DOWNLOADS d
+ON l.package_id = d.package_id AND d.date = DATE_TRUNC('day', now())
+WHERE d.package_id IS NULL
+GROUP BY l.package_id");
+
             migrationBuilder.InsertData(
                 table: "cursors",
                 columns: new[] { "id", "value" },
@@ -142,10 +164,17 @@ namespace NuGetTrends.Data.Migrations
                 table: "package_details_catalog_leafs",
                 columns: new[] { "package_id", "package_version" },
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_package_downloads_package_id_lowered",
+                table: "package_downloads",
+                column: "package_id_lowered");
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.Sql(@"DROP VIEW pending_packages_daily_downloads");
+
             migrationBuilder.DropTable(
                 name: "cursors");
 
@@ -154,6 +183,9 @@ namespace NuGetTrends.Data.Migrations
 
             migrationBuilder.DropTable(
                 name: "package_dependency");
+
+            migrationBuilder.DropTable(
+                name: "package_downloads");
 
             migrationBuilder.DropTable(
                 name: "package_dependency_group");
