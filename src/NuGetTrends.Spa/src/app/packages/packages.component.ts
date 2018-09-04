@@ -9,11 +9,11 @@ import {ActivatedRoute, Params, Router} from '@angular/router';
 
 @Component({
   selector: 'app-dashboard',
-  templateUrl: './dashboard.component.html',
-  styleUrls: ['./dashboard.component.scss'],
+  templateUrl: './packages.component.html',
+  styleUrls: ['./packages.component.scss'],
   animations: [AppAnimations.slideInOutAnimation]
 })
-export class DashboardComponent implements OnInit, OnDestroy {
+export class PackagesComponent implements OnInit, OnDestroy {
 
   private trendChart: Chart;
   private canvas: any;

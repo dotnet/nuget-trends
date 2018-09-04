@@ -1,11 +1,11 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
-import { DashboardComponent } from './dashboard/dashboard.component';
+import { PackagesComponent } from './packages/packages.component';
 import {HomeComponent} from './home/home.component';
 
 const routes: Routes = [
   { path: '', component: HomeComponent, pathMatch: 'full' },
-  { path: 'nuget-packages', component: DashboardComponent }
+  { path: 'packages', component: PackagesComponent }
 ];
 
 @NgModule({

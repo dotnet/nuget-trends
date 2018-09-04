@@ -8,7 +8,7 @@ import {HttpClientModule} from '@angular/common/http';
 import {AppComponent} from './app.component';
 import {AppRoutingModule} from './app-routes.module';
 import {environment} from '../environments/environment';
-import {DashboardModule} from './dashboard/dashboard.module';
+import {PackagesModule} from './packages/packages.module';
 import {NavigationComponent, FooterComponent} from './_layout/';
 import {SharedModule} from './shared/shared.module';
 import {HomeModule} from './home/home.module';
@@ -36,7 +36,7 @@ export class SentryErrorHandler extends ErrorHandler {
     BrowserAnimationsModule,
     HttpClientModule,
     SharedModule,
-    DashboardModule,
+    PackagesModule,
     HomeModule
   ],
   providers: [DatePipe, {provide: ErrorHandler, useClass: SentryErrorHandler}],

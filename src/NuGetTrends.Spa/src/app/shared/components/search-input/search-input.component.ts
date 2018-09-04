@@ -59,7 +59,7 @@ export class SearchInputComponent implements AfterViewInit {
    * @param packageId
    */
   packageSelected(packageId: string): void {
-    if (this.router.url.includes('/nuget-packages')) {
+    if (this.router.url.includes('/packages')) {
       this.packagesService.getPackageDownloadHistory(packageId)
         .subscribe((packageHistory: IPackageDownloadHistory) => {
           this.selectPackage(packageHistory);
@@ -67,7 +67,7 @@ export class SearchInputComponent implements AfterViewInit {
     } else {
       this.packagesService.getPackageDownloadHistory(packageId)
         .subscribe((packageHistory: IPackageDownloadHistory) => {
-          this.router.navigate(['/nuget-packages']).then(() => {
+          this.router.navigate(['/packages']).then(() => {
             this.selectPackage(packageHistory);
           });
         });
