@@ -83,7 +83,7 @@ export class PackagesComponent implements OnInit, OnDestroy {
     this.removePackageFromUrl(packageId);
 
     if (!this.chartData.datasets.length) {
-      this.route.navigate(['/home']);
+      this.route.navigate(['/']);
     }
   }
 
@@ -181,7 +181,7 @@ export class PackagesComponent implements OnInit, OnDestroy {
     packageIds.forEach((packageId: string) => {
       this.packagesService.getPackageDownloadHistory(packageId)
         .subscribe((packageHistory: IPackageDownloadHistory) => {
-          this.addPackageService.selectPackage(packageHistory);
+          this.addPackageService.addPackage(packageHistory);
         });
     });
   }

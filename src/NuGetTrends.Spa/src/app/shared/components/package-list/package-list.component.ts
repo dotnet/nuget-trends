@@ -25,7 +25,7 @@ export class PackageListComponent implements OnDestroy {
 
   constructor(private addPackageService: PackageInteractionService) {
     this.packageList = [];
-    this.packageSelectedSubscription = this.packageSelectedSubscription = this.addPackageService.packageSelected$.subscribe(
+    this.packageSelectedSubscription = this.packageSelectedSubscription = this.addPackageService.packageAdded$.subscribe(
       (packageHistory: IPackageDownloadHistory) => {
         this.addPackageToList(packageHistory);
       });

@@ -1,3 +1,5 @@
+
+// TODO: This can be used for Framework results as well.. so maybe rename to INuGetSearchResult?
 export interface IPackageSearchResult {
   packageId: string;
   downloadCount: number;
@@ -13,4 +15,9 @@ export interface IPackageDownloadHistory {
 export interface IDownloadStats {
     date: Date;
     count: number;
+}
+
+export enum  SearchType {
+  NuGetPackage = 1,
+  Framework
 }
