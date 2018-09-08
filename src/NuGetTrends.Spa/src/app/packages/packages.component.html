@@ -12,11 +12,10 @@
       <div class="field">
         <div class="control control-center">
           <div class="select is-medium">
-            <select id="period">
-              <option value="3">3 months</option>
-              <option value="6">6 months</option>
-              <option value="12">1 year</option>
-              <option value="24">2 years</option>
+            <select id="period" [formControl]="periodControl">
+              <option *ngFor="let period of periodValues" [ngValue]="period.value">
+                {{ period.text }}
+              </option>
             </select>
           </div>
         </div>

@@ -6,6 +6,7 @@ import {IPackageDownloadHistory, IDownloadStats} from '../shared/common/package-
 import {PackagesService, PackageInteractionService, AppAnimations} from '../shared/common/';
 import {Subscription} from 'rxjs';
 import {ActivatedRoute, Params, Router} from '@angular/router';
+import {FormControl} from '@angular/forms';
 
 @Component({
   selector: 'app-dashboard',
@@ -24,6 +25,9 @@ export class PackagesComponent implements OnInit, OnDestroy {
   private removePackageSubscription: Subscription;
   private urlParamName = 'ids';
 
+  periodControl: FormControl;
+  periodValues: any;
+
   constructor(
     private packagesService: PackagesService,
     private route: Router,
@@ -34,9 +38,17 @@ export class PackagesComponent implements OnInit, OnDestroy {
       (packageHistory: IPackageDownloadHistory) => {
         this.plotPackage(packageHistory);
       });
-
     this.removePackageSubscription = this.addPackageService.packageRemoved$.subscribe(
       (packageId: string) => this.removePackage(packageId));
+
+    this.periodValues = [
+      {value: 3, text: '3 months'},
+      {value: 6, text: '6 months'},
+      {value: 12, text: '1 year'},
+      {value: 24, text: '2 years'}
+    ];
+    this.periodControl = new FormControl(null);
+    this.periodControl.setValue(this.periodValues[0].value);
   }
 
   ngOnInit(): void {
