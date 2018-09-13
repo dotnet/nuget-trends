@@ -23,6 +23,7 @@ export class PackagesComponent implements OnInit, OnDestroy {
   private plotPackageSubscription: Subscription;
   private removePackageSubscription: Subscription;
   private urlParamName = 'ids';
+  private urlPeriodName = 'months';
 
   periodControl: FormControl;
   periodValues: any;
@@ -46,7 +47,8 @@ export class PackagesComponent implements OnInit, OnDestroy {
       {value: 12, text: '1 year'},
       {value: 24, text: '2 years'}
     ];
-    this.periodControl = new FormControl(this.periodValues[2].value);
+    const defaultPeriod = this.periodValues[2].value;
+    this.addPeriodToUrl(defaultPeriod);
   }
 
   ngOnInit(): void {
@@ -82,6 +84,7 @@ export class PackagesComponent implements OnInit, OnDestroy {
       // TODO: Missing error handling
       results.forEach((packageHistory: IPackageDownloadHistory) => this.addPackageService.updatePackage(packageHistory));
     });
+    this.changePeriodOnUrl(months);
   }
 
   /**
@@ -245,8 +248,43 @@ export class PackagesComponent implements OnInit, OnDestroy {
       queryParams[this.urlParamName] = packageId;
     }
     this.route.navigate([], {
+      replaceUrl: true,
+      relativeTo: this.activatedRoute,
       queryParams: queryParams,
       queryParamsHandling: 'merge'
+    });
+  }
+
+  private addPeriodToUrl(defaultPeriod: number = 12) {
+    const currentUrlValue = Number(this.activatedRoute.snapshot.queryParamMap.get(this.urlPeriodName));
+    let valueToUse: number;
+
+    if (!currentUrlValue || isNaN(currentUrlValue)) {
+      valueToUse = defaultPeriod;
+    } else {
+      valueToUse = currentUrlValue;
+    }
+
+    const queryParams: Params = {...this.activatedRoute.snapshot.queryParams};
+    queryParams[this.urlPeriodName] = valueToUse;
+
+    this.route.navigate([], {
+      replaceUrl: true,
+      relativeTo: this.activatedRoute,
+      queryParams: queryParams
+    });
+
+    this.periodControl = new FormControl(valueToUse);
+  }
+
+  private changePeriodOnUrl(updatedPeriod: number) {
+    const queryParams: Params = {...this.activatedRoute.snapshot.queryParams};
+    queryParams[this.urlPeriodName] = updatedPeriod;
+
+    this.route.navigate([], {
+      replaceUrl: true,
+      relativeTo: this.activatedRoute,
+      queryParams: queryParams
     });
   }
 
