@@ -4,7 +4,7 @@ import {DatePipe} from '@angular/common';
 
 import {IPackageDownloadHistory, IDownloadStats} from '../shared/common/package-models';
 import {PackagesService, PackageInteractionService, AppAnimations} from '../shared/common/';
-import {Subscription} from 'rxjs';
+import {Subscription, Observable, forkJoin} from 'rxjs';
 import {ActivatedRoute, Params, Router} from '@angular/router';
 import {FormControl} from '@angular/forms';
 
@@ -20,7 +20,6 @@ export class PackagesComponent implements OnInit, OnDestroy {
   private canvas: any;
   private ctx: any;
   private chartData = {labels: [], datasets: []};
-  private loaded = false;
   private plotPackageSubscription: Subscription;
   private removePackageSubscription: Subscription;
   private urlParamName = 'ids';
@@ -47,15 +46,11 @@ export class PackagesComponent implements OnInit, OnDestroy {
       {value: 12, text: '1 year'},
       {value: 24, text: '2 years'}
     ];
-    this.periodControl = new FormControl(null);
-    this.periodControl.setValue(this.periodValues[0].value);
+    this.periodControl = new FormControl(this.periodValues[2].value);
   }
 
   ngOnInit(): void {
-    const packageIds: string[] = this.activatedRoute.snapshot.queryParamMap.getAll('ids');
-    if (packageIds.length) {
-      this.loadPackagesFromUrl(packageIds);
-    }
+    this.loadPackagesFromUrl();
   }
 
   ngOnDestroy(): void {
@@ -64,21 +59,46 @@ export class PackagesComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Re-loads the chart with data for the new period
+   */
+  changePeriod(): void {
+    const packageIds: string[] = this.activatedRoute.snapshot.queryParamMap.getAll('ids');
+
+    if (!packageIds.length) {
+      return;
+    }
+
+    const months = this.periodControl.value;
+    this.chartData.datasets = [];
+    const requests: Array<Observable<IPackageDownloadHistory>> = [];
+
+    // create the observables
+    packageIds.forEach((packageId: string) => {
+      requests.push(this.packagesService.getPackageDownloadHistory(packageId, months));
+    });
+
+    // get the results in paralell using forkJoin
+    forkJoin(requests).subscribe((results: Array<IPackageDownloadHistory>) => {
+      // TODO: Missing error handling
+      results.forEach((packageHistory: IPackageDownloadHistory) => this.addPackageService.updatePackage(packageHistory));
+    });
+  }
+
+  /**
    * Handles the plotPackage event
    * @param packageHistory
    */
   private plotPackage(packageHistory: IPackageDownloadHistory): void {
     if (packageHistory) {
-      this.loaded = true;
-      const dataSet = this.parseDataSet(packageHistory);
+      const dataset = this.parseDataSet(packageHistory);
 
       setTimeout(() => {
         if (this.chartData.datasets.length === 0) {
           this.initializeChart(packageHistory);
         } else {
-          this.chartData.datasets.push(dataSet);
+          this.chartData.datasets.push(dataset);
+          this.trendChart.update();
         }
-        this.trendChart.update();
         this.addPackageToUrl(packageHistory.id);
       }, 0);
     }
@@ -90,7 +110,6 @@ export class PackagesComponent implements OnInit, OnDestroy {
    */
   private removePackage(packageId: string): void {
     this.chartData.datasets = this.chartData.datasets.filter(d => d.label !== packageId);
-    this.loaded = this.chartData.datasets.length > 0;
     this.trendChart.update();
     this.removePackageFromUrl(packageId);
 
@@ -98,7 +117,6 @@ export class PackagesComponent implements OnInit, OnDestroy {
       this.route.navigate(['/']);
     }
   }
-
 
   /**
    * Initializes the chart with the first added package
@@ -189,15 +207,28 @@ export class PackagesComponent implements OnInit, OnDestroy {
     };
   }
 
-  private loadPackagesFromUrl(packageIds: string[]) {
+  /**
+   * Reads the packages from the URL and initialize the chart
+   * Useful when sharing the URL with others
+   */
+  private loadPackagesFromUrl() {
+    const packageIds: string[] = this.activatedRoute.snapshot.queryParamMap.getAll('ids');
+    if (!packageIds.length) {
+      return;
+    }
+
     packageIds.forEach((packageId: string) => {
-      this.packagesService.getPackageDownloadHistory(packageId)
+      this.packagesService.getPackageDownloadHistory(packageId, this.periodControl.value)
         .subscribe((packageHistory: IPackageDownloadHistory) => {
           this.addPackageService.addPackage(packageHistory);
         });
     });
   }
 
+  /**
+   * Add the selected packageId to the URL making it shareable
+   * @param packageId
+   */
   private addPackageToUrl(packageId: string) {
     const packageIds: string[] = this.activatedRoute.snapshot.queryParamMap.getAll(this.urlParamName);
 
@@ -219,6 +250,10 @@ export class PackagesComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Removes the package from the URL when removing the "tag" from the list
+   * @param packageId
+   */
   private removePackageFromUrl(packageId: string) {
     const packageIds: string[] = this.activatedRoute.snapshot.queryParamMap.getAll(this.urlParamName);
 

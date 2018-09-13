@@ -8,11 +8,13 @@ import {IPackageDownloadHistory, SearchType} from './package-models';
 export class PackageInteractionService {
 
   private packageAddedSource = new Subject<IPackageDownloadHistory>();
+  private packageUpdatedSource = new Subject<IPackageDownloadHistory>();
   private packagePlottedSource = new Subject<IPackageDownloadHistory>();
   private packageRemovedSource = new Subject<string>();
   private _searchType: SearchType;
 
   packageAdded$ = this.packageAddedSource.asObservable();
+  packageUpdated$ = this.packageUpdatedSource.asObservable();
   packagePlotted$ = this.packagePlottedSource.asObservable();
   packageRemoved$ = this.packageRemovedSource.asObservable();
 
@@ -22,6 +24,14 @@ export class PackageInteractionService {
    */
   addPackage(packageHistory: IPackageDownloadHistory): void {
     this.packageAddedSource.next(packageHistory);
+  }
+
+    /**
+   * Fires the event that updates the package on the chart with new data
+   * @param updatedPackageHistory
+   */
+  updatePackage(updatedPackageHistory: IPackageDownloadHistory): void {
+    this.packageUpdatedSource.next(updatedPackageHistory);
   }
 
   /**

@@ -22,17 +22,25 @@ export class PackageListComponent implements OnDestroy {
   ];
 
   private packageSelectedSubscription: Subscription;
+  private packageUpdatedSubscription: Subscription;
 
-  constructor(private addPackageService: PackageInteractionService) {
+  constructor(private packageInteractionService: PackageInteractionService) {
     this.packageList = [];
-    this.packageSelectedSubscription = this.packageSelectedSubscription = this.addPackageService.packageAdded$.subscribe(
+
+    this.packageSelectedSubscription = this.packageInteractionService.packageAdded$.subscribe(
       (packageHistory: IPackageDownloadHistory) => {
         this.addPackageToList(packageHistory);
+      });
+
+    this.packageUpdatedSubscription = this.packageInteractionService.packageUpdated$.subscribe(
+      (packageHistory: IPackageDownloadHistory) => {
+        this.updatePackageOnList(packageHistory);
       });
   }
 
   ngOnDestroy(): void {
     this.packageSelectedSubscription.unsubscribe();
+    this.packageUpdatedSubscription.unsubscribe();
   }
 
   /**
@@ -43,7 +51,7 @@ export class PackageListComponent implements OnDestroy {
     if (packageColor) {
       const color = this.colorsList.find(p => p.code === packageColor.color);
       color.setUnused();
-      this.addPackageService.removePackage(packageColor.id);
+      this.packageInteractionService.removePackage(packageColor.id);
       this.packageList = this.packageList.filter(p => p.id !== packageColor.id);
     }
   }
@@ -58,7 +66,21 @@ export class PackageListComponent implements OnDestroy {
       color.setUsed();
       packageHistory.color = color.code;
       this.packageList.push(<IPackageColor>{id: packageHistory.id, color: color.code});
-      this.addPackageService.plotPackage(packageHistory);
+      this.packageInteractionService.plotPackage(packageHistory);
     }
   }
+
+  /**
+   * Re-trigger the event that plots the package on the chart with new data
+   * @param updatedPackageHistory Updated package download history
+   */
+  private updatePackageOnList(updatedPackageHistory: IPackageDownloadHistory): void {
+    const existingPackage = this.packageList.find(p => p.id === updatedPackageHistory.id);
+
+    if (updatedPackageHistory && existingPackage) {
+      updatedPackageHistory.color = existingPackage.color;
+      this.packageInteractionService.plotPackage(updatedPackageHistory);
+    }
+  }
+
 }

@@ -18,18 +18,17 @@ export class PackagesService {
     return this.httpClient.get<IPackageSearchResult[]>(`${this.baseUrl}/package/search?q=${term}`);
   }
 
-  getPackageDownloadHistory(term: string): Observable<IPackageDownloadHistory> {
-    // TODO: hard coding 12 here until dataset is up-to-date
-    return this.httpClient.get<IPackageDownloadHistory>(`${this.baseUrl}/package/history/${term}?months=12`);
+  getPackageDownloadHistory(term: string, months: number = 12): Observable<IPackageDownloadHistory> {
+    return this.httpClient.get<IPackageDownloadHistory>(`${this.baseUrl}/package/history/${term}?months=${months}`);
   }
 
   searchFramework(term: string): Observable<IPackageSearchResult[]> {
     return this.httpClient.get<IPackageSearchResult[]>(`${this.baseUrl}/framework/search?q=${term}`);
   }
 
-  getFrameworkDownloadHistory(term: string): Observable<IPackageDownloadHistory> {
+  getFrameworkDownloadHistory(term: string, months: number = 12): Observable<IPackageDownloadHistory> {
     // TODO: hard coding 12 here until dataset is up-to-date
-    return this.httpClient.get<IPackageDownloadHistory>(`${this.baseUrl}/framework/history/${term}?months=12`);
+    return this.httpClient.get<IPackageDownloadHistory>(`${this.baseUrl}/framework/history/${term}?months=${months}`);
   }
 
 }
