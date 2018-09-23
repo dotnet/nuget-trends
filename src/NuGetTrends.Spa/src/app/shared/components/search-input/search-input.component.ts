@@ -62,10 +62,10 @@ export class SearchInputComponent implements AfterViewInit {
   searchItemSelected(packageId: string): void {
     switch (this.packageInteractionService.searchType) {
       case SearchType.NuGetPackage:
-        this.getNuGetPackageHistory(packageId);
+        this.getNuGetPackageHistory(packageId, this.packageInteractionService.searchPeriod);
         break;
       case SearchType.Framework:
-        this.getFrameworkHistory(packageId);
+        this.getFrameworkHistory(packageId, this.packageInteractionService.searchPeriod);
         break;
     }
   }
@@ -96,14 +96,14 @@ export class SearchInputComponent implements AfterViewInit {
    * If not in the packages page, navigate when results are back.
    * @param packageId
    */
-  private getNuGetPackageHistory(packageId: string): void {
+  private getNuGetPackageHistory(packageId: string, period: number): void {
     if (this.router.url.includes('/packages')) {
-      this.packagesService.getPackageDownloadHistory(packageId)
+      this.packagesService.getPackageDownloadHistory(packageId, period)
         .subscribe((packageHistory: IPackageDownloadHistory) => {
           this.feedPackageHistoryResults(packageHistory);
         });
     } else {
-      this.packagesService.getPackageDownloadHistory(packageId)
+      this.packagesService.getPackageDownloadHistory(packageId, period)
         .subscribe((packageHistory: IPackageDownloadHistory) => {
           this.router.navigate(['/packages']).then(() => {
             this.feedPackageHistoryResults(packageHistory);
@@ -117,14 +117,14 @@ export class SearchInputComponent implements AfterViewInit {
    * If not in the frameworks page, navigate when results are back.
    * @param packageId
    */
-  private getFrameworkHistory(packageId: string): void {
+  private getFrameworkHistory(packageId: string, period: number): void {
     if (this.router.url.includes('/frameworks')) {
-      this.packagesService.getFrameworkDownloadHistory(packageId)
+      this.packagesService.getFrameworkDownloadHistory(packageId, period)
         .subscribe((packageHistory: IPackageDownloadHistory) => {
           this.feedPackageHistoryResults(packageHistory);
         });
     } else {
-      this.packagesService.getFrameworkDownloadHistory(packageId)
+      this.packagesService.getFrameworkDownloadHistory(packageId, period)
         .subscribe((frameworkHistory: IPackageDownloadHistory) => {
           this.router.navigate(['/frameworks']).then(() => {
             this.feedPackageHistoryResults(frameworkHistory);

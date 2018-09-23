@@ -1,13 +1,15 @@
 import {Component, OnDestroy, OnInit} from '@angular/core';
 import {Chart, ChartDataSets, ChartOptions} from 'chart.js';
 import {DatePipe} from '@angular/common';
-
-import {IPackageDownloadHistory, IDownloadStats} from '../shared/models/package-models';
-import {PackagesService, PackageInteractionService} from '../core';
 import {Subscription, Observable, forkJoin} from 'rxjs';
 import {ActivatedRoute, Params, Router} from '@angular/router';
-import {FormControl} from '@angular/forms';
 import {AppAnimations} from '../shared';
+
+import {PackagesService, PackageInteractionService} from '../core';
+import {
+  IPackageDownloadHistory,
+  IDownloadStats
+} from '../shared/models/package-models';
 
 @Component({
   selector: 'app-dashboard',
@@ -24,32 +26,19 @@ export class PackagesComponent implements OnInit, OnDestroy {
   private plotPackageSubscription: Subscription;
   private removePackageSubscription: Subscription;
   private urlParamName = 'ids';
-  private urlPeriodName = 'months';
-
-  periodControl: FormControl;
-  periodValues: any;
 
   constructor(
     private packagesService: PackagesService,
     private route: Router,
     private activatedRoute: ActivatedRoute,
-    private addPackageService: PackageInteractionService,
+    private packageInterationService: PackageInteractionService,
     private datePipe: DatePipe) {
-    this.plotPackageSubscription = this.addPackageService.packagePlotted$.subscribe(
+    this.plotPackageSubscription = this.packageInterationService.packagePlotted$.subscribe(
       (packageHistory: IPackageDownloadHistory) => {
         this.plotPackage(packageHistory);
       });
-    this.removePackageSubscription = this.addPackageService.packageRemoved$.subscribe(
+    this.removePackageSubscription = this.packageInterationService.packageRemoved$.subscribe(
       (packageId: string) => this.removePackage(packageId));
-
-    this.periodValues = [
-      {value: 3, text: '3 months'},
-      {value: 6, text: '6 months'},
-      {value: 12, text: '1 year'},
-      {value: 24, text: '2 years'}
-    ];
-    const defaultPeriod = this.periodValues[2].value;
-    this.addPeriodToUrl(defaultPeriod);
   }
 
   ngOnInit(): void {
@@ -64,28 +53,26 @@ export class PackagesComponent implements OnInit, OnDestroy {
   /**
    * Re-loads the chart with data for the new period
    */
-  changePeriod(): void {
+  periodChanged(period: number): void {
     const packageIds: string[] = this.activatedRoute.snapshot.queryParamMap.getAll('ids');
 
     if (!packageIds.length) {
       return;
     }
 
-    const months = this.periodControl.value;
     this.chartData.datasets = [];
     const requests: Array<Observable<IPackageDownloadHistory>> = [];
 
     // create the observables
     packageIds.forEach((packageId: string) => {
-      requests.push(this.packagesService.getPackageDownloadHistory(packageId, months));
+      requests.push(this.packagesService.getPackageDownloadHistory(packageId, period));
     });
 
     // get the results in paralell using forkJoin
     forkJoin(requests).subscribe((results: Array<IPackageDownloadHistory>) => {
       // TODO: Missing error handling
-      results.forEach((packageHistory: IPackageDownloadHistory) => this.addPackageService.updatePackage(packageHistory));
+      results.forEach((packageHistory: IPackageDownloadHistory) => this.packageInterationService.updatePackage(packageHistory));
     });
-    this.changePeriodOnUrl(months);
   }
 
   /**
@@ -222,9 +209,11 @@ export class PackagesComponent implements OnInit, OnDestroy {
     }
 
     packageIds.forEach((packageId: string) => {
-      this.packagesService.getPackageDownloadHistory(packageId, this.periodControl.value)
+      this.packagesService.getPackageDownloadHistory(
+        packageId,
+        this.packageInterationService.searchPeriod)
         .subscribe((packageHistory: IPackageDownloadHistory) => {
-          this.addPackageService.addPackage(packageHistory);
+          this.packageInterationService.addPackage(packageHistory);
         });
     });
   }
@@ -253,39 +242,6 @@ export class PackagesComponent implements OnInit, OnDestroy {
       relativeTo: this.activatedRoute,
       queryParams: queryParams,
       queryParamsHandling: 'merge'
-    });
-  }
-
-  private addPeriodToUrl(defaultPeriod: number = 12) {
-    const currentUrlValue = Number(this.activatedRoute.snapshot.queryParamMap.get(this.urlPeriodName));
-    let valueToUse: number;
-
-    if (!currentUrlValue || isNaN(currentUrlValue)) {
-      valueToUse = defaultPeriod;
-    } else {
-      valueToUse = currentUrlValue;
-    }
-
-    const queryParams: Params = {...this.activatedRoute.snapshot.queryParams};
-    queryParams[this.urlPeriodName] = valueToUse;
-
-    this.route.navigate([], {
-      replaceUrl: true,
-      relativeTo: this.activatedRoute,
-      queryParams: queryParams
-    });
-
-    this.periodControl = new FormControl(valueToUse);
-  }
-
-  private changePeriodOnUrl(updatedPeriod: number) {
-    const queryParams: Params = {...this.activatedRoute.snapshot.queryParams};
-    queryParams[this.urlPeriodName] = updatedPeriod;
-
-    this.route.navigate([], {
-      replaceUrl: true,
-      relativeTo: this.activatedRoute,
-      queryParams: queryParams
     });
   }
 

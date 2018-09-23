@@ -1,6 +1,11 @@
 import {Injectable} from '@angular/core';
 import {Subject} from 'rxjs';
-import {IPackageDownloadHistory, SearchType} from '../../shared/models/package-models';
+import {
+  IPackageDownloadHistory,
+  SearchType,
+  SearchPeriod,
+  InitialSearchPeriod
+} from '../../shared/models/package-models';
 
 @Injectable({
   providedIn: 'root'
@@ -12,6 +17,7 @@ export class PackageInteractionService {
   private packagePlottedSource = new Subject<IPackageDownloadHistory>();
   private packageRemovedSource = new Subject<string>();
   private _searchType: SearchType;
+  private _searchPeriod: number;
 
   packageAdded$ = this.packageAddedSource.asObservable();
   packageUpdated$ = this.packageUpdatedSource.asObservable();
@@ -56,6 +62,14 @@ export class PackageInteractionService {
 
   get searchType(): SearchType {
     return this._searchType;
+  }
+
+  set searchPeriod(searchPeriod: number) {
+    this._searchPeriod = searchPeriod;
+  }
+
+  get searchPeriod(): number {
+    return this._searchPeriod;
   }
 
 }

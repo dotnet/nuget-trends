@@ -1,3 +1,4 @@
+import {defaults} from "chart.js";
 
 // TODO: This can be used for Framework results as well.. so maybe rename to INuGetSearchResult?
 export interface IPackageSearchResult {
@@ -48,3 +49,19 @@ export class TagColor {
     this.used = false;
   }
 }
+
+export class SearchPeriod {
+  text: string;
+  value: number;
+}
+
+const DefaultSearchPeriods: Array<SearchPeriod> = [
+  {value: 3, text: '3 months'},
+  {value: 6, text: '6 months'},
+  {value: 12, text: '1 year'},
+  {value: 24, text: '2 years'}
+];
+
+const InitialSearchPeriod: SearchPeriod = DefaultSearchPeriods[2];
+
+export {DefaultSearchPeriods, InitialSearchPeriod};

@@ -9,17 +9,7 @@
       <label for="period" class="title is-5">Showing results for the last: </label>
     </div>
     <div class="column has-text-centered-mobile is-narrow">
-      <div class="field">
-        <div class="control control-center">
-          <div class="select is-medium">
-            <select id="period" [formControl]="periodControl" (change)="changePeriod()">
-              <option *ngFor="let period of periodValues" [ngValue]="period.value">
-                {{ period.text }}
-              </option>
-            </select>
-          </div>
-        </div>
-      </div>
+      <app-search-period (searchPeriodChanged)="periodChanged($event)"></app-search-period>
     </div>
   </div>
   <section class="section chart-section">

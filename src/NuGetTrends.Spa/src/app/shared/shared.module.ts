@@ -5,11 +5,29 @@ import {SearchInputComponent} from './components/search-input/search-input.compo
 import {PackageListComponent} from './components/package-list/package-list.component';
 import { SearchTypeComponent } from './components/search-type/search-type.component';
 import {BrowserAnimationsModule} from '@angular/platform-browser/animations';
+import { SearchPeriodComponent } from './components/search-period/search-period.component';
 
 @NgModule({
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, BrowserAnimationsModule],
-  declarations: [SearchInputComponent, PackageListComponent, SearchTypeComponent],
-  exports: [CommonModule, FormsModule, ReactiveFormsModule, SearchInputComponent, PackageListComponent, SearchTypeComponent]
+  imports: [
+    CommonModule,
+    FormsModule,
+    ReactiveFormsModule,
+    BrowserAnimationsModule],
+
+  declarations: [
+    SearchInputComponent,
+    PackageListComponent,
+    SearchTypeComponent,
+    SearchPeriodComponent],
+
+  exports: [
+    CommonModule,
+    FormsModule,
+    ReactiveFormsModule,
+    SearchInputComponent,
+    PackageListComponent,
+    SearchTypeComponent,
+    SearchPeriodComponent]
 })
 export class SharedModule {
 }
