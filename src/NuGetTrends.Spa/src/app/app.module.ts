@@ -9,9 +9,9 @@ import {AppComponent} from './app.component';
 import {AppRoutingModule} from './app-routes.module';
 import {environment} from '../environments/environment';
 import {PackagesModule} from './packages/packages.module';
-import {NavigationComponent, FooterComponent} from './_layout/';
 import {SharedModule} from './shared/shared.module';
 import {HomeModule} from './home/home.module';
+import {CoreModule} from './core/core.module';
 
 init({dsn: 'https://85a592e835c64ca3a97d93776c12e947@sentry.io/1266321'});
 
@@ -26,15 +26,14 @@ export class SentryErrorHandler extends ErrorHandler {
 
 @NgModule({
   declarations: [
-    AppComponent,
-    NavigationComponent,
-    FooterComponent
+    AppComponent
   ],
   imports: [
     AppRoutingModule,
     BrowserModule,
     BrowserAnimationsModule,
     HttpClientModule,
+    CoreModule,
     SharedModule,
     PackagesModule,
     HomeModule

@@ -4,8 +4,8 @@ import {Router} from '@angular/router';
 import {catchError, debounceTime, distinctUntilChanged, filter, map, switchMap, tap} from 'rxjs/operators';
 import {EMPTY, fromEvent, Observable} from 'rxjs';
 
-import {PackageInteractionService, PackagesService} from '../..';
 import {IPackageDownloadHistory, IPackageSearchResult, SearchType} from '../../models/package-models';
+import {PackagesService, PackageInteractionService} from '../../../core';
 
 @Component({
   selector: 'app-search-input',

@@ -3,10 +3,11 @@ import {Chart, ChartDataSets, ChartOptions} from 'chart.js';
 import {DatePipe} from '@angular/common';
 
 import {IPackageDownloadHistory, IDownloadStats} from '../shared/models/package-models';
-import {PackagesService, PackageInteractionService, AppAnimations} from '../shared';
+import {PackagesService, PackageInteractionService} from '../core';
 import {Subscription, Observable, forkJoin} from 'rxjs';
 import {ActivatedRoute, Params, Router} from '@angular/router';
 import {FormControl} from '@angular/forms';
+import {AppAnimations} from '../shared';
 
 @Component({
   selector: 'app-dashboard',
