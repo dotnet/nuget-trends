@@ -3,7 +3,7 @@ import {HttpClient} from '@angular/common/http';
 import {environment} from '../../../environments/environment';
 import {Observable} from 'rxjs';
 
-import {IPackageSearchResult, IPackageDownloadHistory} from './package-models';
+import {IPackageSearchResult, IPackageDownloadHistory} from '../models/package-models';
 
 @Injectable({
   providedIn: 'root'

@@ -1,6 +1,6 @@
 import {Component, EventEmitter, Output} from '@angular/core';
-import {SearchType} from '../../common/package-models';
-import {PackageInteractionService} from '../../common';
+import {SearchType} from '../../models/package-models';
+import {PackageInteractionService} from '../..';
 
 @Component({
   selector: 'app-search-type',

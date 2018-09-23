@@ -1,6 +1,6 @@
 import {Injectable} from '@angular/core';
 import {Subject} from 'rxjs';
-import {IPackageDownloadHistory, SearchType} from './package-models';
+import {IPackageDownloadHistory, SearchType} from '../models/package-models';
 
 @Injectable({
   providedIn: 'root'

@@ -1,8 +1,7 @@
 import {Component, OnDestroy} from '@angular/core';
 import {Subscription} from 'rxjs/';
-import {PackageInteractionService} from '../../common';
-import {IPackageDownloadHistory} from '../../common/package-models';
-import {IPackageColor, TagColor} from './component-models';
+import {PackageInteractionService} from '../..';
+import {IPackageDownloadHistory, IPackageColor, TagColor} from '../../models/package-models';
 
 @Component({
   selector: 'app-package-list',

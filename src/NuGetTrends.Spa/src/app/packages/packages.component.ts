@@ -2,8 +2,8 @@ import {Component, OnDestroy, OnInit} from '@angular/core';
 import {Chart, ChartDataSets, ChartOptions} from 'chart.js';
 import {DatePipe} from '@angular/common';
 
-import {IPackageDownloadHistory, IDownloadStats} from '../shared/common/package-models';
-import {PackagesService, PackageInteractionService, AppAnimations} from '../shared/common/';
+import {IPackageDownloadHistory, IDownloadStats} from '../shared/models/package-models';
+import {PackagesService, PackageInteractionService, AppAnimations} from '../shared';
 import {Subscription, Observable, forkJoin} from 'rxjs';
 import {ActivatedRoute, Params, Router} from '@angular/router';
 import {FormControl} from '@angular/forms';

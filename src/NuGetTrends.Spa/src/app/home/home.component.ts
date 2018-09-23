@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import {Chart, ChartOptions} from 'chart.js';
 import {DatePipe} from '@angular/common';
-import {AppAnimations} from '../shared/common';
+import {AppAnimations} from '../shared';
 
 @Component({
   selector: 'app-home',
