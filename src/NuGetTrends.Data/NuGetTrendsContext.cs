@@ -72,6 +72,10 @@ namespace NuGetTrends.Data
                 .Entity<PackageDownload>()
                 .HasIndex(c => c.PackageIdLowered)
                 .IsUnique();
+
+            modelBuilder.Entity<PackageDownload>()
+                .Property(b => b.PackageIdLowered)
+                .IsRequired();
         }
     }
 }

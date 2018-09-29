@@ -11,7 +11,7 @@ using NuGetTrends.Data;
 namespace NuGetTrends.Data.Migrations
 {
     [DbContext(typeof(NuGetTrendsContext))]
-    [Migration("20180902180031_Init")]
+    [Migration("20180929220242_Init")]
     partial class Init
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -212,11 +212,13 @@ namespace NuGetTrends.Data.Migrations
                         .HasColumnName("latest_download_count_checked_utc");
 
                     b.Property<string>("PackageIdLowered")
+                        .IsRequired()
                         .HasColumnName("package_id_lowered");
 
                     b.HasKey("PackageId");
 
-                    b.HasIndex("PackageIdLowered");
+                    b.HasIndex("PackageIdLowered")
+                        .IsUnique();
 
                     b.ToTable("package_downloads");
                 });
