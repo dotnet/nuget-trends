@@ -76,7 +76,7 @@ namespace NuGetTrends.Data.Migrations
                 columns: table => new
                 {
                     package_id = table.Column<string>(nullable: false),
-                    package_id_lowered = table.Column<string>(nullable: true),
+                    package_id_lowered = table.Column<string>(nullable: false),
                     latest_download_count = table.Column<long>(nullable: true),
                     latest_download_count_checked_utc = table.Column<DateTime>(nullable: false),
                     icon_url = table.Column<string>(nullable: true)
@@ -168,7 +168,8 @@ GROUP BY l.package_id");
             migrationBuilder.CreateIndex(
                 name: "IX_package_downloads_package_id_lowered",
                 table: "package_downloads",
-                column: "package_id_lowered");
+                column: "package_id_lowered",
+                unique: true);
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)
