@@ -210,11 +210,13 @@ namespace NuGetTrends.Data.Migrations
                         .HasColumnName("latest_download_count_checked_utc");
 
                     b.Property<string>("PackageIdLowered")
+                        .IsRequired()
                         .HasColumnName("package_id_lowered");
 
                     b.HasKey("PackageId");
 
-                    b.HasIndex("PackageIdLowered");
+                    b.HasIndex("PackageIdLowered")
+                        .IsUnique();
 
                     b.ToTable("package_downloads");
                 });

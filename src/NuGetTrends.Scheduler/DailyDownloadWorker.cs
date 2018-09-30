@@ -162,7 +162,8 @@ namespace NuGetTrends.Scheduler
                         {
                             pkgDownload = new PackageDownload
                             {
-                                PackageId = packageMetadata.Identity.Id.ToLower(),
+                                PackageId = packageMetadata.Identity.Id,
+                                PackageIdLowered = packageMetadata.Identity.Id.ToLower(),
                             };
                             Update(pkgDownload, packageMetadata);
                             context.PackageDownloads.Add(pkgDownload);
