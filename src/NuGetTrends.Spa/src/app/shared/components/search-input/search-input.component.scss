@@ -38,7 +38,7 @@
   border-top: none;
   width: 100%;
   position: absolute;
-  z-index: 1;
+  z-index: 999;
   max-height: 300px;
   overflow-y: auto;
   background: $white-ter
@@ -70,13 +70,13 @@ input:focus{
 }
 
 :-moz-placeholder { /* Firefox 18- */
-  text-align: center;  
+  text-align: center;
 }
 
 ::-moz-placeholder {  /* Firefox 19+ */
-  text-align: center;  
+  text-align: center;
 }
 
-:-ms-input-placeholder {  
-  text-align: center; 
+:-ms-input-placeholder {
+  text-align: center;
 }
