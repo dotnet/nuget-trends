@@ -1,5 +1,3 @@
-import {defaults} from "chart.js";
-
 // TODO: This can be used for Framework results as well.. so maybe rename to INuGetSearchResult?
 export interface IPackageSearchResult {
   packageId: string;
