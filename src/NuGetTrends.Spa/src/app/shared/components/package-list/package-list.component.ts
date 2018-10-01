@@ -2,6 +2,7 @@ import {Component, OnDestroy} from '@angular/core';
 import {Subscription} from 'rxjs/';
 import {IPackageDownloadHistory, IPackageColor, TagColor} from '../../models/package-models';
 import {PackageInteractionService} from '../../../core';
+import {environment} from '../../../../environments/environment.prod';
 
 @Component({
   selector: 'app-package-list',
@@ -60,6 +61,12 @@ export class PackageListComponent implements OnDestroy {
    * @param packageHistory
    */
   private addPackageToList(packageHistory: IPackageDownloadHistory): void {
+
+    if (this.packageList.length === environment.MAX_CHART_ITEMS) {
+      // TODO: Fire a notification
+      return;
+    }
+
     if (packageHistory && !this.packageList.some(p => p.id === packageHistory.id)) {
       const color = this.colorsList.find(p => p.isInUse() === false);
       color.setUsed();
