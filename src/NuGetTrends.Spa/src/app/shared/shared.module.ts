@@ -1,6 +1,8 @@
 import {NgModule} from '@angular/core';
 import {FormsModule, ReactiveFormsModule} from '@angular/forms';
 import {CommonModule} from '@angular/common';
+import {ToastrModule} from 'ngx-toastr';
+
 import {SearchInputComponent} from './components/search-input/search-input.component';
 import {PackageListComponent} from './components/package-list/package-list.component';
 import { SearchTypeComponent } from './components/search-type/search-type.component';
@@ -11,6 +13,10 @@ import { SearchPeriodComponent } from './components/search-period/search-period.
   imports: [
     CommonModule,
     FormsModule,
+    ToastrModule.forRoot({
+      positionClass: 'toast-bottom-right',
+      preventDuplicates: true,
+    }),
     ReactiveFormsModule,
     BrowserAnimationsModule],
 
