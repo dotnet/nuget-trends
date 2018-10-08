@@ -2,7 +2,8 @@ import {AfterViewInit, Component, ElementRef, HostListener, ViewChild} from '@an
 import {FormControl} from '@angular/forms';
 import {Router} from '@angular/router';
 import {catchError, debounceTime, distinctUntilChanged, filter, map, switchMap, tap} from 'rxjs/operators';
-import {EMPTY, fromEvent, Observable} from 'rxjs';
+import {EMPTY, fromEvent, Observable, pipe} from 'rxjs';
+import {ToastrService} from 'ngx-toastr';
 
 import {IPackageDownloadHistory, IPackageSearchResult, SearchType} from '../../models/package-models';
 import {PackagesService, PackageInteractionService} from '../../../core';
@@ -22,11 +23,19 @@ export class SearchInputComponent implements AfterViewInit {
 
   private readonly searchComponentNode: any;
 
+  private handleApiError = pipe(
+    catchError((err, caught) => {
+      this.toastr.error('Our servers are too cool (or not) to handle your request at the moment.');
+      return EMPTY;
+    })
+  );
+
   constructor(
     private router: Router,
     private packagesService: PackagesService,
     private packageInteractionService: PackageInteractionService,
-    private element: ElementRef) {
+    private element: ElementRef,
+    private toastr: ToastrService) {
     this.searchComponentNode = this.element.nativeElement.parentNode;
   }
 
@@ -42,9 +51,10 @@ export class SearchInputComponent implements AfterViewInit {
         filter((value: string) => value && !!value.trim()),
         tap(() => this.isSearching = true),
         switchMap((term: string) => this.searchNuget(term, this.packageInteractionService.searchType)),
-        catchError<IPackageSearchResult[], never>((err, caught) => {
-          // TODO: Show some message to the user that the search failed.
-          return EMPTY;
+        catchError((err, caught) => {
+          this.toastr.error('Our servers are too cool (or not) to handle your request at the moment.');
+          this.isSearching = false;
+          return caught;
         }),
         tap(() => this.isSearching = false));
   }
@@ -99,16 +109,18 @@ export class SearchInputComponent implements AfterViewInit {
   private getNuGetPackageHistory(packageId: string, period: number): void {
     if (this.router.url.includes('/packages')) {
       this.packagesService.getPackageDownloadHistory(packageId, period)
+        .pipe(this.handleApiError)
         .subscribe((packageHistory: IPackageDownloadHistory) => {
           this.feedPackageHistoryResults(packageHistory);
         });
     } else {
       this.packagesService.getPackageDownloadHistory(packageId, period)
+        .pipe(this.handleApiError)
         .subscribe((packageHistory: IPackageDownloadHistory) => {
-          this.router.navigate(['/packages']).then(() => {
-            this.feedPackageHistoryResults(packageHistory);
-          });
+        this.router.navigate(['/packages']).then(() => {
+          this.feedPackageHistoryResults(packageHistory);
         });
+      });
     }
   }
 
@@ -120,11 +132,13 @@ export class SearchInputComponent implements AfterViewInit {
   private getFrameworkHistory(packageId: string, period: number): void {
     if (this.router.url.includes('/frameworks')) {
       this.packagesService.getFrameworkDownloadHistory(packageId, period)
+        .pipe(this.handleApiError)
         .subscribe((packageHistory: IPackageDownloadHistory) => {
           this.feedPackageHistoryResults(packageHistory);
         });
     } else {
       this.packagesService.getFrameworkDownloadHistory(packageId, period)
+        .pipe(this.handleApiError)
         .subscribe((frameworkHistory: IPackageDownloadHistory) => {
           this.router.navigate(['/frameworks']).then(() => {
             this.feedPackageHistoryResults(frameworkHistory);

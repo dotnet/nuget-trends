@@ -1,15 +1,14 @@
 import {Component, OnDestroy, OnInit} from '@angular/core';
 import {Chart, ChartDataSets, ChartOptions} from 'chart.js';
 import {DatePipe} from '@angular/common';
-import {Subscription, Observable, forkJoin} from 'rxjs';
+import {Subscription, Observable, forkJoin, pipe, EMPTY, empty, of} from 'rxjs';
+import {catchError} from 'rxjs/operators';
 import {ActivatedRoute, Params, Router} from '@angular/router';
 import {AppAnimations} from '../shared';
+import {ToastrService} from 'ngx-toastr';
 
 import {PackagesService, PackageInteractionService} from '../core';
-import {
-  IPackageDownloadHistory,
-  IDownloadStats
-} from '../shared/models/package-models';
+import {IPackageDownloadHistory, IDownloadStats} from '../shared/models/package-models';
 
 @Component({
   selector: 'app-dashboard',
@@ -27,12 +26,21 @@ export class PackagesComponent implements OnInit, OnDestroy {
   private removePackageSubscription: Subscription;
   private urlParamName = 'ids';
 
+  private handleApiError = pipe(
+    catchError<IPackageDownloadHistory, never>(() => {
+      this.toastr.error('Our servers are too cool (or not) to handle your request at the moment.');
+      return EMPTY;
+    })
+  );
+
   constructor(
     private packagesService: PackagesService,
     private route: Router,
     private activatedRoute: ActivatedRoute,
     private packageInterationService: PackageInteractionService,
-    private datePipe: DatePipe) {
+    private datePipe: DatePipe,
+    private toastr: ToastrService) {
+
     this.plotPackageSubscription = this.packageInterationService.packagePlotted$.subscribe(
       (packageHistory: IPackageDownloadHistory) => {
         this.plotPackage(packageHistory);
@@ -65,12 +73,10 @@ export class PackagesComponent implements OnInit, OnDestroy {
 
     // create the observables
     packageIds.forEach((packageId: string) => {
-      requests.push(this.packagesService.getPackageDownloadHistory(packageId, period));
+      requests.push(this.packagesService.getPackageDownloadHistory(packageId, period).pipe(this.handleApiError));
     });
 
-    // get the results in paralell using forkJoin
     forkJoin(requests).subscribe((results: Array<IPackageDownloadHistory>) => {
-      // TODO: Missing error handling
       results.forEach((packageHistory: IPackageDownloadHistory) => this.packageInterationService.updatePackage(packageHistory));
     });
   }
@@ -208,13 +214,17 @@ export class PackagesComponent implements OnInit, OnDestroy {
       return;
     }
 
+    const requests: Array<Observable<IPackageDownloadHistory>> = [];
+
     packageIds.forEach((packageId: string) => {
-      this.packagesService.getPackageDownloadHistory(
+      requests.push(this.packagesService.getPackageDownloadHistory(
         packageId,
-        this.packageInterationService.searchPeriod)
-        .subscribe((packageHistory: IPackageDownloadHistory) => {
-          this.packageInterationService.addPackage(packageHistory);
-        });
+        this.packageInterationService.searchPeriod).pipe(this.handleApiError));
+    });
+
+    forkJoin(requests).subscribe((results: Array<IPackageDownloadHistory>) => {
+      results.forEach((packageHistory: IPackageDownloadHistory) =>
+      this.packageInterationService.addPackage(packageHistory));
     });
   }
 

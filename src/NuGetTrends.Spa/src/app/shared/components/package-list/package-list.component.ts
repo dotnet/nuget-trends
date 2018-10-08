@@ -3,6 +3,7 @@ import {Subscription} from 'rxjs/';
 import {IPackageDownloadHistory, IPackageColor, TagColor} from '../../models/package-models';
 import {PackageInteractionService} from '../../../core';
 import {environment} from '../../../../environments/environment.prod';
+import {ToastrService} from 'ngx-toastr';
 
 @Component({
   selector: 'app-package-list',
@@ -24,7 +25,9 @@ export class PackageListComponent implements OnDestroy {
   private packageSelectedSubscription: Subscription;
   private packageUpdatedSubscription: Subscription;
 
-  constructor(private packageInteractionService: PackageInteractionService) {
+  constructor(
+    private packageInteractionService: PackageInteractionService,
+    private toastr: ToastrService) {
     this.packageList = [];
 
     this.packageSelectedSubscription = this.packageInteractionService.packageAdded$.subscribe(
@@ -63,7 +66,7 @@ export class PackageListComponent implements OnDestroy {
   private addPackageToList(packageHistory: IPackageDownloadHistory): void {
 
     if (this.packageList.length === environment.MAX_CHART_ITEMS) {
-      // TODO: Fire a notification
+      this.toastr.warning('Insert bitcoin to add another item to the chart.');
       return;
     }
 
