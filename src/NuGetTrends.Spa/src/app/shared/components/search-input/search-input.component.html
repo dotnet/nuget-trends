@@ -14,8 +14,8 @@
     </span>
   </div>
   <ul class="filter-select" #container *ngIf="showResults">
-    <li *ngFor="let package of results$ | async" class="filter-select-list">
-      <article class="media" (click)="searchItemSelected(package.packageId)">
+    <li *ngFor="let package of results$ | async" class="filter-select-list" (click)="searchItemSelected(package.packageId)">
+      <article class="media" >
         <figure class="media-left">
           <p class="image is-32x32">
               <img src="{{package.iconUrl}}"
