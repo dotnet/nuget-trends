@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -23,19 +22,14 @@ namespace NuGetTrends.Scheduler
                     {
                         c.AddJsonFile("appsettings.local.json", optional: true, reloadOnChange: true);
                     }
-                }).UseSentry(o =>
-                {
-                    o.Filters = new[]
-                    {
-                        new DelegateLogEventFilter((category, level, eventId, exception)
-                            => eventId.ToString() ==
-                               "Microsoft.EntityFrameworkCore.Infrastructure.SensitiveDataLoggingEnabledWarning"
-                               && string.Equals(
-                                   category,
-                                   "Microsoft.EntityFrameworkCore.Model.Validation",
-                                   StringComparison.Ordinal))
-                    };
-                })
+                }).UseSentry(o => o.AddLogEntryFilter((category, level, eventId, exception)
+                                    => eventId.ToString() ==
+                                       "Microsoft.EntityFrameworkCore.Infrastructure.SensitiveDataLoggingEnabledWarning"
+                                       && string.Equals(
+                                           category,
+                                           "Microsoft.EntityFrameworkCore.Model.Validation",
+                                           StringComparison.Ordinal))
+                )
                 .UseStartup<Startup>();
     }
 }
