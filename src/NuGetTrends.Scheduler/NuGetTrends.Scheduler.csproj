@@ -16,7 +16,7 @@
     <PackageReference Include="NuGet.Client" Version="4.2.0" />
     <PackageReference Include="RabbitMQ.Client" Version="5.1.0" />
     <PackageReference Include="Sentry.AspNetCore" Version="1.0.1-beta" />
-    <PackageReference Include="Hangfire.AspNetCore" Version="1.6.20" />
+    <PackageReference Include="Hangfire.AspNetCore" Version="1.6.21" />
     <PackageReference Include="Hangfire.MemoryStorage" Version="1.5.2" />
   </ItemGroup>
 
