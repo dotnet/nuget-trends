@@ -13,4 +13,4 @@
 
 ## Acknowledgments
 
-[Sentry.io](https://sentry.op) supporting us with a plan free of charge.
+[Sentry.io](https://sentry.io) supporting us with a plan free of charge.
