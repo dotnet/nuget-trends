@@ -6,3 +6,7 @@
 </p>
 
 # NuGet Trends
+
+
+## Resources
+* [![Gitter chat](https://img.shields.io/gitter/room/NuGetTrends/Lobby.svg)](https://gitter.im/NuGetTrends/Lobby)
