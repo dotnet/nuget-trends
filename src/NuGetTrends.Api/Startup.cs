@@ -7,25 +7,22 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using NuGetTrends.Data;
 using Swashbuckle.AspNetCore.Swagger;
+using Swashbuckle.AspNetCore.SwaggerUI;
 
 namespace NuGetTrends.Api
 {
     public class Startup
     {
         private readonly IHostingEnvironment _hostingEnvironment;
-        private readonly ILoggerFactory _loggerFactory;
         public IConfiguration Configuration { get; }
 
         public Startup(
             IConfiguration configuration,
-            IHostingEnvironment hostingEnvironment,
-            ILoggerFactory loggerFactory)
+            IHostingEnvironment hostingEnvironment)
         {
-            _loggerFactory = loggerFactory;
             Configuration = configuration;
             _hostingEnvironment = hostingEnvironment;
         }
@@ -55,17 +52,6 @@ namespace NuGetTrends.Api
             }
 
             services
-                .AddEntityFrameworkSqlServer()
-                .AddDbContextPool<NuGetMustHavesContext>(options =>
-                {
-                    options.UseSqlServer(Configuration.GetConnectionString("NuGetMustHaves"));
-                    if (_hostingEnvironment.IsDevelopment())
-                    {
-                        var logger = _loggerFactory.CreateLogger<Startup>();
-                        logger.LogInformation("Enabling EF Core " + nameof(options.EnableSensitiveDataLogging));
-                        options.EnableSensitiveDataLogging();
-                    }
-                })
                 .AddEntityFrameworkNpgsql()
                 .AddDbContext<NuGetTrendsContext>(options =>
                 {

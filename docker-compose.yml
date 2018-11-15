@@ -11,16 +11,6 @@ services:
     ports:
       - "15672:15672"
       - "5672:5672"
-  mssql:
-    image: "microsoft/mssql-server-linux"
-    restart: "no"
-    volumes:
-      - ./sql-data:/tmp
-    ports:
-      - "1433:1433"
-    environment:
-      SA_PASSWORD: "K6Zutakdo4ig7GP4VgGmnVRjLt"
-      ACCEPT_EULA: "Y"
   postgres:
     image: postgres
     restart: "no"
