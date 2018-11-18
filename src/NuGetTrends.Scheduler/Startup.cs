@@ -28,16 +28,12 @@ namespace NuGetTrends.Scheduler
 
         public void ConfigureServices(IServiceCollection services)
         {
-            // TODO: make worker count configurable
-            var workerCount = 2; //Environment.ProcessorCount;
-            for (var _ = 0; _ < workerCount; _++)
-            {
-                services.AddHostedService<DailyDownloadWorker>();
-            }
+            services.AddHostedService<DailyDownloadWorker>();
 
             services.AddSingleton<INuGetSearchService, NuGetSearchService>();
             services.AddTransient<ISentryEventExceptionProcessor, DbUpdateExceptionProcessor>();
 
+            services.Configure<DailyDownloadWorkerOptions>(Configuration.GetSection("DailyDownloadWorker"));
             services.Configure<RabbitMqOptions>(Configuration.GetSection("RabbitMq"));
             services.Configure<BackgroundJobServerOptions>(Configuration.GetSection("Hangfire"));
 

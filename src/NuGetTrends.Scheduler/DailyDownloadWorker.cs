@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Npgsql;
 using NuGet.Protocol.Core.Types;
 using NuGetTrends.Data;
@@ -18,6 +19,7 @@ namespace NuGetTrends.Scheduler
 {
     public class DailyDownloadWorker : IHostedService
     {
+        private readonly DailyDownloadWorkerOptions _options;
         private readonly IConnectionFactory _connectionFactory;
         private readonly IServiceProvider _services;
         private readonly INuGetSearchService _nuGetSearchService;
@@ -26,14 +28,16 @@ namespace NuGetTrends.Scheduler
         private IModel _channel;
         private IConnection _connection;
 
-        private Task _worker;
+        private List<Task> _workers;
 
         public DailyDownloadWorker(
+            IOptions<DailyDownloadWorkerOptions> options,
             IConnectionFactory connectionFactory,
             IServiceProvider services,
             INuGetSearchService nuGetSearchService,
             ILogger<DailyDownloadWorker> logger)
         {
+            _options = options.Value;
             _connectionFactory = connectionFactory;
             _services = services;
             _nuGetSearchService = nuGetSearchService;
@@ -44,40 +48,44 @@ namespace NuGetTrends.Scheduler
         {
             _logger.LogDebug("Starting the worker.");
 
-            _worker = Task.Run(() =>
+            _workers = new List<Task>(_options.WorkerCount);
+
+            for (var i = 0; i < _options.WorkerCount; i++)
             {
-                _connection = _connectionFactory.CreateConnection();
-                _channel = _connection.CreateModel();
-                const string queueName = "daily-download";
-                var queueDeclareOk = _channel.QueueDeclare(
-                    queue: queueName,
-                    durable: true,
-                    exclusive: false,
-                    autoDelete: false,
-                    arguments: null);
-
-                _logger.LogDebug("Queue creation OK with {QueueName}, {ConsumerCount}, {MessageCount}",
-                    queueDeclareOk.QueueName, queueDeclareOk.ConsumerCount, queueDeclareOk.MessageCount);
-
-                var consumer = new AsyncEventingBasicConsumer(_channel);
-
-                consumer.Received += OnConsumerOnReceived;
-
-                _channel.BasicConsume(
-                    queue: queueName,
-                    autoAck: false,
-                    consumer: consumer);
-
-                var defaultConsumer = new EventingBasicConsumer(_channel);
-
-                defaultConsumer.Received += (s, e) =>
+                _workers.Add(Task.Run(() =>
                 {
-                    _logger.LogWarning("DefaultConsumer fired: {message}", Convert.ToBase64String(e.Body));
-                };
+                    _connection = _connectionFactory.CreateConnection();
+                    _channel = _connection.CreateModel();
+                    const string queueName = "daily-download";
+                    var queueDeclareOk = _channel.QueueDeclare(
+                        queue: queueName,
+                        durable: true,
+                        exclusive: false,
+                        autoDelete: false,
+                        arguments: null);
 
-                _channel.DefaultConsumer = defaultConsumer;
-            }, _cancellationTokenSource.Token);
+                    _logger.LogDebug("Queue creation OK with {QueueName}, {ConsumerCount}, {MessageCount}",
+                        queueDeclareOk.QueueName, queueDeclareOk.ConsumerCount, queueDeclareOk.MessageCount);
 
+                    var consumer = new AsyncEventingBasicConsumer(_channel);
+
+                    consumer.Received += OnConsumerOnReceived;
+
+                    _channel.BasicConsume(
+                        queue: queueName,
+                        autoAck: false,
+                        consumer: consumer);
+
+                    var defaultConsumer = new EventingBasicConsumer(_channel);
+
+                    defaultConsumer.Received += (s, e) =>
+                    {
+                        _logger.LogWarning("DefaultConsumer fired: {message}", Convert.ToBase64String(e.Body));
+                    };
+
+                    _channel.DefaultConsumer = defaultConsumer;
+                }, _cancellationTokenSource.Token));
+            }
             return Task.CompletedTask;
         }
 
@@ -218,7 +226,11 @@ namespace NuGetTrends.Scheduler
             {
                 _cancellationTokenSource.Cancel();
 
-                await _worker;
+                if (_workers is List<Task> workers)
+                {
+                    await Task.WhenAll(workers);
+                }
+
                 // "Disposing channel and connection objects is not enough, they must be explicitly closed with the API methods..."
                 // https://www.rabbitmq.com/dotnet-api-guide.html
                 // - Why?
