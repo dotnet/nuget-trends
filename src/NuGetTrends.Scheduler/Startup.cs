@@ -47,6 +47,7 @@ namespace NuGetTrends.Scheduler
                 var factory = new ConnectionFactory
                 {
                     HostName = options.Hostname,
+                    Port = options.Port,
                     Password = options.Password,
                     UserName = options.Username,
                     // For some reason you have to opt-in to have async code:
