@@ -26,6 +26,8 @@ namespace NuGetTrends.Scheduler
         private IModel _channel;
         private IConnection _connection;
 
+        private Task _worker;
+
         public DailyDownloadWorker(
             IConnectionFactory connectionFactory,
             IServiceProvider services,
@@ -42,36 +44,39 @@ namespace NuGetTrends.Scheduler
         {
             _logger.LogDebug("Starting the worker.");
 
-            _connection = _connectionFactory.CreateConnection();
-            _channel = _connection.CreateModel();
-            const string queueName = "daily-download";
-            var queueDeclareOk = _channel.QueueDeclare(
-                queue: queueName,
-                durable: true,
-                exclusive: false,
-                autoDelete: false,
-                arguments: null);
-
-            _logger.LogDebug("Queue creation OK with {QueueName}, {ConsumerCount}, {MessageCount}",
-                queueDeclareOk.QueueName, queueDeclareOk.ConsumerCount, queueDeclareOk.MessageCount);
-
-            var consumer = new AsyncEventingBasicConsumer(_channel);
-
-            consumer.Received += OnConsumerOnReceived;
-
-            _channel.BasicConsume(
-                 queue: queueName,
-                 autoAck: false,
-                 consumer: consumer);
-
-            var defaultConsumer = new EventingBasicConsumer(_channel);
-
-            defaultConsumer.Received += (s, e) =>
+            _worker = Task.Run(() =>
             {
-                _logger.LogWarning("DefaultConsumer fired: {message}", Convert.ToBase64String(e.Body));
-            };
+                _connection = _connectionFactory.CreateConnection();
+                _channel = _connection.CreateModel();
+                const string queueName = "daily-download";
+                var queueDeclareOk = _channel.QueueDeclare(
+                    queue: queueName,
+                    durable: true,
+                    exclusive: false,
+                    autoDelete: false,
+                    arguments: null);
 
-            _channel.DefaultConsumer = defaultConsumer;
+                _logger.LogDebug("Queue creation OK with {QueueName}, {ConsumerCount}, {MessageCount}",
+                    queueDeclareOk.QueueName, queueDeclareOk.ConsumerCount, queueDeclareOk.MessageCount);
+
+                var consumer = new AsyncEventingBasicConsumer(_channel);
+
+                consumer.Received += OnConsumerOnReceived;
+
+                _channel.BasicConsume(
+                    queue: queueName,
+                    autoAck: false,
+                    consumer: consumer);
+
+                var defaultConsumer = new EventingBasicConsumer(_channel);
+
+                defaultConsumer.Received += (s, e) =>
+                {
+                    _logger.LogWarning("DefaultConsumer fired: {message}", Convert.ToBase64String(e.Body));
+                };
+
+                _channel.DefaultConsumer = defaultConsumer;
+            }, _cancellationTokenSource.Token);
 
             return Task.CompletedTask;
         }
@@ -181,7 +186,8 @@ namespace NuGetTrends.Scheduler
                     }
                     catch (DbUpdateException e)
                         when (e.InnerException is PostgresException pge
-                              && pge.ConstraintName == "PK_daily_downloads")
+                              && (pge.ConstraintName == "PK_daily_downloads"
+                              || pge.ConstraintName == "IX_package_downloads_package_id_lowered"))
                     {
                         // Re-entrancy
                         _logger.LogWarning(e, "Skipping record already tracked.");
@@ -205,7 +211,7 @@ namespace NuGetTrends.Scheduler
             context.PackageDetailsCatalogLeafs.RemoveRange(package);
         }
 
-        public Task StopAsync(CancellationToken cancellationToken)
+        public async Task StopAsync(CancellationToken cancellationToken)
         {
             _logger.LogDebug("Stopping the worker.");
 
@@ -213,11 +219,12 @@ namespace NuGetTrends.Scheduler
             {
                 _cancellationTokenSource.Cancel();
 
+                await _worker;
                 // "Disposing channel and connection objects is not enough, they must be explicitly closed with the API methods..."
                 // https://www.rabbitmq.com/dotnet-api-guide.html
                 // - Why?
-                _channel.Close();
-                _connection.Close();
+                _channel?.Close();
+                _connection?.Close();
             }
             catch (Exception e)
             {
@@ -225,11 +232,9 @@ namespace NuGetTrends.Scheduler
             }
             finally
             {
-                _channel.Dispose();
-                _connection.Dispose();
+                _channel?.Dispose();
+                _connection?.Dispose();
             }
-
-            return Task.CompletedTask;
         }
     }
 }
