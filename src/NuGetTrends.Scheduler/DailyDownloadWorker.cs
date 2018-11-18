@@ -162,7 +162,7 @@ namespace NuGetTrends.Scheduler
                             package.LatestDownloadCountCheckedUtc = DateTime.UtcNow;
                         }
 
-                        var pkgDownload = await context.PackageDownloads.FirstOrDefaultAsync(p => p.PackageId == packageMetadata.Identity.Id);
+                        var pkgDownload = await context.PackageDownloads.FirstOrDefaultAsync(p => p.PackageIdLowered == packageMetadata.Identity.Id.ToLower());
                         if (pkgDownload == null)
                         {
                             pkgDownload = new PackageDownload
@@ -186,8 +186,7 @@ namespace NuGetTrends.Scheduler
                     }
                     catch (DbUpdateException e)
                         when (e.InnerException is PostgresException pge
-                              && (pge.ConstraintName == "PK_daily_downloads"
-                              || pge.ConstraintName == "IX_package_downloads_package_id_lowered"))
+                              && (pge.ConstraintName == "PK_daily_downloads"))
                     {
                         // Re-entrancy
                         _logger.LogWarning(e, "Skipping record already tracked.");
