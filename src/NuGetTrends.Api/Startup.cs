@@ -30,7 +30,7 @@ namespace NuGetTrends.Api
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddMvc()
-                .SetCompatibilityVersion(CompatibilityVersion.Version_2_1)
+                .SetCompatibilityVersion(CompatibilityVersion.Version_2_2)
                 .AddJsonOptions(o => o.SerializerSettings.NullValueHandling = NullValueHandling.Ignore);
 
             if (_hostingEnvironment.IsDevelopment())
