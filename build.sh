@@ -16,8 +16,7 @@ popd
 # API
 pushd src/NuGetTrends.Api
 
-export framework=netcoreapp2.1
-dotnet publish -c Release -f $framework
+dotnet publish -c Release
 
 pushd bin/Release/$framework/publish/
 tar -zcvf $root/nuget-trends-api.tar.gz .
@@ -27,8 +26,7 @@ popd
 # Scheduler
 pushd src/NuGetTrends.Scheduler
 
-export framework=netcoreapp2.1
-dotnet publish -c Release -f $framework
+dotnet publish -c Release
 
 pushd bin/Release/$framework/publish/
 tar -zcvf $root/nuget-trends-worker.tar.gz .
