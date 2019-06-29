@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -25,8 +26,7 @@ namespace NuGetTrends.Scheduler
         private readonly INuGetSearchService _nuGetSearchService;
         private readonly ILogger<DailyDownloadWorker> _logger;
         private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
-        private IModel _channel;
-        private IConnection _connection;
+        private ConcurrentBag<(IModel,IConnection)> _connections = new ConcurrentBag<(IModel, IConnection)>();
 
         private List<Task> _workers;
 
@@ -54,10 +54,12 @@ namespace NuGetTrends.Scheduler
             {
                 _workers.Add(Task.Run(() =>
                 {
-                    _connection = _connectionFactory.CreateConnection();
-                    _channel = _connection.CreateModel();
+                    var connection = _connectionFactory.CreateConnection();
+                    var channel = connection.CreateModel();
+                    _connections.Add((channel, connection));
+
                     const string queueName = "daily-download";
-                    var queueDeclareOk = _channel.QueueDeclare(
+                    var queueDeclareOk = channel.QueueDeclare(
                         queue: queueName,
                         durable: true,
                         exclusive: false,
@@ -67,23 +69,23 @@ namespace NuGetTrends.Scheduler
                     _logger.LogDebug("Queue creation OK with {QueueName}, {ConsumerCount}, {MessageCount}",
                         queueDeclareOk.QueueName, queueDeclareOk.ConsumerCount, queueDeclareOk.MessageCount);
 
-                    var consumer = new AsyncEventingBasicConsumer(_channel);
+                    var consumer = new AsyncEventingBasicConsumer(channel);
 
                     consumer.Received += OnConsumerOnReceived;
 
-                    _channel.BasicConsume(
+                    channel.BasicConsume(
                         queue: queueName,
                         autoAck: false,
                         consumer: consumer);
 
-                    var defaultConsumer = new EventingBasicConsumer(_channel);
+                    var defaultConsumer = new EventingBasicConsumer(channel);
 
                     defaultConsumer.Received += (s, e) =>
                     {
                         _logger.LogWarning("DefaultConsumer fired: {message}", Convert.ToBase64String(e.Body));
                     };
 
-                    _channel.DefaultConsumer = defaultConsumer;
+                    channel.DefaultConsumer = defaultConsumer;
                 }, _cancellationTokenSource.Token));
             }
             return Task.CompletedTask;
@@ -230,12 +232,6 @@ namespace NuGetTrends.Scheduler
                 {
                     await Task.WhenAll(workers);
                 }
-
-                // "Disposing channel and connection objects is not enough, they must be explicitly closed with the API methods..."
-                // https://www.rabbitmq.com/dotnet-api-guide.html
-                // - Why?
-                _channel?.Close();
-                _connection?.Close();
             }
             catch (Exception e)
             {
@@ -243,8 +239,14 @@ namespace NuGetTrends.Scheduler
             }
             finally
             {
-                _channel?.Dispose();
-                _connection?.Dispose();
+                foreach (var (channel, connection) in _connections)
+                {
+                    // "Disposing channel and connection objects is not enough, they must be explicitly closed with the API methods..."
+                    // https://www.rabbitmq.com/dotnet-api-guide.html
+                    // - Why?
+                    channel?.Close();
+                    connection?.Close();
+                }
             }
         }
     }
