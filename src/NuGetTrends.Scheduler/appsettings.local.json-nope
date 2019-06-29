@@ -1,0 +1,23 @@
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Debug",
+      "System": "Information",
+      "Microsoft": "Information"
+    }
+  },
+  "Sentry": {
+    "Logging": {
+      "MinimumBreadcrumbLevel": "Debug",
+      "MinimumEventLevel": "Debug"
+    }
+  },
+  "ConnectionStrings":{
+    "NuGetTrends": "Host=127.0.0.1;Port=5433;Database=nugettrends;Username=postgres;Password=KQC8jjWNnBMLo2UFVifQ83mjKzyAZgXGp9HDtv"
+  },
+  "RabbitMq": {
+    "Hostname": "127.0.0.1",
+    "Port": 5673,
+    "Password": "LwnoiNkYurNmgD4w3thF7Q6ZhDVTZXMHuzeRr6",
+  }
+}
