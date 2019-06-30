@@ -14,7 +14,7 @@ import {PackagesService, PackageInteractionService} from '../../../core';
   styleUrls: ['./search-input.component.scss']
 })
 export class SearchInputComponent implements AfterViewInit {
-  @ViewChild('searchBox') searchBox: ElementRef;
+  @ViewChild('searchBox', {static: false}) searchBox: ElementRef;
 
   queryField: FormControl = new FormControl('');
   results$: Observable<IPackageSearchResult[]>;
