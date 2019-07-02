@@ -50,7 +50,7 @@ export class SearchInputComponent implements AfterViewInit {
         distinctUntilChanged(),
         filter((value: string) => value && !!value.trim()),
         tap(() => this.isSearching = true),
-        switchMap((term: string) => this.searchNuget(term, this.packageInteractionService.searchType)),
+        switchMap((term: string) => this.searchNuGet(term, this.packageInteractionService.searchType)),
         catchError((err, caught) => {
           this.toastr.error('Our servers are too cool (or not) to handle your request at the moment.');
           this.isSearching = false;
@@ -90,7 +90,7 @@ export class SearchInputComponent implements AfterViewInit {
    * @param term
    * @param searchType
    */
-  private searchNuget(term: string, searchType: SearchType): Observable<IPackageSearchResult[]> {
+  private searchNuGet(term: string, searchType: SearchType): Observable<IPackageSearchResult[]> {
     switch (searchType) {
       case SearchType.NuGetPackage:
         return this.packagesService.searchPackage(term);

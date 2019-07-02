@@ -24,6 +24,10 @@ export class PackageInteractionService {
   packagePlotted$ = this.packagePlottedSource.asObservable();
   packageRemoved$ = this.packageRemovedSource.asObservable();
 
+  constructor() {
+    this.searchType = SearchType.NuGetPackage;
+  }
+
   /**
    * Fires the event that adds a package to the package list component
    * @param packageHistory
