@@ -1,0 +1,59 @@
+variables:
+  buildConfiguration: 'Release'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+
+trigger:
+  batch: true
+  branches:
+    include:
+    - '*'
+  paths:
+    include:
+    - /src/NuGetTrends.Api/*
+    - /src/NuGetTrends.Data/*
+    - /src/Directory.Build.props
+    - /api-pipeline.yml
+    exclude:
+    - README.md
+
+strategy:
+  matrix:
+    linux:
+      imageName: 'ubuntu-16.04'
+    mac:
+      imageName: 'macos-10.13'
+    windows:
+      imageName: 'vs2017-win2016'
+
+pool:
+  vmImage: $(imageName)
+
+steps:
+
+- task: DotNetCoreInstaller@0
+  displayName: 'Use .NET Core sdk 2.2.107'
+  inputs:
+    version: 2.2.107
+
+- task: DotNetCoreCLI@1
+  displayName: NuGet Restore
+  inputs:
+    command: restore
+    projects: '**/NuGetTrends.Api.csproj'
+
+- task: DotNetCoreCLI@1
+  displayName: Build
+  inputs:
+    projects: '**/NuGetTrends.Api.csproj'
+    arguments: '--configuration $(BuildConfiguration) --no-restore'
+
+# TODO: Add tests
+
+- task: DotNetCoreCLI@1
+  displayName: Publish
+  inputs:
+    command: publish
+    publishWebProjects: false
+    projects: '**/NuGetTrends.Api.csproj'
+    arguments: '-c $(BuildConfiguration) -o $(Build.ArtifactStagingDirectory) --no-build'
