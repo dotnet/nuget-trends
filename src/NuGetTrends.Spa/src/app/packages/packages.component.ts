@@ -26,12 +26,11 @@ export class PackagesComponent implements OnInit, OnDestroy {
   private removePackageSubscription: Subscription;
   private urlParamName = 'ids';
 
-  private handleApiError = pipe(
-    catchError<IPackageDownloadHistory, never>(() => {
+  private handleApiError =
+    catchError<IPackageDownloadHistory, Observable<IPackageDownloadHistory>>(() => {
       this.toastr.error('Our servers are too cool (or not) to handle your request at the moment.');
-      return EMPTY;
-    })
-  );
+      return of<IPackageDownloadHistory>();
+    });
 
   constructor(
     private packagesService: PackagesService,
@@ -73,7 +72,11 @@ export class PackagesComponent implements OnInit, OnDestroy {
 
     // create the observables
     packageIds.forEach((packageId: string) => {
-      requests.push(this.packagesService.getPackageDownloadHistory(packageId, period).pipe(this.handleApiError));
+      requests.push(
+        this.packagesService
+          .getPackageDownloadHistory(packageId, period)
+          .pipe(this.handleApiError)
+      );
     });
 
     forkJoin(requests).subscribe((results: Array<IPackageDownloadHistory>) => {
