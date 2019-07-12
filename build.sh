@@ -16,9 +16,9 @@ popd
 # API
 pushd src/NuGetTrends.Api
 
-dotnet publish -c Release
+dotnet publish -c Release -o nuget-trends-api
 
-pushd bin/Release/$framework/publish/
+pushd nuget-trends-api
 tar -zcvf $root/nuget-trends-api.tar.gz .
 popd
 popd
@@ -26,9 +26,9 @@ popd
 # Scheduler
 pushd src/NuGetTrends.Scheduler
 
-dotnet publish -c Release
+dotnet publish -c Release -o nuget-trends-worker
 
-pushd bin/Release/$framework/publish/
+pushd nuget-trends-worker
 tar -zcvf $root/nuget-trends-worker.tar.gz .
 popd
 popd
