@@ -4,6 +4,7 @@ set -e
 export root=$(pwd)
 # SPA
 pushd src/NuGetTrends.Spa
+rm -rf dist/nuget-trends/
 
 yarn install
 yarn prod
@@ -15,6 +16,7 @@ popd
 
 # API
 pushd src/NuGetTrends.Api
+rm -rf nuget-trends-api
 
 dotnet publish -c Release -o nuget-trends-api
 
@@ -25,6 +27,7 @@ popd
 
 # Scheduler
 pushd src/NuGetTrends.Scheduler
+rm -rf nuget-trends-worker
 
 dotnet publish -c Release -o nuget-trends-worker
 
