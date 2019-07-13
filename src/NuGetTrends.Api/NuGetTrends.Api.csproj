@@ -8,6 +8,7 @@
     <None Include="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Remove="appsettings.local.json-nope" />
   </ItemGroup>
 
   <ItemGroup>
