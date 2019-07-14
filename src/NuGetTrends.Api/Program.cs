@@ -55,6 +55,7 @@ namespace NuGetTrends.Api
                 .UseKestrel(c => c.AddServerHeader = false)
                 .UseConfiguration(Configuration)
                 .UseSerilog()
+                .UseSentry()
                 .UseStartup<Startup>();
     }
 }
