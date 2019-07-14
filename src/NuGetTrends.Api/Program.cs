@@ -48,7 +48,8 @@ namespace NuGetTrends.Api
             finally
             {
                 Log.CloseAndFlush();
-            }        }
+            }
+        }
 
         public static IWebHostBuilder CreateWebHostBuilder(string[] args) =>
             WebHost.CreateDefaultBuilder(args)
