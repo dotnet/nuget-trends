@@ -124,7 +124,7 @@ export class PackagesComponent implements OnInit, OnDestroy {
    */
   private initializeChart(firstPackageData: IPackageDownloadHistory): void {
     this.chartData.labels = firstPackageData.downloads.map((download: IDownloadStats) => {
-      return this.datePipe.transform(download.date, 'MMM d');
+      return this.datePipe.transform(download.week, 'MMM d');
     });
 
     this.chartData.datasets.push(this.parseDataSet(firstPackageData));
@@ -188,7 +188,7 @@ export class PackagesComponent implements OnInit, OnDestroy {
    */
   private parseDataSet(packageHistory: IPackageDownloadHistory): ChartDataSets {
     const totalDownloads = packageHistory.downloads.map((data: IDownloadStats) => {
-      return data.count;
+      return data.downloadcount;
     });
 
     return {
