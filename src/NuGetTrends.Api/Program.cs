@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
+using Sentry.Protocol;
 
 namespace NuGetTrends.Api
 {
@@ -21,7 +22,7 @@ namespace NuGetTrends.Api
                         c.AddJsonFile("appsettings.local.json", optional: true, reloadOnChange: true);
                     }
                 })
-                .UseSentry(o => o.Debug = true)
+                .UseSentry()
                 .UseStartup<Startup>();
     }
 }
