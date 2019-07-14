@@ -20,7 +20,6 @@ namespace NuGetTrends.Api
             .AddEnvironmentVariables()
             .Build();
 
-
         public static int Main(string[] args)
         {
             if (Environment != "Production")
