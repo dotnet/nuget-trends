@@ -1,7 +1,9 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NuGetTrends.Data;
@@ -17,7 +19,7 @@ namespace NuGetTrends.Api
         public PackageController(NuGetTrendsContext context) => _context = context;
 
         [HttpGet("search")]
-        public async Task<ActionResult<IEnumerable<object>>> Search([FromQuery] string q)
+        public async Task<ActionResult<IEnumerable<object>>> Search([FromQuery] string q, CancellationToken cancellationToken)
             => await _context.PackageDownloads
                 .AsNoTracking()
                 .Where(p => p.PackageIdLowered.Contains(q.ToLower(CultureInfo.InvariantCulture)))
@@ -29,11 +31,22 @@ namespace NuGetTrends.Api
                     p.LatestDownloadCount,
                     IconUrl = p.IconUrl ?? "https://www.nuget.org/Content/gallery/img/default-package-icon.svg"
                 })
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
         [HttpGet("history/{id}")]
-        public async Task<object> GetDownloadHistory([FromRoute] string id, [FromQuery] int months = 3)
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetDownloadHistory(
+            [FromRoute] string id,
+            CancellationToken cancellationToken,
+            [FromQuery] int months = 3)
         {
+            if (! await _context.PackageDownloads.
+                AnyAsync(p => p.PackageIdLowered == id.ToLower(CultureInfo.InvariantCulture), cancellationToken))
+            {
+                return NotFound();
+            }
+
             var downloads = await _context.GetDailyDownloads(id, months);
             var data = new
             {
@@ -41,7 +54,7 @@ namespace NuGetTrends.Api
                 Downloads = downloads
             };
 
-            return data;
+            return Ok(data);
         }
     }
 }
