@@ -1,8 +1,9 @@
-using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NuGetTrends.Data;
@@ -18,7 +19,7 @@ namespace NuGetTrends.Api
         public PackageController(NuGetTrendsContext context) => _context = context;
 
         [HttpGet("search")]
-        public async Task<ActionResult<IEnumerable<object>>> Search([FromQuery] string q)
+        public async Task<ActionResult<IEnumerable<object>>> Search([FromQuery] string q, CancellationToken cancellationToken)
             => await _context.PackageDownloads
                 .AsNoTracking()
                 .Where(p => p.PackageIdLowered.Contains(q.ToLower(CultureInfo.InvariantCulture)))
@@ -30,34 +31,30 @@ namespace NuGetTrends.Api
                     p.LatestDownloadCount,
                     IconUrl = p.IconUrl ?? "https://www.nuget.org/Content/gallery/img/default-package-icon.svg"
                 })
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
         [HttpGet("history/{id}")]
-        public Task<object> GetDownloadHistory([FromRoute] string id, [FromQuery] int months = 3)
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetDownloadHistory(
+            [FromRoute] string id,
+            CancellationToken cancellationToken,
+            [FromQuery] int months = 3)
         {
-            var query = from p in _context.PackageDownloads.AsNoTracking()
-                where p.PackageId == id
-                select new
-                {
-                    Id = p.PackageId,
-                    p.IconUrl,
-                    Downloads = from d in _context.DailyDownloads.AsNoTracking()
-                        where d.PackageId == p.PackageId
-                              && d.Date > DateTime.UtcNow.AddMonths(-months).Date
-                        select new {d.Date, d.DownloadCount}
-                        into dc
-                        let week = dc.Date.AddDays(-(int)dc.Date.DayOfWeek).Date
-                        group dc by week
-                        into dpw
-                        orderby dpw.Key
-                        select new
-                        {
-                            dpw.Key.Date,
-                            Count = dpw.Average(c => c.DownloadCount)
-                        } as object
-                } as object;
+            if (! await _context.PackageDownloads.
+                AnyAsync(p => p.PackageIdLowered == id.ToLower(CultureInfo.InvariantCulture), cancellationToken))
+            {
+                return NotFound();
+            }
 
-            return query.FirstOrDefaultAsync();
+            var downloads = await _context.GetDailyDownloads(id, months);
+            var data = new
+            {
+                Id = id,
+                Downloads = downloads
+            };
+
+            return Ok(data);
         }
     }
 }

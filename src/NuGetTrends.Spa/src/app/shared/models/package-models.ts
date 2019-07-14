@@ -12,7 +12,7 @@ export interface IPackageDownloadHistory {
 }
 
 export interface IDownloadStats {
-    date: Date;
+    week: Date;
     count: number;
 }
 
