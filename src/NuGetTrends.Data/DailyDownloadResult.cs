@@ -1,11 +1,14 @@
 using System;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace NuGetTrends.Data
 {
     public class DailyDownloadResult
     {
-        public double? downloadcount { get; set; }
+        [Column("download_count")]
+        public long? Count { get; set; }
 
-        public DateTime week { get; set; }
+        [Column("week")]
+        public DateTime Week { get; set; }
     }
 }
