@@ -188,7 +188,7 @@ export class PackagesComponent implements OnInit, OnDestroy {
    */
   private parseDataSet(packageHistory: IPackageDownloadHistory): ChartDataSets {
     const totalDownloads = packageHistory.downloads.map((data: IDownloadStats) => {
-      return data.downloadcount;
+      return data.count;
     });
 
     return {

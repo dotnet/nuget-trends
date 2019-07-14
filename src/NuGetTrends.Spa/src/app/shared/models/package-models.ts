@@ -13,7 +13,7 @@ export interface IPackageDownloadHistory {
 
 export interface IDownloadStats {
     week: Date;
-    downloadcount: number;
+    count: number;
 }
 
 export enum  SearchType {
