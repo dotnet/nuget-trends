@@ -1,4 +1,4 @@
-Unfortunatelly this code was not made available via NuGet.
+Unfortunately this code was not made available via NuGet.
 For that reason it's being copied over.
 
 The original location is a sample project in the NuGet org:
