@@ -5,7 +5,8 @@
 export const environment = {
   production: false,
   API_URL: 'https://localhost:5001',
-  MAX_CHART_ITEMS: 6
+  MAX_CHART_ITEMS: 6,
+  SENTRY_DSN: ''
 };
 
 /*

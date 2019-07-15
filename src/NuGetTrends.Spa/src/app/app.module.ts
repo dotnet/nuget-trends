@@ -13,7 +13,7 @@ import {SharedModule} from './shared/shared.module';
 import {HomeModule} from './home/home.module';
 import {CoreModule} from './core/core.module';
 
-init({dsn: 'https://85a592e835c64ca3a97d93776c12e947@sentry.io/1266321'});
+init({dsn: environment.SENTRY_DSN});
 
 export class SentryErrorHandler extends ErrorHandler {
   handleError(err: any): void {
