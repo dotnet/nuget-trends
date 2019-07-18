@@ -41,15 +41,16 @@ namespace NuGetTrends.Scheduler
 
             try
             {
-                var package = (await _packageSearchResource.SearchAsync(packageId, SearchFilter, 0, 1, NugetLogger, token)).FirstOrDefault();
+                // Search doesn't return matching id as the first result. MySqlConnector was the 7th, for example.
+                var package = (await _packageSearchResource.SearchAsync(packageId, SearchFilter, 0, 10, NugetLogger, token)).FirstOrDefault(p => p.Identity?.Id == packageId);
 
-                if (package != null && package.Identity.Id != packageId)
+                if (package == null)
                 {
-                    _logger.LogDebug("Package with id {expectedPackageId} not found. Search returned {actualPackageId} instead.", packageId, package.Identity.Id);
-                    return null;
+                    _logger.LogWarning("Package with id {expectedPackageId} not found.", packageId);
                 }
 
                 return package;
+
             }
             catch (Exception e)
             {
