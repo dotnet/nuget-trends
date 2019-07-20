@@ -1,9 +1,9 @@
-import {AfterViewInit, Component, ElementRef, ViewChild, ViewEncapsulation} from '@angular/core';
+import {AfterViewInit, Component, ElementRef, ErrorHandler, ViewChild, ViewEncapsulation} from '@angular/core';
 import {FormControl} from '@angular/forms';
 import {Router} from '@angular/router';
 import {MatAutocomplete, MatAutocompleteSelectedEvent} from '@angular/material';
 import {catchError, debounceTime, distinctUntilChanged, filter, map, startWith, switchMap, tap} from 'rxjs/operators';
-import {EMPTY, Observable, pipe} from 'rxjs';
+import {EMPTY, Observable} from 'rxjs';
 import {ToastrService} from 'ngx-toastr';
 
 import {IPackageDownloadHistory, IPackageSearchResult, SearchType} from '../../models/package-models';
@@ -26,19 +26,13 @@ export class SearchInputComponent implements AfterViewInit {
 
   private readonly searchComponentNode: any;
 
-  private handleApiError = pipe(
-    catchError((err, caught) => {
-      this.toastr.error('Our servers are too cool (or not) to handle your request at the moment.');
-      return EMPTY;
-    })
-  );
-
   constructor(
     private router: Router,
     private packagesService: PackagesService,
     private packageInteractionService: PackageInteractionService,
     private element: ElementRef,
-    private toastr: ToastrService) {
+    private toastr: ToastrService,
+    private errorHandler: ErrorHandler) {
     this.searchComponentNode = this.element.nativeElement.parentNode;
   }
 
@@ -68,19 +62,14 @@ export class SearchInputComponent implements AfterViewInit {
    * Calls the api to get the historical data for the selected package
    * @param event
    */
-  searchItemSelected(event: MatAutocompleteSelectedEvent): void {
+  async searchItemSelected(event: MatAutocompleteSelectedEvent): Promise<void> {
     // get a hold of the current selected value and clear the autocomplete
     const packageId = event.option.value;
     this.queryField.setValue('');
     event.option.deselect();
 
-    switch (this.packageInteractionService.searchType) {
-      case SearchType.NuGetPackage:
-        this.getNuGetPackageHistory(packageId, this.packageInteractionService.searchPeriod);
-        break;
-      case SearchType.Framework:
-        this.getFrameworkHistory(packageId, this.packageInteractionService.searchPeriod);
-        break;
+    if (this.packageInteractionService.searchType === SearchType.NuGetPackage) {
+      await this.getNuGetPackageHistory(packageId, this.packageInteractionService.searchPeriod);
     }
   }
 
@@ -106,45 +95,20 @@ export class SearchInputComponent implements AfterViewInit {
    * @param packageId
    * @param period
    */
-  private getNuGetPackageHistory(packageId: string, period: number): void {
-    if (this.router.url.includes('/packages')) {
-      this.packagesService.getPackageDownloadHistory(packageId, period)
-        .pipe(this.handleApiError)
-        .subscribe((packageHistory: IPackageDownloadHistory) => {
-          this.feedPackageHistoryResults(packageHistory);
-        });
-    } else {
-      this.packagesService.getPackageDownloadHistory(packageId, period)
-        .pipe(this.handleApiError)
-        .subscribe((packageHistory: IPackageDownloadHistory) => {
-        this.router.navigate(['/packages']).then(() => {
-          this.feedPackageHistoryResults(packageHistory);
-        });
-      });
-    }
-  }
+  private async getNuGetPackageHistory(packageId: string, period: number): Promise<void> {
+    try {
+      const downloadHistory = await this.packagesService.getPackageDownloadHistory(packageId, period).toPromise();
 
-  /**
-   * Get the download history for the selected target Framework
-   * If not in the frameworks page, navigate when results are back.
-   * @param packageId
-   * @param period
-   */
-  private getFrameworkHistory(packageId: string, period: number): void {
-    if (this.router.url.includes('/frameworks')) {
-      this.packagesService.getFrameworkDownloadHistory(packageId, period)
-        .pipe(this.handleApiError)
-        .subscribe((packageHistory: IPackageDownloadHistory) => {
-          this.feedPackageHistoryResults(packageHistory);
+      if (this.router.url.includes('/packages')) {
+        this.feedPackageHistoryResults(downloadHistory);
+      } else {
+        this.router.navigate(['/packages']).then(() => {
+          this.feedPackageHistoryResults(downloadHistory);
         });
-    } else {
-      this.packagesService.getFrameworkDownloadHistory(packageId, period)
-        .pipe(this.handleApiError)
-        .subscribe((frameworkHistory: IPackageDownloadHistory) => {
-          this.router.navigate(['/frameworks']).then(() => {
-            this.feedPackageHistoryResults(frameworkHistory);
-          });
-        });
+      }
+    } catch (error) {
+      this.errorHandler.handleError(error);
+      this.toastr.error('Our servers are too cool (or not) to handle your request at the moment.');
     }
   }
 
