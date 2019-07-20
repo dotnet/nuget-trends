@@ -1,8 +1,7 @@
-import {Component, OnDestroy, OnInit} from '@angular/core';
+import {Component, ErrorHandler, OnDestroy, OnInit} from '@angular/core';
 import {Chart, ChartDataSets, ChartOptions} from 'chart.js';
 import {DatePipe} from '@angular/common';
-import {Subscription, Observable, forkJoin, pipe, EMPTY, empty, of} from 'rxjs';
-import {catchError} from 'rxjs/operators';
+import {Subscription} from 'rxjs';
 import {ActivatedRoute, Params, Router} from '@angular/router';
 import {AppAnimations} from '../shared';
 import {ToastrService} from 'ngx-toastr';
@@ -26,19 +25,14 @@ export class PackagesComponent implements OnInit, OnDestroy {
   private removePackageSubscription: Subscription;
   private urlParamName = 'ids';
 
-  private handleApiError =
-    catchError<IPackageDownloadHistory, Observable<IPackageDownloadHistory>>(() => {
-      this.toastr.error('Our servers are too cool (or not) to handle your request at the moment.');
-      return of<IPackageDownloadHistory>();
-    });
-
   constructor(
     private packagesService: PackagesService,
     private route: Router,
     private activatedRoute: ActivatedRoute,
     private packageInterationService: PackageInteractionService,
     private datePipe: DatePipe,
-    private toastr: ToastrService) {
+    private toastr: ToastrService,
+    private errorHandler: ErrorHandler) {
 
     this.plotPackageSubscription = this.packageInterationService.packagePlotted$.subscribe(
       (packageHistory: IPackageDownloadHistory) => {
@@ -48,39 +42,38 @@ export class PackagesComponent implements OnInit, OnDestroy {
       (packageId: string) => this.removePackage(packageId));
   }
 
-  ngOnInit(): void {
-    this.loadPackagesFromUrl();
+  async ngOnInit(): Promise<void> {
+    await this.loadPackagesFromUrl();
   }
 
   ngOnDestroy(): void {
     this.plotPackageSubscription.unsubscribe();
     this.removePackageSubscription.unsubscribe();
+
+    if (this.trendChart) {
+      this.trendChart.destroy();
+    }
   }
 
   /**
    * Re-loads the chart with data for the new period
    */
-  periodChanged(period: number): void {
+  async periodChanged(period: number): Promise<void> {
     const packageIds: string[] = this.activatedRoute.snapshot.queryParamMap.getAll('ids');
-
     if (!packageIds.length) {
       return;
     }
 
     this.chartData.datasets = [];
-    const requests: Array<Observable<IPackageDownloadHistory>> = [];
 
-    // create the observables
-    packageIds.forEach((packageId: string) => {
-      requests.push(
-        this.packagesService
-          .getPackageDownloadHistory(packageId, period)
-          .pipe(this.handleApiError)
-      );
-    });
-
-    forkJoin(requests).subscribe((results: Array<IPackageDownloadHistory>) => {
-      results.forEach((packageHistory: IPackageDownloadHistory) => this.packageInterationService.updatePackage(packageHistory));
+    packageIds.forEach(async (packageId: string) => {
+      try {
+        const downloadHistory = await this.packagesService.getPackageDownloadHistory(packageId, period).toPromise();
+        this.packageInterationService.updatePackage(downloadHistory);
+      } catch (error) {
+        this.errorHandler.handleError(error);
+        this.toastr.error('Our servers are too cool (or not) to handle your request at the moment.');
+      }
     });
   }
 
@@ -211,23 +204,21 @@ export class PackagesComponent implements OnInit, OnDestroy {
    * Reads the packages from the URL and initialize the chart
    * Useful when sharing the URL with others
    */
-  private loadPackagesFromUrl() {
+  private async loadPackagesFromUrl(): Promise<void> {
     const packageIds: string[] = this.activatedRoute.snapshot.queryParamMap.getAll('ids');
     if (!packageIds.length) {
       return;
     }
 
-    const requests: Array<Observable<IPackageDownloadHistory>> = [];
-
-    packageIds.forEach((packageId: string) => {
-      requests.push(this.packagesService.getPackageDownloadHistory(
-        packageId,
-        this.packageInterationService.searchPeriod).pipe(this.handleApiError));
-    });
-
-    forkJoin(requests).subscribe((results: Array<IPackageDownloadHistory>) => {
-      results.forEach((packageHistory: IPackageDownloadHistory) =>
-      this.packageInterationService.addPackage(packageHistory));
+    packageIds.forEach(async (packageId: string) => {
+      try {
+        const downloadHistory = await this.packagesService
+          .getPackageDownloadHistory(packageId, this.packageInterationService.searchPeriod).toPromise();
+        this.packageInterationService.addPackage(downloadHistory);
+      } catch (error) {
+        this.errorHandler.handleError(error);
+        this.toastr.error('Our servers are too cool (or not) to handle your request at the moment.');
+      }
     });
   }
 
