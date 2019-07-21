@@ -74,6 +74,7 @@ namespace NuGetTrends.Api
 
             services.Configure<ForwardedHeadersOptions>(options =>
             {
+                options.ForwardLimit = 2;
                 options.ForwardedHeaders =
                     ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
             });
