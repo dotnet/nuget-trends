@@ -1,64 +1,24 @@
 @import '../../../../colors';
 
-.filter-wrapper {
-  position: relative;
-}
-.keyword-wrapper {
-  width: 100%;
-  position: relative;
-}
-
-#keyword {
-  border: 1px solid #ccc;
-  padding: 10px;
-  font: 1.5em 'Arimo', sans-serif;
-  width: 50%;
-  outline: none;
-  transition: border 0.5s ease-in-out
-}
-#keyword:focus {
-  border-color : rgba(81, 203, 238, 1);;
-}
-#keyword-button {
-  position: absolute;
-  right: 26%;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 1.7em;
-  color: #8DB9ED
-}
-#keyword-button:hover {
-  color: #ccc
-}
-.filter-select {
-  list-style: none;
+.mat-autocomplete-panel {
   font-size: 1.1em;
   color: $grey-dark;
   border: 1px solid $grey-light;
   border-top: none;
-  width: 100%;
-  position: absolute;
-  z-index: 999;
-  max-height: 300px;
-  overflow-y: auto;
-  background: $white-ter
-}
-.filter-select-list img {
-  margin-left: 5px;
-}
-.filter-select-list {
-  cursor: pointer;
-  padding: 10px 1px;
-}
-.artist-name {
-  display: inline-block;
-  //position: absolute;
-}
-.filter-select-list:hover {
-  background:  $cyan;
-  color: #fff
+  background-color: $white-ter
 }
 
+.package-img {
+  max-height: 32px;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+
+.mat-option:hover:not(.mat-option-disabled),
+.mat-option.mat-active {
+  background-color: $cyan;
+  color: #fff
+}
 
 /* Extra styles to make the input a little nicer on the header */
 input:focus{

@@ -1,32 +1,23 @@
-<section class="filter-wrapper">
-  <div class="keyword-wrapper control" [ngClass]="{'is-large is-loading' : isSearching}">
+<section>
+  <div matAutocompleteOrigin
+       #origin="matAutocompleteOrigin"
+       class="control"
+       [ngClass]="{'is-large is-loading' : isSearching}">
     <input
-      autofocus
       class="input is-large"
       type="text"
-      placeholder="Start typing to discover NuGet Trends"
       #searchBox
+      placeholder="Start typing to discover NuGet Trends"
       [formControl]="queryField"
-      (keydown)="focusElementAndCheckForResults()"
-      />
-    <span class="icon is-medium is-left">
-      <i class="fa fa-search"></i>
-    </span>
+      [matAutocomplete]="auto"
+      [matAutocompleteConnectedTo]="origin">
+    <span class="icon is-medium is-left"><i class="fa fa-search"></i></span>
   </div>
-  <ul class="filter-select" #container *ngIf="showResults">
-    <li *ngFor="let package of results$ | async" class="filter-select-list" (click)="searchItemSelected(package.packageId)">
-      <article class="media" >
-        <figure class="media-left">
-          <p class="image is-32x32">
-              <img src="{{package.iconUrl}}"
-                   onerror="this.onerror=null;this.src='https://nuget.org/Content/Images/packageDefaultIcon-50x50.png';" />
-          </p>
-        </figure>
-        <div class="media-content is-pulled-left">
-          <div class="content">
-            <p>{{package.packageId}}</p>
-          </div>
-        </div>
-      </article>
-  </ul>
+  <mat-autocomplete #auto="matAutocomplete" (optionSelected)='searchItemSelected($event)'>
+    <mat-option *ngFor="let package of results$ | async" [value]="package.packageId">
+      <img class="package-img" src="{{package.iconUrl}}"
+           onerror="this.onerror=null;this.src='https://nuget.org/Content/Images/packageDefaultIcon-50x50.png';"/>
+      <span>{{package.packageId}}</span>
+    </mat-option>
+  </mat-autocomplete>
 </section>
