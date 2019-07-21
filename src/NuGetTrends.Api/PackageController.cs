@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using NuGetTrends.Data;
 
 namespace NuGetTrends.Api
@@ -16,7 +17,15 @@ namespace NuGetTrends.Api
     {
         private readonly NuGetTrendsContext _context;
 
-        public PackageController(NuGetTrendsContext context) => _context = context;
+        private readonly IHttpContextAccessor _accessor;
+        private readonly ILogger<PackageController> _logger;
+
+        public PackageController(NuGetTrendsContext context, IHttpContextAccessor accessor, ILogger<PackageController> logger)
+        {
+            _accessor = accessor;
+            _logger = logger;
+            _context = context;
+        }
 
         [HttpGet("search")]
         public async Task<ActionResult<IEnumerable<object>>> Search([FromQuery] string q, CancellationToken cancellationToken)
@@ -41,6 +50,8 @@ namespace NuGetTrends.Api
             CancellationToken cancellationToken,
             [FromQuery] int months = 3)
         {
+            _logger.LogWarning("Just a test: {ip}", _accessor.HttpContext.Connection.RemoteIpAddress.ToString());
+
             if (! await _context.PackageDownloads.
                 AnyAsync(p => p.PackageIdLowered == id.ToLower(CultureInfo.InvariantCulture), cancellationToken))
             {
