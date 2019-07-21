@@ -1,8 +1,9 @@
-import {AfterViewInit, Component, ElementRef, HostListener, ViewChild} from '@angular/core';
+import {AfterViewInit, Component, ElementRef, ViewChild, ViewEncapsulation} from '@angular/core';
 import {FormControl} from '@angular/forms';
 import {Router} from '@angular/router';
-import {catchError, debounceTime, distinctUntilChanged, filter, map, switchMap, tap} from 'rxjs/operators';
-import {EMPTY, fromEvent, Observable, pipe} from 'rxjs';
+import {MatAutocomplete, MatAutocompleteSelectedEvent} from '@angular/material';
+import {catchError, debounceTime, distinctUntilChanged, filter, map, startWith, switchMap, tap} from 'rxjs/operators';
+import {EMPTY, Observable, pipe} from 'rxjs';
 import {ToastrService} from 'ngx-toastr';
 
 import {IPackageDownloadHistory, IPackageSearchResult, SearchType} from '../../models/package-models';
@@ -11,9 +12,11 @@ import {PackagesService, PackageInteractionService} from '../../../core';
 @Component({
   selector: 'app-search-input',
   templateUrl: './search-input.component.html',
-  styleUrls: ['./search-input.component.scss']
+  styleUrls: ['./search-input.component.scss'],
+  encapsulation: ViewEncapsulation.None,
 })
 export class SearchInputComponent implements AfterViewInit {
+  @ViewChild(MatAutocomplete, {static: false}) autoComplete: MatAutocomplete;
   @ViewChild('searchBox', {static: false}) searchBox: ElementRef;
 
   queryField: FormControl = new FormControl('');
@@ -40,13 +43,14 @@ export class SearchInputComponent implements AfterViewInit {
   }
 
   ngAfterViewInit(): void {
-    this.results$ = fromEvent(this.searchBox.nativeElement, 'keyup')
-      .pipe(
-        map((event: KeyboardEvent) => (event.target as HTMLInputElement).value),
-        debounceTime(200),
-        tap((value: string) => {
-          this.showResults = !!value;
-        }),
+    // Disables wrapping when navigating using the arrows
+    this.autoComplete._keyManager.withWrap(false);
+    this.searchBox.nativeElement.focus();
+
+    this.results$ = this.queryField.valueChanges.pipe(
+        startWith(''),
+        map((value: string) => value),
+        debounceTime(300),
         distinctUntilChanged(),
         filter((value: string) => value && !!value.trim()),
         tap(() => this.isSearching = true),
@@ -59,17 +63,17 @@ export class SearchInputComponent implements AfterViewInit {
         tap(() => this.isSearching = false));
   }
 
-  @HostListener('document:click', ['$event'])
-  checkIfInputWasClicked(event) {
-    this.showResults = this.searchBox.nativeElement.contains(event.target);
-  }
-
   /**
    * Triggered when the user selects a result from the search.
    * Calls the api to get the historical data for the selected package
-   * @param packageId
+   * @param event
    */
-  searchItemSelected(packageId: string): void {
+  searchItemSelected(event: MatAutocompleteSelectedEvent): void {
+    // get a hold of the current selected value and clear the autocomplete
+    const packageId = event.option.value;
+    this.queryField.setValue('');
+    event.option.deselect();
+
     switch (this.packageInteractionService.searchType) {
       case SearchType.NuGetPackage:
         this.getNuGetPackageHistory(packageId, this.packageInteractionService.searchPeriod);
@@ -78,11 +82,6 @@ export class SearchInputComponent implements AfterViewInit {
         this.getFrameworkHistory(packageId, this.packageInteractionService.searchPeriod);
         break;
     }
-  }
-
-  focusElementAndCheckForResults(): void {
-    this.searchBox.nativeElement.focus();
-    this.showResults = !!this.results$;
   }
 
   /**
@@ -105,6 +104,7 @@ export class SearchInputComponent implements AfterViewInit {
    * Get the download history for the selected NuGet Package
    * If not in the packages page, navigate when results are back.
    * @param packageId
+   * @param period
    */
   private getNuGetPackageHistory(packageId: string, period: number): void {
     if (this.router.url.includes('/packages')) {
@@ -128,6 +128,7 @@ export class SearchInputComponent implements AfterViewInit {
    * Get the download history for the selected target Framework
    * If not in the frameworks page, navigate when results are back.
    * @param packageId
+   * @param period
    */
   private getFrameworkHistory(packageId: string, period: number): void {
     if (this.router.url.includes('/frameworks')) {
@@ -155,7 +156,5 @@ export class SearchInputComponent implements AfterViewInit {
     this.packageInteractionService.addPackage(packageHistory);
     this.showResults = false;
     this.queryField.setValue('');
-    this.searchBox.nativeElement.focus();
   }
-
 }
