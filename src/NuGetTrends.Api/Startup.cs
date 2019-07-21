@@ -3,6 +3,7 @@ using System.IO;
 using System.Reflection;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -10,6 +11,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using NuGetTrends.Data;
+using Sentry;
+using Sentry.Extensibility;
 using Swashbuckle.AspNetCore.Swagger;
 using Swashbuckle.AspNetCore.SwaggerUI;
 
@@ -78,6 +81,9 @@ namespace NuGetTrends.Api
                 options.ForwardedHeaders =
                     ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
             });
+
+            services.AddHttpContextAccessor();
+            services.AddScoped<ISentryEventProcessor, SetUserIpEventProcessor>();
         }
 
         public void Configure(IApplicationBuilder app)
@@ -100,6 +106,20 @@ namespace NuGetTrends.Api
 
             app.UseSwagger();
             app.UseMvc();
+        }
+
+        class SetUserIpEventProcessor : ISentryEventProcessor
+        {
+            private readonly IHttpContextAccessor _accessor;
+
+            public SetUserIpEventProcessor(IHttpContextAccessor accessor) => _accessor = accessor;
+
+            public SentryEvent Process(SentryEvent @event)
+            {
+                // Will take the user IP considering the x-forwarded of the proxies
+                @event.User.IpAddress = _accessor.HttpContext.Connection.RemoteIpAddress.ToString();
+                return @event;
+            }
         }
     }
 }
