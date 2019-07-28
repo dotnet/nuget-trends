@@ -1,6 +1,6 @@
 import {BrowserModule} from '@angular/platform-browser';
 import {BrowserAnimationsModule} from '@angular/platform-browser/animations';
-import {NgModule, ErrorHandler} from '@angular/core';
+import {NgModule, ErrorHandler, Injectable} from '@angular/core';
 import {DatePipe} from '@angular/common';
 import {init, captureException} from '@sentry/browser';
 import {HttpClientModule} from '@angular/common/http';
@@ -15,6 +15,7 @@ import {CoreModule} from './core/core.module';
 
 init({dsn: environment.SENTRY_DSN});
 
+@Injectable()
 export class SentryErrorHandler extends ErrorHandler {
   handleError(err: any): void {
     captureException(err.originalError || err);
