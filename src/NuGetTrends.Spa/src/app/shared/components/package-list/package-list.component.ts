@@ -1,9 +1,9 @@
-import {Component, OnDestroy} from '@angular/core';
-import {Subscription} from 'rxjs/';
-import {IPackageDownloadHistory, IPackageColor, TagColor} from '../../models/package-models';
-import {PackageInteractionService} from '../../../core';
-import {environment} from '../../../../environments/environment.prod';
-import {ToastrService} from 'ngx-toastr';
+import { Component, OnDestroy } from '@angular/core';
+import { Subscription } from 'rxjs/';
+import { IPackageDownloadHistory, IPackageColor, TagColor } from '../../models/package-models';
+import { PackageInteractionService } from '../../../core';
+import { environment } from '../../../../environments/environment.prod';
+import { ToastrService } from 'ngx-toastr';
 
 @Component({
   selector: 'app-package-list',
@@ -48,7 +48,6 @@ export class PackageListComponent implements OnDestroy {
 
   /**
    * Removes the package from the list and fires the event that removes it from the chart
-   * @param packageColor
    */
   removePackage(packageColor: IPackageColor): void {
     if (packageColor) {
@@ -61,7 +60,6 @@ export class PackageListComponent implements OnDestroy {
 
   /**
    * Adds the package to the list and fires the event that plots it on the chart
-   * @param packageHistory
    */
   private addPackageToList(packageHistory: IPackageDownloadHistory): void {
 
@@ -74,7 +72,7 @@ export class PackageListComponent implements OnDestroy {
       const color = this.colorsList.find(p => p.isInUse() === false);
       color.setUsed();
       packageHistory.color = color.code;
-      this.packageList.push(<IPackageColor>{id: packageHistory.id, color: color.code});
+      this.packageList.push({id: packageHistory.id, color: color.code} as IPackageColor);
       this.packageInteractionService.plotPackage(packageHistory);
     }
   }

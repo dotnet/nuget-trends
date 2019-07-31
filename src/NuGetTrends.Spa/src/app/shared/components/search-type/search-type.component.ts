@@ -1,6 +1,6 @@
-import {Component, EventEmitter, Output} from '@angular/core';
-import {SearchType} from '../../models/package-models';
-import {PackageInteractionService} from '../../../core';
+import { Component, EventEmitter, Output } from '@angular/core';
+import { SearchType } from '../../models/package-models';
+import { PackageInteractionService } from '../../../core';
 
 @Component({
   selector: 'app-search-type',
@@ -19,7 +19,6 @@ export class SearchTypeComponent {
 
   /**
    * Fires an event with the appropriate SearchType
-   * @param $event
    */
   changePackageType($event: any): void {
     if ($event.target.checked) {

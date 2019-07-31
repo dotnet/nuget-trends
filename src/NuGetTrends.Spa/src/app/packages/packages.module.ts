@@ -1,6 +1,6 @@
-import {NgModule} from '@angular/core';
-import {PackagesComponent} from './packages.component';
-import {SharedModule} from '../shared/shared.module';
+import { NgModule } from '@angular/core';
+import { PackagesComponent } from './packages.component';
+import { SharedModule } from '../shared/shared.module';
 
 @NgModule({
   imports: [SharedModule],
@@ -9,4 +9,5 @@ import {SharedModule} from '../shared/shared.module';
   ],
   exports: [PackagesComponent]
 })
-export class PackagesModule {}
+export class PackagesModule {
+}
