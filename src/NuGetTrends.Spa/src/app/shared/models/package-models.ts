@@ -6,17 +6,17 @@ export interface IPackageSearchResult {
 }
 
 export interface IPackageDownloadHistory {
-    id: string;
-    downloads: Array<IDownloadStats>;
-    color?: string;
+  id: string;
+  downloads: Array<IDownloadStats>;
+  color?: string;
 }
 
 export interface IDownloadStats {
-    week: Date;
-    count: number;
+  week: Date;
+  count: number;
 }
 
-export enum  SearchType {
+export enum SearchType {
   NuGetPackage = 1,
   Framework
 }
@@ -62,4 +62,4 @@ const DefaultSearchPeriods: Array<SearchPeriod> = [
 
 const InitialSearchPeriod: SearchPeriod = DefaultSearchPeriods[2];
 
-export {DefaultSearchPeriods, InitialSearchPeriod};
+export { DefaultSearchPeriods, InitialSearchPeriod };

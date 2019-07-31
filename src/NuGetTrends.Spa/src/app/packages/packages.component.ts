@@ -1,13 +1,13 @@
-import {Component, ErrorHandler, OnDestroy, OnInit} from '@angular/core';
-import {Chart, ChartDataSets, ChartOptions} from 'chart.js';
-import {DatePipe} from '@angular/common';
-import {Subscription} from 'rxjs';
-import {ActivatedRoute, Params, Router} from '@angular/router';
-import {AppAnimations} from '../shared';
-import {ToastrService} from 'ngx-toastr';
+import { Component, ErrorHandler, OnDestroy, OnInit } from '@angular/core';
+import { Chart, ChartDataSets, ChartOptions } from 'chart.js';
+import { DatePipe } from '@angular/common';
+import { Subscription } from 'rxjs';
+import { ActivatedRoute, Params, Router } from '@angular/router';
+import { AppAnimations } from '../shared';
+import { ToastrService } from 'ngx-toastr';
 
-import {PackagesService, PackageInteractionService} from '../core';
-import {IPackageDownloadHistory, IDownloadStats} from '../shared/models/package-models';
+import { PackagesService, PackageInteractionService } from '../core';
+import { IPackageDownloadHistory, IDownloadStats } from '../shared/models/package-models';
 
 @Component({
   selector: 'app-dashboard',
@@ -79,7 +79,6 @@ export class PackagesComponent implements OnInit, OnDestroy {
 
   /**
    * Handles the plotPackage event
-   * @param packageHistory
    */
   private plotPackage(packageHistory: IPackageDownloadHistory): void {
     if (packageHistory) {
@@ -99,7 +98,6 @@ export class PackagesComponent implements OnInit, OnDestroy {
 
   /**
    * Handles the removePackage event
-   * @param packageId
    */
   private removePackage(packageId: string): void {
     this.chartData.datasets = this.chartData.datasets.filter(d => d.label !== packageId);
@@ -113,7 +111,6 @@ export class PackagesComponent implements OnInit, OnDestroy {
 
   /**
    * Initializes the chart with the first added package
-   * @param firstPackageData
    */
   private initializeChart(firstPackageData: IPackageDownloadHistory): void {
     this.chartData.labels = firstPackageData.downloads.map((download: IDownloadStats) => {
@@ -155,7 +152,7 @@ export class PackagesComponent implements OnInit, OnDestroy {
         yAxes: [{
           display: true,
           ticks: {
-            callback: (value: string, index: number, values: any) => value.toLocaleString(),
+            callback: (value: string) => value.toLocaleString(),
           },
           scaleLabel: {
             display: false,
@@ -177,7 +174,6 @@ export class PackagesComponent implements OnInit, OnDestroy {
 
   /**
    * Parses an IPackageDownloadHistory to a Chart.js type
-   * @param packageHistory
    */
   private parseDataSet(packageHistory: IPackageDownloadHistory): ChartDataSets {
     const totalDownloads = packageHistory.downloads.map((data: IDownloadStats) => {
@@ -224,7 +220,6 @@ export class PackagesComponent implements OnInit, OnDestroy {
 
   /**
    * Add the selected packageId to the URL making it shareable
-   * @param packageId
    */
   private addPackageToUrl(packageId: string) {
     const packageIds: string[] = this.activatedRoute.snapshot.queryParamMap.getAll(this.urlParamName);
@@ -244,14 +239,13 @@ export class PackagesComponent implements OnInit, OnDestroy {
     this.route.navigate([], {
       replaceUrl: true,
       relativeTo: this.activatedRoute,
-      queryParams: queryParams,
+      queryParams,
       queryParamsHandling: 'merge'
     });
   }
 
   /**
    * Removes the package from the URL when removing the "tag" from the list
-   * @param packageId
    */
   private removePackageFromUrl(packageId: string) {
     const packageIds: string[] = this.activatedRoute.snapshot.queryParamMap.getAll(this.urlParamName);
@@ -263,7 +257,7 @@ export class PackagesComponent implements OnInit, OnDestroy {
     queryParams[this.urlParamName] = packageIds.filter(p => p !== packageId);
 
     this.route.navigate([], {
-      queryParams: queryParams,
+      queryParams,
       queryParamsHandling: 'merge'
     });
   }

@@ -1,10 +1,9 @@
-import {Injectable} from '@angular/core';
-import {Subject} from 'rxjs';
+/* tslint:disable:variable-name */
+import { Injectable } from '@angular/core';
+import { Subject } from 'rxjs';
 import {
   IPackageDownloadHistory,
-  SearchType,
-  SearchPeriod,
-  InitialSearchPeriod
+  SearchType
 } from '../../shared/models/package-models';
 
 @Injectable({
@@ -30,15 +29,13 @@ export class PackageInteractionService {
 
   /**
    * Fires the event that adds a package to the package list component
-   * @param packageHistory
    */
   addPackage(packageHistory: IPackageDownloadHistory): void {
     this.packageAddedSource.next(packageHistory);
   }
 
-    /**
+  /**
    * Fires the event that updates the package on the chart with new data
-   * @param updatedPackageHistory
    */
   updatePackage(updatedPackageHistory: IPackageDownloadHistory): void {
     this.packageUpdatedSource.next(updatedPackageHistory);
@@ -46,7 +43,6 @@ export class PackageInteractionService {
 
   /**
    * Fires the event that plots the package on the chart
-   * @param packageHistory
    */
   plotPackage(packageHistory: IPackageDownloadHistory): void {
     this.packagePlottedSource.next(packageHistory);
@@ -54,7 +50,6 @@ export class PackageInteractionService {
 
   /**
    * Fires the event that removes a package from the chart
-   * @param packageId
    */
   removePackage(packageId: string) {
     this.packageRemovedSource.next(packageId);
@@ -75,5 +70,4 @@ export class PackageInteractionService {
   get searchPeriod(): number {
     return this._searchPeriod;
   }
-
 }

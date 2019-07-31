@@ -1,9 +1,9 @@
-import {Component, Output, EventEmitter, OnDestroy} from '@angular/core';
-import {Router, ActivatedRoute, Params} from '@angular/router';
-import {FormControl} from '@angular/forms';
+import { Component, Output, EventEmitter, OnDestroy } from '@angular/core';
+import { Router, ActivatedRoute, Params } from '@angular/router';
+import { FormControl } from '@angular/forms';
 
-import {SearchPeriod, DefaultSearchPeriods, InitialSearchPeriod} from '../../models/package-models';
-import {PackageInteractionService} from '../../../core';
+import { SearchPeriod, DefaultSearchPeriods, InitialSearchPeriod } from '../../models/package-models';
+import { PackageInteractionService } from '../../../core';
 
 @Component({
   selector: 'app-search-period',
@@ -75,7 +75,7 @@ export class SearchPeriodComponent implements OnDestroy {
     this.route.navigate([], {
       replaceUrl: true,
       relativeTo: this.activatedRoute,
-      queryParams: queryParams
+      queryParams
     });
   }
 
@@ -92,7 +92,7 @@ export class SearchPeriodComponent implements OnDestroy {
     this.route.navigate([], {
       replaceUrl: true,
       relativeTo: this.activatedRoute,
-      queryParams: queryParams
+      queryParams
     });
   }
 }
