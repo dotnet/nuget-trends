@@ -20,5 +20,5 @@
 
 ## Acknowledgments
 
-[Sentry.io](https://sentry.io) supporting us with a plan free of charge.
-
+* [Sentry.io](https://sentry.io) for supporting open source projects like this free of charge.
+* [Logz.io](https://logz.io) for offering a free tier.
