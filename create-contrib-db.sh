@@ -27,7 +27,7 @@ export PGPASSWORD=${PGPASSWORD:-PUg2rt6Pp8Arx7Z9FbgJLFvxEL7pZ2}
 
 OUT_FILE="${IN_FILE}.contrib"
 
-docker run -p 127.0.0.1:$PGPORT:5432/tcp \
+docker run -p $PGHOST:$PGPORT:5432/tcp \
     --name $PGDATABASE \
     -e POSTGRES_PASSWORD=$PGPASSWORD \
     -d postgres:10.5
