@@ -1,4 +1,5 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { ToastrModule } from 'ngx-toastr';
 
 import { PackageListComponent } from './package-list.component';
 
@@ -8,7 +9,13 @@ describe('PackageListComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ PackageListComponent ]
+      declarations: [ PackageListComponent ],
+      imports: [
+        ToastrModule.forRoot({
+          positionClass: 'toast-bottom-right',
+          preventDuplicates: true,
+        })
+      ],
     })
     .compileComponents();
   }));
