@@ -47,7 +47,7 @@ namespace NuGetTrends.Scheduler
 
                 if (package == null)
                 {
-                    _logger.LogWarning("Package {packageId} not found.", packageId);
+                    _logger.LogDebug("Package {packageId} not found.", packageId);
                 }
 
                 return package;
