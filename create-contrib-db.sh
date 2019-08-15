@@ -66,6 +66,7 @@ pg_restore -j $CPU_COUNT -h $PGHOST -p $PGPORT -U $PGUSER -d $PGDATABASE $IN_FIL
 
 # full DB in place. Modify as needed:
 psql -h $PGHOST -p $PGPORT -U $PGUSER -d $PGDATABASE  -c "DELETE FROM daily_downloads WHERE date < '$DATA_FROM';"
+psql -h $PGHOST -p $PGPORT -U $PGUSER -d $PGDATABASE  -c "VACUUM (VERBOSE, ANALYZE);"
 
 # create new compressed backup
 pg_dump -Fc -C -h $PGHOST -p $PGPORT -U $PGUSER $PGDATABASE > $OUT_FILE
