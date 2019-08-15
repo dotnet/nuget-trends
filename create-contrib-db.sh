@@ -19,10 +19,10 @@ export PGDATABASE=$(cat /dev/urandom | env LC_CTYPE=C tr -dc 'a-zA-Z0-9' | fold 
 export PGUSER=${PGUSER:-postgres}
 export PGPASSWORD=${PGPASSWORD:-PUg2rt6Pp8Arx7Z9FbgJLFvxEL7pZ2}
 {
-    DATA_FROM=$(date --date="-1 year" +%Y-%m-%d)
+    DATA_FROM=$(date --date="-2 months" +%Y-%m-%d)
 } || {
     # macOS
-    DATA_FROM=$(date -v-1y +%Y-%m-%d)
+    DATA_FROM=$(date -v-2m +%Y-%m-%d)
 }
 
 OUT_FILE="${IN_FILE}.contrib"
