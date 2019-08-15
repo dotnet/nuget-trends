@@ -54,7 +54,7 @@ namespace NuGetTrends.Scheduler
             var deleted = await deletedItems.ToListAsync(token);
             if (deleted.Count == 0)
             {
-                _logger.LogWarning("Deleted event but not found with: {Id}, {Version}", leaf.PackageId, leaf.PackageVersion);
+                _logger.LogDebug("Deleted event but not found with: {Id}, {Version}", leaf.PackageId, leaf.PackageVersion);
             }
             else
             {
