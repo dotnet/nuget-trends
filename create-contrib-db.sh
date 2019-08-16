@@ -25,7 +25,7 @@ export PGPASSWORD=${PGPASSWORD:-PUg2rt6Pp8Arx7Z9FbgJLFvxEL7pZ2}
     DATA_FROM=$(date -v-2m +%Y-%m-%d)
 }
 
-OUT_FILE="${IN_FILE}.contrib"
+OUT_FILE="nuget-trends-contrib.dump"
 
 docker run -p $PGHOST:$PGPORT:5432/tcp \
     --name $PGDATABASE \
