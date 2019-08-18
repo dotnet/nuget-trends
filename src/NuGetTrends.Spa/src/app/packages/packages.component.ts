@@ -20,7 +20,7 @@ export class PackagesComponent implements OnInit, OnDestroy {
   private trendChart: Chart;
   private canvas: any;
   private ctx: any;
-  private chartData = {labels: [], datasets: []};
+  private chartData = { labels: [], datasets: [] };
   private plotPackageSubscription: Subscription;
   private removePackageSubscription: Subscription;
   private urlParamName = 'ids';
@@ -227,7 +227,7 @@ export class PackagesComponent implements OnInit, OnDestroy {
     if (packageIds.includes(packageId)) {
       return;
     }
-    const queryParams: Params = {...this.activatedRoute.snapshot.queryParams};
+    const queryParams: Params = { ...this.activatedRoute.snapshot.queryParams };
 
     // if packageIds exists, append the new package to the URL
     // otherwise initialize the param
@@ -253,7 +253,7 @@ export class PackagesComponent implements OnInit, OnDestroy {
     if (!packageIds.includes(packageId)) {
       return;
     }
-    const queryParams: Params = {...this.activatedRoute.snapshot.queryParams};
+    const queryParams: Params = { ...this.activatedRoute.snapshot.queryParams };
     queryParams[this.urlParamName] = packageIds.filter(p => p !== packageId);
 
     this.route.navigate([], {
