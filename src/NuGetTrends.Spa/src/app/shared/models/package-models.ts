@@ -5,6 +5,18 @@ export interface IPackageSearchResult {
   iconUrl: string;
 }
 
+export class PackageSearchResult implements IPackageSearchResult {
+  packageId: string;
+  downloadCount: number;
+  iconUrl: string;
+
+  constructor(packageId: string, downloadCount: number, iconUrl: string) {
+    this.packageId = packageId;
+    this.downloadCount = downloadCount;
+    this.iconUrl = iconUrl;
+  }
+}
+
 export interface IPackageDownloadHistory {
   id: string;
   downloads: Array<IDownloadStats>;
