@@ -5,7 +5,7 @@
   <br />
 </p>
 
-# NuGet Trends
+# NuGet Trends [![Gitter chat](https://img.shields.io/gitter/room/NuGetTrends/Lobby.svg)](https://gitter.im/NuGetTrends/Lobby) ![Twitter Follow](https://img.shields.io/twitter/follow/NuGetTrends?label=NuGetTrends&style=social)
 
 ## Builds
 
@@ -63,10 +63,6 @@ That will give you an empty _postgres_ database though.
 We lock the .NET SDK version via `global.json` to have a reference version and avoid surprises during CI.
 If you don't have that exact version, usually anything with that major works just fine.
 If you just want to quickly build, try just deleting `global.json`.
-
-## Resources
-
-* [![Gitter chat](https://img.shields.io/gitter/room/NuGetTrends/Lobby.svg)](https://gitter.im/NuGetTrends/Lobby)
 
 ## Acknowledgments
 
