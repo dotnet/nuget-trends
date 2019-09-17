@@ -11,8 +11,8 @@
 
 | Component | Status |
 |-----------|--------|
-| NuGet Trends API | [![Build Status](https://dev.azure.com/nugettrends/nuget-trends/_apis/build/status/NuGetTrends%20-%20API?branchName=develop)](https://dev.azure.com/nugettrends/nuget-trends/_build/latest?definitionId=2&branchName=master) |
-| NuGet Trends Worker | [![Build Status](https://dev.azure.com/nugettrends/nuget-trends/_apis/build/status/NuGetTrends%20-%20Worker?branchName=develop)](https://dev.azure.com/nugettrends/nuget-trends/_build/latest?definitionId=5&branchName=master) |
+| NuGet Trends API | [![Build Status](https://dev.azure.com/nugettrends/nuget-trends/_apis/build/status/NuGetTrends%20-%20API?branchName=master)](https://dev.azure.com/nugettrends/nuget-trends/_build/latest?definitionId=2&branchName=master) |
+| NuGet Trends Worker | [![Build Status](https://dev.azure.com/nugettrends/nuget-trends/_apis/build/status/NuGetTrends%20-%20Worker?branchName=master)](https://dev.azure.com/nugettrends/nuget-trends/_build/latest?definitionId=5&branchName=master) |
 | NuGet Trends SPA | - |
 
 ## Developing
