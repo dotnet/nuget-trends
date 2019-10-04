@@ -9,6 +9,9 @@ import { PackageListComponent } from './components/package-list/package-list.com
 import { SearchTypeComponent } from './components/search-type/search-type.component';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { SearchPeriodComponent } from './components/search-period/search-period.component';
+import { LoadingIndicatorComponent } from './components/loading-indicator/loading-indicator.component';
+import { HTTP_INTERCEPTORS } from '@angular/common/http';
+import { LoadingIndicatorInterceptor } from './components/loading-indicator/loading-indicator.interceptor';
 
 @NgModule({
   imports: [
@@ -36,7 +39,16 @@ import { SearchPeriodComponent } from './components/search-period/search-period.
     SearchInputComponent,
     PackageListComponent,
     SearchTypeComponent,
-    SearchPeriodComponent]
+    SearchPeriodComponent,
+    LoadingIndicatorComponent
+  ],
+  providers: [
+    {
+      provide: HTTP_INTERCEPTORS,
+      useClass: LoadingIndicatorInterceptor,
+      multi: true
+    }
+  ],
 })
 export class SharedModule {
 }
