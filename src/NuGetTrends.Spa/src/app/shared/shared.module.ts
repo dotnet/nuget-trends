@@ -2,13 +2,18 @@ import { NgModule } from '@angular/core';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { HTTP_INTERCEPTORS } from '@angular/common/http';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { ToastrModule } from 'ngx-toastr';
 
-import { SearchInputComponent } from './components/search-input/search-input.component';
-import { PackageListComponent } from './components/package-list/package-list.component';
-import { SearchTypeComponent } from './components/search-type/search-type.component';
-import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import { SearchPeriodComponent } from './components/search-period/search-period.component';
+import {
+  SearchInputComponent,
+  PackageListComponent,
+  SearchTypeComponent,
+  SearchPeriodComponent,
+  LoadingIndicatorComponent,
+  LoadingIndicatorInterceptor
+} from './components';
 
 @NgModule({
   imports: [
@@ -20,14 +25,15 @@ import { SearchPeriodComponent } from './components/search-period/search-period.
       preventDuplicates: true,
     }),
     ReactiveFormsModule,
-    BrowserAnimationsModule],
-
+    BrowserAnimationsModule
+  ],
   declarations: [
     SearchInputComponent,
     PackageListComponent,
     SearchTypeComponent,
-    SearchPeriodComponent],
-
+    SearchPeriodComponent,
+    LoadingIndicatorComponent
+  ],
   exports: [
     CommonModule,
     FormsModule,
@@ -36,7 +42,16 @@ import { SearchPeriodComponent } from './components/search-period/search-period.
     SearchInputComponent,
     PackageListComponent,
     SearchTypeComponent,
-    SearchPeriodComponent]
+    SearchPeriodComponent,
+    LoadingIndicatorComponent
+  ],
+  providers: [
+    {
+      provide: HTTP_INTERCEPTORS,
+      useClass: LoadingIndicatorInterceptor,
+      multi: true
+    }
+  ],
 })
 export class SharedModule {
 }
