@@ -1,19 +1,36 @@
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
-import { RouterModule, Routes } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
+import { HttpClientModule } from '@angular/common/http';
+import { async, ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { RouterTestingModule } from '@angular/router/testing';
 
 import { SearchPeriodComponent } from './search-period.component';
+import { PackageInteractionService } from 'src/app/core';
+import { MockedActivatedRoute, MockedRouter } from 'src/app/mocks';
+import { InitialSearchPeriod } from '../../models/package-models';
 
 describe('SearchPeriodComponent', () => {
   let component: SearchPeriodComponent;
   let fixture: ComponentFixture<SearchPeriodComponent>;
-  const routes: Routes = [
-  ];
+  let packageInteractionService: PackageInteractionService;
+  let router: Router;
+  let activatedRoute: MockedActivatedRoute;
+
+  const queryParamName = 'months';
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
       declarations: [SearchPeriodComponent],
-      imports: [FormsModule, ReactiveFormsModule, RouterModule.forRoot(routes)]
+      imports: [
+        FormsModule,
+        ReactiveFormsModule,
+        RouterTestingModule.withRoutes([]),
+        HttpClientModule
+      ],
+      providers: [
+        { provide: Router, useClass: MockedRouter },
+        { provide: ActivatedRoute, useClass: MockedActivatedRoute },
+      ]
     })
       .compileComponents();
   }));
@@ -21,10 +38,88 @@ describe('SearchPeriodComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(SearchPeriodComponent);
     component = fixture.componentInstance;
-    fixture.detectChanges();
+    router = TestBed.get(Router);
+    packageInteractionService = TestBed.get(PackageInteractionService);
+    activatedRoute = TestBed.get(ActivatedRoute);
   });
 
   it('should create', () => {
+    fixture.detectChanges();
     expect(component).toBeTruthy();
   });
+
+  it('should use the default query param', () => {
+    const spy = spyOn(router, 'navigate').and.callThrough();
+    fixture.detectChanges();
+
+    expect(packageInteractionService.searchPeriod).toBe(InitialSearchPeriod.value);
+
+    // navigate should have been called with the correct query param
+    const navigateActualParams = spy.calls.mostRecent().args[1];
+    expect(navigateActualParams.queryParams[queryParamName]).toBe(InitialSearchPeriod.value);
+  });
+
+  it('should use the existing query param if present', () => {
+    const spy = spyOn(router, 'navigate').and.callThrough();
+
+    const expectedPeriod = 3;
+
+    activatedRoute.testParamMap = { months: 3 };
+    fixture.detectChanges();
+
+    expect(packageInteractionService.searchPeriod).toBe(expectedPeriod);
+
+    // navigate should have been called with the correct query param
+    const navigateActualParams = spy.calls.mostRecent().args[1];
+    expect(navigateActualParams.queryParams[queryParamName]).toBe(expectedPeriod);
+  });
+
+  it('should fire events and change url when period is changed', () => {
+    spyOn(packageInteractionService, 'changeSearchPeriod').and.callThrough();
+    const spy = spyOn(router, 'navigate').and.callThrough();
+    fixture.detectChanges();
+
+    // should start with initial value
+    expect(packageInteractionService.searchPeriod).toBe(InitialSearchPeriod.value);
+
+    const expectedChangedPeriod = 3;
+
+    component.periodControl.setValue(expectedChangedPeriod);
+    const selectControl: any = fixture.nativeElement.querySelector('select');
+    selectControl.dispatchEvent(new Event('change'));
+
+    fixture.detectChanges();
+
+    expect(packageInteractionService.changeSearchPeriod).toHaveBeenCalledWith(expectedChangedPeriod);
+    expect(packageInteractionService.searchPeriod).toBe(expectedChangedPeriod);
+
+    const navigateActualParams = spy.calls.mostRecent().args[1];
+    expect(navigateActualParams.queryParams[queryParamName]).toBe(expectedChangedPeriod);
+  });
+
+  it('should not do anything if period changed is the same', fakeAsync(() => {
+    spyOn(packageInteractionService, 'changeSearchPeriod').and.callThrough();
+    fixture.detectChanges();
+
+    let timesPeriodHasChanged = 0;
+    packageInteractionService.searchPeriodChanged$.subscribe(
+      (_) => timesPeriodHasChanged++);
+
+    // should start with initial value 12
+    expect(packageInteractionService.searchPeriod).toBe(InitialSearchPeriod.value);
+
+    const expectedChangedPeriod = 12;
+
+    component.periodControl.setValue(expectedChangedPeriod);
+    const selectControl: any = fixture.nativeElement.querySelector('select');
+    selectControl.dispatchEvent(new Event('change'));
+
+    tick();
+    fixture.detectChanges();
+
+    expect(timesPeriodHasChanged).toBe(0);
+    expect(packageInteractionService.changeSearchPeriod).toHaveBeenCalledWith(expectedChangedPeriod);
+    expect(packageInteractionService.searchPeriod).toBe(expectedChangedPeriod);
+  }));
+
 });
