@@ -1,8 +1,11 @@
-// Karma configuration file, see link for more information
-// https://karma-runner.github.io/1.0/config/configuration-file.html
+const process = require('process');
+
+const isBuildServer = process.env.IS_BUILD_SERVER;
+process.env.CHROME_BIN = require('puppeteer').executablePath();
 
 module.exports = function (config) {
-  config.set({
+
+  let _config = {
     basePath: '',
     frameworks: ['jasmine', '@angular-devkit/build-angular'],
     plugins: [
@@ -17,7 +20,7 @@ module.exports = function (config) {
     },
     coverageIstanbulReporter: {
       dir: require('path').join(__dirname, '../coverage'),
-      reports: ['html', 'lcovonly'],
+      reports: ['html', 'lcovonly', 'text-summary', 'cobertura'],
       fixWebpackSourcePaths: true
     },
     reporters: ['progress', 'kjhtml'],
@@ -25,7 +28,17 @@ module.exports = function (config) {
     colors: true,
     logLevel: config.LOG_INFO,
     autoWatch: true,
-    browsers: ['Chrome'],
+    browsers: [],
     singleRun: false
-  });
+  }
+
+  if (isBuildServer) {
+    _config.browsers.push('ChromeHeadless');
+    _config.plugins.push(require('karma-junit-reporter'));
+    _config.reporters.push('junit');
+  } else {
+    _config.browsers.push('Chrome');
+  }
+
+  config.set(_config);
 };
