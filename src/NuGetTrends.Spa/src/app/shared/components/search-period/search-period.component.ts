@@ -19,7 +19,7 @@ export class SearchPeriodComponent implements OnInit, OnDestroy {
   constructor(
     private route: Router,
     private activatedRoute: ActivatedRoute,
-    private packageInterationService: PackageInteractionService
+    private packageInteractionService: PackageInteractionService
   ) {
   }
 
@@ -30,7 +30,7 @@ export class SearchPeriodComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     // reset the value to avoid left overs, since it's shared
-    this.packageInterationService.searchPeriod = InitialSearchPeriod.value;
+    this.packageInteractionService.searchPeriod = InitialSearchPeriod.value;
   }
 
   /**
@@ -43,7 +43,7 @@ export class SearchPeriodComponent implements OnInit, OnDestroy {
     const queryParams: Params = {...this.activatedRoute.snapshot.queryParams};
     queryParams[this.urlPeriodName] = newSearchPeriod;
 
-    this.packageInterationService.changeSearchPeriod(newSearchPeriod);
+    this.packageInteractionService.changeSearchPeriod(newSearchPeriod);
 
     this.route.navigate([], {
       replaceUrl: true,
@@ -74,7 +74,7 @@ export class SearchPeriodComponent implements OnInit, OnDestroy {
     queryParams[this.urlPeriodName] = valueToUse;
 
     this.periodControl = new FormControl(valueToUse);
-    this.packageInterationService.searchPeriod = valueToUse;
+    this.packageInteractionService.searchPeriod = valueToUse;
 
     this.route.navigate([], {
       replaceUrl: true,
