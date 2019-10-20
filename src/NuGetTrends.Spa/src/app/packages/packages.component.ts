@@ -23,6 +23,7 @@ export class PackagesComponent implements OnInit, OnDestroy {
   private chartData = { labels: [], datasets: [] };
   private plotPackageSubscription: Subscription;
   private removePackageSubscription: Subscription;
+  private searchPeriodSubscription: Subscription;
   private urlParamName = 'ids';
 
   constructor(
@@ -40,6 +41,9 @@ export class PackagesComponent implements OnInit, OnDestroy {
       });
     this.removePackageSubscription = this.packageInterationService.packageRemoved$.subscribe(
       (packageId: string) => this.removePackage(packageId));
+
+    this.searchPeriodSubscription = this.packageInterationService.searchPeriodChanged$.subscribe(
+      (searchPeriod: number) => this.periodChanged(searchPeriod));
   }
 
   async ngOnInit(): Promise<void> {
@@ -49,6 +53,7 @@ export class PackagesComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.plotPackageSubscription.unsubscribe();
     this.removePackageSubscription.unsubscribe();
+    this.searchPeriodSubscription.unsubscribe();
 
     if (this.trendChart) {
       this.trendChart.destroy();
@@ -58,7 +63,7 @@ export class PackagesComponent implements OnInit, OnDestroy {
   /**
    * Re-loads the chart with data for the new period
    */
-  async periodChanged(period: number): Promise<void> {
+  private async periodChanged(period: number): Promise<void> {
     const packageIds: string[] = this.activatedRoute.snapshot.queryParamMap.getAll('ids');
     if (!packageIds.length) {
       return;

@@ -1,10 +1,7 @@
 /* tslint:disable:variable-name */
 import { Injectable } from '@angular/core';
 import { Subject } from 'rxjs';
-import {
-  IPackageDownloadHistory,
-  SearchType
-} from '../../shared/models/package-models';
+import { IPackageDownloadHistory, SearchType } from '../../shared/models/package-models';
 
 @Injectable({
   providedIn: 'root'
@@ -15,6 +12,7 @@ export class PackageInteractionService {
   private packageUpdatedSource = new Subject<IPackageDownloadHistory>();
   private packagePlottedSource = new Subject<IPackageDownloadHistory>();
   private packageRemovedSource = new Subject<string>();
+  private searchPeriodChangedSource = new Subject<number>();
   private _searchType: SearchType;
   private _searchPeriod: number;
 
@@ -22,6 +20,7 @@ export class PackageInteractionService {
   packageUpdated$ = this.packageUpdatedSource.asObservable();
   packagePlotted$ = this.packagePlottedSource.asObservable();
   packageRemoved$ = this.packageRemovedSource.asObservable();
+  searchPeriodChanged$ = this.searchPeriodChangedSource.asObservable();
 
   constructor() {
     this.searchType = SearchType.NuGetPackage;
@@ -53,6 +52,14 @@ export class PackageInteractionService {
    */
   removePackage(packageId: string) {
     this.packageRemovedSource.next(packageId);
+  }
+
+  changeSearchPeriod(searchPeriod: number) {
+    if (this._searchPeriod === searchPeriod) {
+      return;
+    }
+    this._searchPeriod = searchPeriod;
+    this.searchPeriodChangedSource.next(searchPeriod);
   }
 
   set searchType(searchType: SearchType) {

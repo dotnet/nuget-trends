@@ -1,4 +1,4 @@
-import { Component, Output, EventEmitter, OnDestroy } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { Router, ActivatedRoute, Params } from '@angular/router';
 import { FormControl } from '@angular/forms';
 
@@ -10,9 +10,7 @@ import { PackageInteractionService } from '../../../core';
   templateUrl: './search-period.component.html',
   styleUrls: ['./search-period.component.scss']
 })
-export class SearchPeriodComponent implements OnDestroy {
-  @Output()
-  searchPeriodChanged = new EventEmitter<number>();
+export class SearchPeriodComponent implements OnInit, OnDestroy {
   periodControl: FormControl;
   periodValues: Array<SearchPeriod>;
 
@@ -23,6 +21,9 @@ export class SearchPeriodComponent implements OnDestroy {
     private activatedRoute: ActivatedRoute,
     private packageInterationService: PackageInteractionService
   ) {
+  }
+
+  ngOnInit(): void {
     this.periodValues = DefaultSearchPeriods;
     this.addDefaultOrCurrentPeriodToUrl(InitialSearchPeriod.value);
   }
@@ -37,15 +38,18 @@ export class SearchPeriodComponent implements OnDestroy {
    * and updates the URL accordingly
    */
   changePeriod(): void {
-    const months = this.periodControl.value;
-    this.packageInterationService.searchPeriod = months;
+    const newSearchPeriod = this.periodControl.value;
 
-    // fire the callback on the listening component
-    if (this.searchPeriodChanged) {
-      this.searchPeriodChanged.emit(months);
-    }
+    const queryParams: Params = {...this.activatedRoute.snapshot.queryParams};
+    queryParams[this.urlPeriodName] = newSearchPeriod;
 
-    this.changePeriodOnUrl(months);
+    this.packageInterationService.changeSearchPeriod(newSearchPeriod);
+
+    this.route.navigate([], {
+      replaceUrl: true,
+      relativeTo: this.activatedRoute,
+      queryParams
+    });
   }
 
   /**
@@ -71,23 +75,6 @@ export class SearchPeriodComponent implements OnDestroy {
 
     this.periodControl = new FormControl(valueToUse);
     this.packageInterationService.searchPeriod = valueToUse;
-
-    this.route.navigate([], {
-      replaceUrl: true,
-      relativeTo: this.activatedRoute,
-      queryParams
-    });
-  }
-
-  /**
-   * Changes the period on the URL
-   * @param updatedPeriod New period in months
-   */
-  private changePeriodOnUrl(updatedPeriod: number) {
-    const queryParams: Params = {...this.activatedRoute.snapshot.queryParams};
-    queryParams[this.urlPeriodName] = updatedPeriod;
-
-    this.packageInterationService.searchPeriod = updatedPeriod;
 
     this.route.navigate([], {
       replaceUrl: true,
