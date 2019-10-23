@@ -29,6 +29,8 @@ export class LoadingIndicatorComponent implements AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy() {
-    this.loadingSubscription.unsubscribe();
+    if (this.loadingSubscription) {
+      this.loadingSubscription.unsubscribe();
+    }
   }
 }
