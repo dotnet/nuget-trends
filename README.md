@@ -11,9 +11,9 @@
 
 | Component | Status |
 |-----------|--------|
-| NuGet Trends API | [![Build Status](https://dev.azure.com/nugettrends/nuget-trends/_apis/build/status/NuGetTrends%20-%20API?branchName=master)](https://dev.azure.com/nugettrends/nuget-trends/_build/latest?definitionId=2&branchName=master) |
-| NuGet Trends Worker | [![Build Status](https://dev.azure.com/nugettrends/nuget-trends/_apis/build/status/NuGetTrends%20-%20Worker?branchName=master)](https://dev.azure.com/nugettrends/nuget-trends/_build/latest?definitionId=5&branchName=master) |
-| NuGet Trends SPA | - |
+| NuGet Trends API | ![Azure DevOps builds (branch)](https://img.shields.io/azure-devops/build/nugettrends/nuget-trends/2/master)|
+| NuGet Trends Worker | ![Azure DevOps builds (branch)](https://img.shields.io/azure-devops/build/nugettrends/nuget-trends/5/master) |
+| NuGet Trends SPA | ![Azure DevOps builds (branch)](https://img.shields.io/azure-devops/build/nugettrends/nuget-trends/6/master) ![Azure DevOps tests (branch)](https://img.shields.io/azure-devops/tests/nugettrends/nuget-trends/6/master) ![Azure DevOps coverage (branch)](https://img.shields.io/azure-devops/coverage/nugettrends/nuget-trends/6/master) |
 
 ## Developing
 
