@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output } from '@angular/core';
+import { Component, EventEmitter, Output, OnInit } from '@angular/core';
 import { SearchType } from '../../models/package-models';
 import { PackageInteractionService } from '../../../core';
 
@@ -7,12 +7,15 @@ import { PackageInteractionService } from '../../../core';
   templateUrl: './search-type.component.html',
   styleUrls: ['./search-type.component.scss']
 })
-export class SearchTypeComponent {
+export class SearchTypeComponent implements OnInit {
   @Output() packagedTypeChanged: EventEmitter<SearchType>;
 
   isNuGetPackage: boolean;
 
   constructor(private packageInteractionService: PackageInteractionService) {
+  }
+
+  ngOnInit(): void {
     this.isNuGetPackage = true;
     this.packageInteractionService.searchType = SearchType.NuGetPackage;
   }
