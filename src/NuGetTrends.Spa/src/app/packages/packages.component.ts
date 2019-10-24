@@ -30,24 +30,24 @@ export class PackagesComponent implements OnInit, OnDestroy {
     private packagesService: PackagesService,
     private route: Router,
     private activatedRoute: ActivatedRoute,
-    private packageInterationService: PackageInteractionService,
+    private packageInteractionService: PackageInteractionService,
     private datePipe: DatePipe,
     private toastr: ToastrService,
     private errorHandler: ErrorHandler) {
 
-    this.plotPackageSubscription = this.packageInterationService.packagePlotted$.subscribe(
+    this.plotPackageSubscription = this.packageInteractionService.packagePlotted$.subscribe(
       (packageHistory: IPackageDownloadHistory) => {
         this.plotPackage(packageHistory);
       });
-    this.removePackageSubscription = this.packageInterationService.packageRemoved$.subscribe(
+    this.removePackageSubscription = this.packageInteractionService.packageRemoved$.subscribe(
       (packageId: string) => this.removePackage(packageId));
 
-    this.searchPeriodSubscription = this.packageInterationService.searchPeriodChanged$.subscribe(
+    this.searchPeriodSubscription = this.packageInteractionService.searchPeriodChanged$.subscribe(
       (searchPeriod: number) => this.periodChanged(searchPeriod));
   }
 
-  async ngOnInit(): Promise<void> {
-    await this.loadPackagesFromUrl();
+  ngOnInit() {
+    this.loadPackagesFromUrl();
   }
 
   ngOnDestroy(): void {
@@ -74,7 +74,7 @@ export class PackagesComponent implements OnInit, OnDestroy {
     packageIds.forEach(async (packageId: string) => {
       try {
         const downloadHistory = await this.packagesService.getPackageDownloadHistory(packageId, period).toPromise();
-        this.packageInterationService.updatePackage(downloadHistory);
+        this.packageInteractionService.updatePackage(downloadHistory);
       } catch (error) {
         this.errorHandler.handleError(error);
         this.toastr.error('Our servers are too cool (or not) to handle your request at the moment.');
@@ -206,16 +206,17 @@ export class PackagesComponent implements OnInit, OnDestroy {
    * Useful when sharing the URL with others
    */
   private async loadPackagesFromUrl(): Promise<void> {
-    const packageIds: string[] = this.activatedRoute.snapshot.queryParamMap.getAll('ids');
+    const packageIds: string[] = this.activatedRoute.snapshot.queryParamMap.getAll(this.urlParamName);
     if (!packageIds.length) {
       return;
     }
 
     packageIds.forEach(async (packageId: string) => {
       try {
-        const downloadHistory = await this.packagesService
-          .getPackageDownloadHistory(packageId, this.packageInterationService.searchPeriod).toPromise();
-        this.packageInterationService.addPackage(downloadHistory);
+        const downloadHistory = await this.packagesService.getPackageDownloadHistory(
+          packageId, this.packageInteractionService.searchPeriod).toPromise();
+
+        this.packageInteractionService.addPackage(downloadHistory);
       } catch (error) {
         this.errorHandler.handleError(error);
         this.toastr.error('Our servers are too cool (or not) to handle your request at the moment.');
