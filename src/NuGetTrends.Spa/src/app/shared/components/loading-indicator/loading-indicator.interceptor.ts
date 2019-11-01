@@ -5,7 +5,6 @@ import { finalize } from 'rxjs/operators';
 
 import { LoadingIndicatorService } from './loading-indicator.service';
 
-
 @Injectable()
 export class LoadingIndicatorInterceptor implements HttpInterceptor {
 
