@@ -30,5 +30,4 @@ export class PackagesService {
     // TODO: hard coding 12 here until dataset is up-to-date
     return this.httpClient.get<IPackageDownloadHistory>(`${this.baseUrl}/framework/history/${term}?months=${months}`);
   }
-
 }
