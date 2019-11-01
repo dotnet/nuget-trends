@@ -83,6 +83,10 @@
             "assets": [
               "src/favicon.ico",
               "src/assets"
+            ],
+            "codeCoverageExclude": [
+              "src/app/core/module-import-guard.ts",
+              "src/app/**/index.ts"
             ]
           }
         },
