@@ -10,7 +10,17 @@ trigger:
   paths:
     include:
     - /src/NuGetTrends.Spa/*
-    - /spa-pipeline.yml
+    - /azure-devops/spa-pipeline.yml
+    exclude:
+    - README.md
+pr:
+  branches:
+    include:
+    - master
+  paths:
+    include:
+    - /src/NuGetTrends.Spa/*
+    - /azure-devops/spa-pipeline.yml
     exclude:
     - README.md
 
