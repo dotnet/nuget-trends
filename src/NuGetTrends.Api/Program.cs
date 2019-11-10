@@ -1,8 +1,8 @@
 using System;
 using System.IO;
-using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using Serilog;
 using SystemEnvironment = System.Environment;
 
@@ -35,7 +35,7 @@ namespace NuGetTrends.Api
             {
                 Log.Information("Starting.");
 
-                CreateWebHostBuilder(args).Build().Run();
+                CreateHostBuilder(args).Build().Run();
 
                 return 0;
             }
@@ -49,13 +49,18 @@ namespace NuGetTrends.Api
                 Log.CloseAndFlush();
             }
         }
-
-        public static IWebHostBuilder CreateWebHostBuilder(string[] args) =>
-            WebHost.CreateDefaultBuilder(args)
-                .UseKestrel(c => c.AddServerHeader = false)
-                .UseConfiguration(Configuration)
-                .UseSerilog()
-                .UseSentry()
-                .UseStartup<Startup>();
+        public static IHostBuilder CreateHostBuilder(string[] args) =>
+            Host.CreateDefaultBuilder(args)
+                .ConfigureWebHostDefaults(webBuilder =>
+                {
+                    webBuilder.ConfigureKestrel(serverOptions =>
+                        {
+                            serverOptions.AddServerHeader = false;
+                        })
+                        .UseConfiguration(Configuration)
+                        .UseSerilog()
+                        .UseSentry()
+                        .UseStartup<Startup>();
+                });
     }
 }

@@ -3,11 +3,10 @@ using System.IO;
 using System.Reflection;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Newtonsoft.Json;
+using Microsoft.Extensions.Hosting;
 using NuGetTrends.Data;
 using Swashbuckle.AspNetCore.Swagger;
 using Swashbuckle.AspNetCore.SwaggerUI;
@@ -16,12 +15,12 @@ namespace NuGetTrends.Api
 {
     public class Startup
     {
-        private readonly IHostingEnvironment _hostingEnvironment;
+        private readonly IWebHostEnvironment _hostingEnvironment;
         public IConfiguration Configuration { get; }
 
         public Startup(
             IConfiguration configuration,
-            IHostingEnvironment hostingEnvironment)
+            IWebHostEnvironment hostingEnvironment)
         {
             Configuration = configuration;
             _hostingEnvironment = hostingEnvironment;
@@ -29,8 +28,7 @@ namespace NuGetTrends.Api
 
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddMvc()
-                .SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
+            services.AddControllers();
 
             if (_hostingEnvironment.IsDevelopment())
             {
@@ -68,12 +66,11 @@ namespace NuGetTrends.Api
                 var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
                 c.IncludeXmlComments(xmlPath);
             });
-
-            services.AddSpaStaticFiles(p => p.RootPath = "wwwroot");
         }
 
         public void Configure(IApplicationBuilder app)
         {
+            app.UseRouting();
             if (_hostingEnvironment.IsDevelopment())
             {
                 app.UseCors("AllowAll");
@@ -89,7 +86,9 @@ namespace NuGetTrends.Api
             }
 
             app.UseSwagger();
-            app.UseMvc();
+            app.UseEndpoints(endpoints => {
+                endpoints.MapControllers();
+            });
         }
     }
 }
