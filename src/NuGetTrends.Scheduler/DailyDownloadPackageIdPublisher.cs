@@ -11,6 +11,7 @@ using RabbitMQ.Client;
 namespace NuGetTrends.Scheduler
 {
     [DisableConcurrentExecution(timeoutInSeconds: 60 * 60)]
+    // ReSharper disable once ClassNeverInstantiated.Global - DI
     public class DailyDownloadPackageIdPublisher
     {
         private readonly IConnectionFactory _connectionFactory;

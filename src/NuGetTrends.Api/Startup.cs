@@ -43,7 +43,6 @@ namespace NuGetTrends.Api
                                 .AllowAnyHeader()
                                 .AllowCredentials()
                                 .SetPreflightMaxAge(TimeSpan.FromDays(1));
-                            ;
                         });
                 });
             }

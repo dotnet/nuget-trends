@@ -8,7 +8,7 @@ namespace NuGetTrends.Scheduler
 {
     public class CatalogCursorStore : ICursor
     {
-        internal const string CursorId = "Catalog";
+        private const string CursorId = "Catalog";
         private readonly object[] _id = { CursorId };
         private readonly NuGetTrendsContext _context;
 

@@ -55,19 +55,6 @@ namespace NuGet.Protocol.Catalog
             }
         }
 
-        private async Task<CatalogLeaf> GetLeafAsync(CatalogLeafType type, string leafUrl, CancellationToken token)
-        {
-            switch (type)
-            {
-                case CatalogLeafType.PackageDetails:
-                    return await GetPackageDetailsLeafAsync(leafUrl, token);
-                case CatalogLeafType.PackageDelete:
-                    return await GetPackageDeleteLeafAsync(leafUrl, token);
-                default:
-                    throw new NotSupportedException($"The catalog leaf type '{type}' is not supported.");
-            }
-        }
-
         public Task<CatalogLeaf> GetPackageDeleteLeafAsync(string leafUrl, CancellationToken token)
         {
             return GetAndValidateLeafAsync<PackageDeleteCatalogLeaf>(CatalogLeafType.PackageDelete, leafUrl, token);

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
+// ReSharper disable RedundantArgumentDefaultValue
 
 namespace NuGetTrends.Data.Migrations
 {

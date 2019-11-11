@@ -18,6 +18,7 @@ using RabbitMQ.Client.Events;
 
 namespace NuGetTrends.Scheduler
 {
+    // ReSharper disable once ClassNeverInstantiated.Global - DI
     public class DailyDownloadWorker : IHostedService
     {
         private readonly DailyDownloadWorkerOptions _options;
@@ -26,9 +27,9 @@ namespace NuGetTrends.Scheduler
         private readonly INuGetSearchService _nuGetSearchService;
         private readonly ILogger<DailyDownloadWorker> _logger;
         private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
-        private ConcurrentBag<(IModel,IConnection)> _connections = new ConcurrentBag<(IModel, IConnection)>();
+        private readonly ConcurrentBag<(IModel,IConnection)> _connections = new ConcurrentBag<(IModel, IConnection)>();
 
-        private List<Task> _workers;
+        private readonly List<Task> _workers;
 
         public DailyDownloadWorker(
             IOptions<DailyDownloadWorkerOptions> options,
@@ -137,9 +138,9 @@ namespace NuGetTrends.Scheduler
             {
                 await whenAll;
             }
-            catch when (whenAll.Exception is AggregateException ae && ae.InnerExceptions.Count > 1)
+            catch when (whenAll.Exception is {} exs && exs.InnerExceptions.Count > 1)
             {
-                throw ae; // re-throw the AggregateException to capture all errors with Sentry
+                throw exs; // re-throw the AggregateException to capture all errors with Sentry
             }
 
             using (var scope = _services.CreateScope())
@@ -167,7 +168,7 @@ namespace NuGetTrends.Scheduler
 
                         void Update(PackageDownload package, IPackageSearchMetadata metadata)
                         {
-                            if (metadata.IconUrl?.ToString() is string url)
+                            if (metadata.IconUrl?.ToString() is { } url)
                             {
                                 package.IconUrl = url;
                             }
@@ -231,7 +232,7 @@ namespace NuGetTrends.Scheduler
             {
                 _cancellationTokenSource.Cancel();
 
-                if (_workers is List<Task> workers)
+                if (_workers is { } workers)
                 {
                     await Task.WhenAll(workers);
                 }
