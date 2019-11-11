@@ -17,7 +17,7 @@ namespace NuGetTrends.Scheduler
         private static readonly ILogger NugetLogger = new NuGet.Common.NullLogger();
         private static readonly SearchFilter SearchFilter = new SearchFilter(true);
 
-        private volatile PackageSearchResource _packageSearchResource;
+        private volatile PackageSearchResource? _packageSearchResource;
 
         private readonly SourceRepository _sourceRepository = new SourceRepository(
             new PackageSource("https://api.nuget.org/v3/index.json"),
@@ -31,7 +31,7 @@ namespace NuGetTrends.Scheduler
         /// <param name="packageId"></param>
         /// <param name="token"></param>
         /// <returns></returns>
-        public async Task<IPackageSearchMetadata> GetPackage(string packageId, CancellationToken token)
+        public async Task<IPackageSearchMetadata?> GetPackage(string packageId, CancellationToken token)
         {
             if (_packageSearchResource == null)
             {

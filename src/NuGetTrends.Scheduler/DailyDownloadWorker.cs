@@ -42,13 +42,12 @@ namespace NuGetTrends.Scheduler
             _services = services;
             _nuGetSearchService = nuGetSearchService;
             _logger = logger;
+            _workers = new List<Task>(_options.WorkerCount);
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
             _logger.LogDebug("Starting the worker.");
-
-            _workers = new List<Task>(_options.WorkerCount);
 
             for (var i = 0; i < _options.WorkerCount; i++)
             {
@@ -93,7 +92,7 @@ namespace NuGetTrends.Scheduler
 
         private async Task OnConsumerOnReceived(object sender, BasicDeliverEventArgs ea)
         {
-            List<string> packageIds = null;
+            List<string>? packageIds = null;
             try
             {
                 var body = ea.Body;
@@ -101,11 +100,15 @@ namespace NuGetTrends.Scheduler
 
                 packageIds = MessagePackSerializer.Deserialize<List<string>>(body);
 
+                if (packageIds == null)
+                {
+                    throw new InvalidOperationException($"Deserializing {body} resulted in a null reference.");
+                }
+
                 await UpdateDownloadCount(packageIds);
 
                 var consumer = (AsyncEventingBasicConsumer)sender;
                 consumer.Model.BasicAck(ea.DeliveryTag, false);
-
             }
             catch (Exception e)
             {
@@ -123,7 +126,7 @@ namespace NuGetTrends.Scheduler
 
         private async Task UpdateDownloadCount(IList<string> packageIds)
         {
-            var tasks = new List<Task<IPackageSearchMetadata>>(packageIds.Count);
+            var tasks = new List<Task<IPackageSearchMetadata?>>(packageIds.Count);
             foreach (var id in packageIds)
             {
                 tasks.Add(_nuGetSearchService.GetPackage(id, _cancellationTokenSource.Token));
