@@ -1,16 +1,17 @@
 using System;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Internal;
 using NuGet.Protocol.Catalog.Models;
 
 namespace NuGetTrends.Data
 {
     public class PackageDownload
     {
-        public string PackageId { get; set; }
-        public string PackageIdLowered { get; set; }
+        public string? PackageId { get; set; }
+        public string? PackageIdLowered { get; set; }
         public long? LatestDownloadCount { get; set; }
         public DateTime LatestDownloadCountCheckedUtc { get; set; }
-        public string IconUrl { get; set; }
+        public string? IconUrl { get; set; }
     }
 
     public class NuGetTrendsContext : BasePostgresContext
@@ -19,10 +20,10 @@ namespace NuGetTrends.Data
             : base(options)
         { }
 
-        public DbSet<PackageDetailsCatalogLeaf> PackageDetailsCatalogLeafs { get; set; }
-        public DbSet<Cursor> Cursors { get; set; }
-        public DbSet<DailyDownload> DailyDownloads { get; set; }
-        public DbSet<PackageDownload> PackageDownloads { get; set; }
+        public DbSet<PackageDetailsCatalogLeaf> PackageDetailsCatalogLeafs { get; set; } = null!;
+        public DbSet<Cursor> Cursors { get; set; } = null!;
+        public DbSet<DailyDownload> DailyDownloads { get; set; } = null!;
+        public DbSet<PackageDownload> PackageDownloads { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
