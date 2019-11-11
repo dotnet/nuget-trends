@@ -88,38 +88,34 @@ namespace NuGet.Protocol.Catalog
         private T DeserializeBytes<T>(byte[] jsonBytes)
             where T : class
         {
-            using (var stream = new MemoryStream(jsonBytes))
-            using (var textReader = new StreamReader(stream))
-            using (var jsonReader = new JsonTextReader(textReader))
+            using var stream = new MemoryStream(jsonBytes);
+            using var textReader = new StreamReader(stream);
+            using var jsonReader = new JsonTextReader(textReader);
+            var result = JsonSerializer.Deserialize<T>(jsonReader);
+            if (result == null)
             {
-                var result = JsonSerializer.Deserialize<T>(jsonReader);
-                if (result == null)
-                {
-                    throw new InvalidOperationException("Deserialization resulted in null");
-                }
-
-                return result;
+                throw new InvalidOperationException("Deserialization resulted in null");
             }
+
+            return result;
         }
 
         private async Task<T> DeserializeUrlAsync<T>(string documentUrl, CancellationToken token)
         {
             _logger.LogDebug("Downloading {documentUrl} as a stream.", documentUrl);
 
-            using (var response = await _httpClient.GetAsync(documentUrl, token))
-            using (var stream = await response.Content.ReadAsStreamAsync())
-            using (var textReader = new StreamReader(stream))
-            using (var jsonReader = new JsonTextReader(textReader))
+            using var response = await _httpClient.GetAsync(documentUrl, token);
+            await using var stream = await response.Content.ReadAsStreamAsync();
+            using var textReader = new StreamReader(stream);
+            using var jsonReader = new JsonTextReader(textReader);
+            try
             {
-                try
-                {
-                    return JsonSerializer.Deserialize<T>(jsonReader);
-                }
-                catch (JsonReaderException e)
-                {
-                    _logger.LogError(new EventId(0, documentUrl), e, "Failed to deserialize.");
-                    return default!;
-                }
+                return JsonSerializer.Deserialize<T>(jsonReader);
+            }
+            catch (JsonReaderException e)
+            {
+                _logger.LogError(new EventId(0, documentUrl), e, "Failed to deserialize.");
+                return default!;
             }
         }
     }

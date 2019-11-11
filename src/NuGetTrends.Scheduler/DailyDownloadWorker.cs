@@ -143,68 +143,66 @@ namespace NuGetTrends.Scheduler
                 throw exs; // re-throw the AggregateException to capture all errors with Sentry
             }
 
-            using (var scope = _services.CreateScope())
-            using (var context = scope.ServiceProvider.GetRequiredService<NuGetTrendsContext>())
+            using var scope = _services.CreateScope();
+            using var context = scope.ServiceProvider.GetRequiredService<NuGetTrendsContext>();
+            for (var i = 0; i < tasks.Count; i++)
             {
-                for (var i = 0; i < tasks.Count; i++)
+                var expectedPackageId = packageIds[i];
+                var packageMetadata = tasks[i].Result;
+                if (packageMetadata == null)
                 {
-                    var expectedPackageId = packageIds[i];
-                    var packageMetadata = tasks[i].Result;
-                    if (packageMetadata == null)
+                    // All versions are unlisted or:
+                    // "This package has been deleted from the gallery. It is no longer available for install/restore."
+                    _logger.LogInformation("Package deleted: {packageId}", expectedPackageId);
+                    await RemovePackage(context, expectedPackageId, _cancellationTokenSource.Token);
+                }
+                else
+                {
+                    context.DailyDownloads.Add(new DailyDownload
                     {
-                        // All versions are unlisted or:
-                        // "This package has been deleted from the gallery. It is no longer available for install/restore."
-                        _logger.LogInformation("Package deleted: {packageId}", expectedPackageId);
-                        await RemovePackage(context, expectedPackageId, _cancellationTokenSource.Token);
+                        PackageId = packageMetadata.Identity.Id,
+                        Date = DateTime.UtcNow.Date,
+                        DownloadCount = packageMetadata.DownloadCount
+                    });
+
+                    void Update(PackageDownload package, IPackageSearchMetadata metadata)
+                    {
+                        if (metadata.IconUrl?.ToString() is { } url)
+                        {
+                            package.IconUrl = url;
+                        }
+                        package.LatestDownloadCount = metadata.DownloadCount;
+                        package.LatestDownloadCountCheckedUtc = DateTime.UtcNow;
+                    }
+
+                    var pkgDownload = await context.PackageDownloads.FirstOrDefaultAsync(p => p.PackageIdLowered == packageMetadata.Identity.Id.ToLower());
+                    if (pkgDownload == null)
+                    {
+                        pkgDownload = new PackageDownload
+                        {
+                            PackageId = packageMetadata.Identity.Id,
+                            PackageIdLowered = packageMetadata.Identity.Id.ToLower(),
+                        };
+                        Update(pkgDownload, packageMetadata);
+                        context.PackageDownloads.Add(pkgDownload);
                     }
                     else
                     {
-                        context.DailyDownloads.Add(new DailyDownload
-                        {
-                            PackageId = packageMetadata.Identity.Id,
-                            Date = DateTime.UtcNow.Date,
-                            DownloadCount = packageMetadata.DownloadCount
-                        });
-
-                        void Update(PackageDownload package, IPackageSearchMetadata metadata)
-                        {
-                            if (metadata.IconUrl?.ToString() is { } url)
-                            {
-                                package.IconUrl = url;
-                            }
-                            package.LatestDownloadCount = metadata.DownloadCount;
-                            package.LatestDownloadCountCheckedUtc = DateTime.UtcNow;
-                        }
-
-                        var pkgDownload = await context.PackageDownloads.FirstOrDefaultAsync(p => p.PackageIdLowered == packageMetadata.Identity.Id.ToLower());
-                        if (pkgDownload == null)
-                        {
-                            pkgDownload = new PackageDownload
-                            {
-                                PackageId = packageMetadata.Identity.Id,
-                                PackageIdLowered = packageMetadata.Identity.Id.ToLower(),
-                            };
-                            Update(pkgDownload, packageMetadata);
-                            context.PackageDownloads.Add(pkgDownload);
-                        }
-                        else
-                        {
-                            Update(pkgDownload, packageMetadata);
-                            context.PackageDownloads.Update(pkgDownload);
-                        }
+                        Update(pkgDownload, packageMetadata);
+                        context.PackageDownloads.Update(pkgDownload);
                     }
+                }
 
-                    try
-                    {
-                        await context.SaveChangesAsync(_cancellationTokenSource.Token);
-                    }
-                    catch (DbUpdateException e)
-                        when (e.InnerException is PostgresException pge
-                              && (pge.ConstraintName == "PK_daily_downloads"))
-                    {
-                        // Re-entrancy
-                        _logger.LogWarning(e, "Skipping record already tracked.");
-                    }
+                try
+                {
+                    await context.SaveChangesAsync(_cancellationTokenSource.Token);
+                }
+                catch (DbUpdateException e)
+                    when (e.InnerException is PostgresException pge
+                          && (pge.ConstraintName == "PK_daily_downloads"))
+                {
+                    // Re-entrancy
+                    _logger.LogWarning(e, "Skipping record already tracked.");
                 }
             }
         }
