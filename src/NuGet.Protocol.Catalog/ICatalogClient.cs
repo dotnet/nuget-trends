@@ -30,15 +30,6 @@ namespace NuGet.Protocol.Catalog
 
         /// <summary>
         /// Gets the catalog leaf at the provided URL. The catalog leaf URL should be discovered from a catalog page.
-        /// The type of the catalog leaf is automatically determined from the fetched document.
-        /// </summary>
-        /// <param name="leafUrl">The catalog leaf URL.</param>
-        /// <param name="token"></param>
-        /// <returns>The catalog leaf.</returns>
-        Task<CatalogLeaf> GetLeafAsync(string leafUrl, CancellationToken token);
-
-        /// <summary>
-        /// Gets the catalog leaf at the provided URL. The catalog leaf URL should be discovered from a catalog page.
         /// The type of the catalog leaf must be a package delete. If the actual document is not a package delete, an
         /// exception is thrown.
         /// </summary>

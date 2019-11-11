@@ -26,12 +26,9 @@ namespace NuGet.Protocol.Catalog.Serialization
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
-            if (reader.Value is string stringValue)
+            if (reader.Value is string stringValue && FromString.TryGetValue(stringValue, out var output))
             {
-                if (FromString.TryGetValue(stringValue, out var output))
-                {
-                    return output;
-                }
+                return output;
             }
 
             throw new JsonSerializationException($"Unexpected value for a {nameof(CatalogLeafType)}.");

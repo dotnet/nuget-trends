@@ -27,14 +27,10 @@ namespace NuGet.Protocol.Catalog
         }
 
         public Task<CatalogIndex> GetIndexAsync(string indexUrl, CancellationToken token)
-        {
-            return DeserializeUrlAsync<CatalogIndex>(indexUrl, token);
-        }
+            => DeserializeUrlAsync<CatalogIndex>(indexUrl, token);
 
         public Task<CatalogPage> GetPageAsync(string pageUrl, CancellationToken token)
-        {
-            return DeserializeUrlAsync<CatalogPage>(pageUrl, token);
-        }
+            => DeserializeUrlAsync<CatalogPage>(pageUrl, token);
 
         public async Task<CatalogLeaf> GetLeafAsync(string leafUrl, CancellationToken token)
         {
@@ -44,26 +40,19 @@ namespace NuGet.Protocol.Catalog
             var jsonBytes = await _httpClient.GetByteArrayAsync(leafUrl);
             var untypedLeaf = DeserializeBytes<CatalogLeaf>(jsonBytes);
 
-            switch (untypedLeaf.Type)
+            return untypedLeaf.Type switch
             {
-                case CatalogLeafType.PackageDetails:
-                    return DeserializeBytes<PackageDetailsCatalogLeaf>(jsonBytes);
-                case CatalogLeafType.PackageDelete:
-                    return DeserializeBytes<PackageDeleteCatalogLeaf>(jsonBytes);
-                default:
-                    throw new NotSupportedException($"The catalog leaf type '{untypedLeaf.Type}' is not supported.");
-            }
+                CatalogLeafType.PackageDetails => (CatalogLeaf)DeserializeBytes<PackageDetailsCatalogLeaf>(jsonBytes),
+                CatalogLeafType.PackageDelete => DeserializeBytes<PackageDeleteCatalogLeaf>(jsonBytes),
+                _ => throw new NotSupportedException($"The catalog leaf type '{untypedLeaf.Type}' is not supported.")
+            };
         }
 
         public Task<CatalogLeaf> GetPackageDeleteLeafAsync(string leafUrl, CancellationToken token)
-        {
-            return GetAndValidateLeafAsync<PackageDeleteCatalogLeaf>(CatalogLeafType.PackageDelete, leafUrl, token);
-        }
+            => GetAndValidateLeafAsync<PackageDeleteCatalogLeaf>(CatalogLeafType.PackageDelete, leafUrl, token);
 
         public Task<CatalogLeaf> GetPackageDetailsLeafAsync(string leafUrl, CancellationToken token)
-        {
-            return GetAndValidateLeafAsync<PackageDetailsCatalogLeaf>(CatalogLeafType.PackageDetails, leafUrl, token);
-        }
+            => GetAndValidateLeafAsync<PackageDetailsCatalogLeaf>(CatalogLeafType.PackageDetails, leafUrl, token);
 
         public async Task<CatalogLeaf> GetAndValidateLeafAsync<T>(CatalogLeafType type, string leafUrl, CancellationToken token) where T : CatalogLeaf
         {
@@ -85,7 +74,7 @@ namespace NuGet.Protocol.Catalog
             }
         }
 
-        private T DeserializeBytes<T>(byte[] jsonBytes)
+        private static T DeserializeBytes<T>(byte[] jsonBytes)
             where T : class
         {
             using var stream = new MemoryStream(jsonBytes);

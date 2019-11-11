@@ -9,7 +9,7 @@ namespace NuGet.Protocol.Catalog.Serialization
     {
         public static JsonSerializer Serializer => JsonSerializer.Create(Settings);
 
-        public static JsonSerializerSettings Settings => new JsonSerializerSettings
+        private static JsonSerializerSettings Settings => new JsonSerializerSettings
         {
             DateTimeZoneHandling = DateTimeZoneHandling.Utc,
             DateParseHandling = DateParseHandling.DateTimeOffset,

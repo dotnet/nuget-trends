@@ -42,13 +42,12 @@ namespace NuGet.Protocol.Catalog
             }
         }
 
-        public Task SetAsync(DateTimeOffset value, CancellationToken token)
+        public async Task SetAsync(DateTimeOffset value, CancellationToken token)
         {
             var data = new Data { Value = value };
             var jsonString = JsonConvert.SerializeObject(data);
-            File.WriteAllText(_path, jsonString);
+            await File.WriteAllTextAsync(_path, jsonString, token);
             _logger.LogDebug("Wrote cursor value {cursor:O} to {path}.", data.Value, _path);
-            return Task.CompletedTask;
         }
 
         private class Data

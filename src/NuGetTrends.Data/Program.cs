@@ -9,13 +9,13 @@ namespace NuGetTrends.Data
 {
     public class Program
     {
-        public IConfiguration Configuration { get; }
+        private readonly IConfiguration _configuration;
 
-        public Program(IConfiguration configuration) => Configuration = configuration;
+        public Program(IConfiguration configuration) => _configuration = configuration;
 
         public static void Main(string[] args) => CreateHostBuilder(args).Build().Run();
 
-        public static IHostBuilder CreateHostBuilder(string[] args) =>
+        private static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
@@ -26,7 +26,7 @@ namespace NuGetTrends.Data
         public void ConfigureServices(IServiceCollection services)
             => services
                 .AddEntityFrameworkNpgsql()
-                .AddDbContext<NuGetTrendsContext>(o => o.UseNpgsql(Configuration.GetConnectionString("NuGetTrends")));
+                .AddDbContext<NuGetTrendsContext>(o => o.UseNpgsql(_configuration.GetConnectionString("NuGetTrends")));
 
         public void Configure(IApplicationBuilder app) { }
     }

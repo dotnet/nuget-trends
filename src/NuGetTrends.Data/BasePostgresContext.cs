@@ -12,7 +12,7 @@ namespace NuGetTrends.Data
     {
         private static readonly Regex KeysRegex = new Regex("^(PK|FK|IX)_", RegexOptions.Compiled);
 
-        public BasePostgresContext(DbContextOptions options)
+        protected BasePostgresContext(DbContextOptions options)
             : base(options)
         {
 
