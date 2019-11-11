@@ -11,9 +11,9 @@ namespace NuGet.Protocol.Catalog.Models
         public int Id { get; set; }
 
         [JsonProperty("targetFramework")]
-        public string TargetFramework { get; set; }
+        public string? TargetFramework { get; set; }
 
         [JsonProperty("dependencies")]
-        public List<PackageDependency> Dependencies { get; set; }
+        public List<PackageDependency> Dependencies { get; set; } = new List<PackageDependency>(0);
     }
 }

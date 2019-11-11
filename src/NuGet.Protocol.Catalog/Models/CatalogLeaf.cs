@@ -17,12 +17,12 @@ namespace NuGet.Protocol.Catalog.Models
         public DateTimeOffset CommitTimestamp { get; set; }
 
         [JsonProperty("id")]
-        public string PackageId { get; set; }
+        public string? PackageId { get; set; }
 
         [JsonProperty("published")]
         public DateTimeOffset Published { get; set; }
 
         [JsonProperty("version")]
-        public string PackageVersion { get; set; }
+        public string? PackageVersion { get; set; }
     }
 }

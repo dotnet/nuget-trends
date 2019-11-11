@@ -12,7 +12,7 @@ namespace NuGet.Protocol.Catalog.Models
         public int Id { get; set; }
 
         [JsonProperty("authors")]
-        public string Authors { get; set; }
+        public string? Authors { get; set; }
 
         [JsonProperty("created")]
         public DateTimeOffset Created { get; set; }
@@ -21,57 +21,57 @@ namespace NuGet.Protocol.Catalog.Models
         public DateTimeOffset LastEdited { get; set; }
 
         [JsonProperty("dependencyGroups")]
-        public List<PackageDependencyGroup> DependencyGroups { get; set; }
+        public List<PackageDependencyGroup> DependencyGroups { get; set; } = new List<PackageDependencyGroup>(0);
 
         [JsonProperty("description")]
-        public string Description { get; set; }
+        public string? Description { get; set; }
 
         [JsonProperty("iconUrl")]
-        public string IconUrl { get; set; }
+        public string? IconUrl { get; set; }
 
         [JsonProperty("isPrerelease")]
-        public bool IsPrerelease { get; set; }
+        public bool? IsPrerelease { get; set; }
 
         [JsonProperty("language")]
-        public string Language { get; set; }
+        public string? Language { get; set; }
 
         [JsonProperty("licenseUrl")]
-        public string LicenseUrl { get; set; }
+        public string? LicenseUrl { get; set; }
 
         [JsonProperty("listed")]
         public bool? Listed { get; set; }
 
         [JsonProperty("minClientVersion")]
-        public string MinClientVersion { get; set; }
+        public string? MinClientVersion { get; set; }
 
         [JsonProperty("packageHash")]
-        public string PackageHash { get; set; }
+        public string? PackageHash { get; set; }
 
         [JsonProperty("packageHashAlgorithm")]
-        public string PackageHashAlgorithm { get; set; }
+        public string? PackageHashAlgorithm { get; set; }
 
         [JsonProperty("packageSize")]
         public long PackageSize { get; set; }
 
         [JsonProperty("projectUrl")]
-        public string ProjectUrl { get; set; }
+        public string? ProjectUrl { get; set; }
 
         [JsonProperty("releaseNotes")]
-        public string ReleaseNotes { get; set; }
+        public string? ReleaseNotes { get; set; }
 
         [JsonProperty("requireLicenseAgreement")]
         public bool? RequireLicenseAgreement { get; set; }
 
         [JsonProperty("summary")]
-        public string Summary { get; set; }
+        public string? Summary { get; set; }
 
         [JsonProperty("tags")]
-        public List<string> Tags { get; set; }
+        public List<string> Tags { get; set; } = new List<string>(0);
 
         [JsonProperty("title")]
-        public string Title { get; set; }
+        public string? Title { get; set; }
 
         [JsonProperty("verbatimVersion")]
-        public string VerbatimVersion { get; set; }
+        public string? VerbatimVersion { get; set; }
     }
 }

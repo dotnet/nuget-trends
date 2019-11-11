@@ -8,8 +8,8 @@ namespace NuGet.Protocol.Catalog.Models
     public interface ICatalogLeafItem
     {
         DateTimeOffset CommitTimestamp { get; }
-        string PackageId { get; }
-        string PackageVersion { get; }
+        string? PackageId { get; }
+        string? PackageVersion { get; }
         CatalogLeafType Type { get; }
     }
 }

@@ -89,7 +89,7 @@ namespace NuGet.Protocol.Catalog
                 _logger.LogInformation("Getting package leaf: {type}, {leafUrl}", type, leafUrl);
                 var leaf = await DeserializeUrlAsync<T>(leafUrl, token);
 
-                if (leaf != null && leaf.Type != type)
+                if (leaf.Type != type)
                 {
                     _logger.LogError("The leaf type found in the document does not match the expected '{type}' type.", type);
                 }
@@ -99,12 +99,19 @@ namespace NuGet.Protocol.Catalog
         }
 
         private T DeserializeBytes<T>(byte[] jsonBytes)
+            where T : class
         {
             using (var stream = new MemoryStream(jsonBytes))
             using (var textReader = new StreamReader(stream))
             using (var jsonReader = new JsonTextReader(textReader))
             {
-                return JsonSerializer.Deserialize<T>(jsonReader);
+                var result = JsonSerializer.Deserialize<T>(jsonReader);
+                if (result == null)
+                {
+                    throw new InvalidOperationException("Deserialization resulted in null");
+                }
+
+                return result;
             }
         }
 
@@ -124,7 +131,7 @@ namespace NuGet.Protocol.Catalog
                 catch (JsonReaderException e)
                 {
                     _logger.LogError(new EventId(0, documentUrl), e, "Failed to deserialize.");
-                    return default;
+                    return default!;
                 }
             }
         }
