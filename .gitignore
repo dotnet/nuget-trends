@@ -18,6 +18,10 @@ appsettings.local.json
 src/NuGetTrends.Api/wwwroot
 *.tar.gz
 node_modules
+# publish dirs
+src/NuGetTrends.Api/nuget-trends-api/
+src/NuGetTrends.Scheduler/nuget-trends-worker/
+
 
 # ignore the host directory folder used on docker-compose
 sql-data/

@@ -1,8 +1,8 @@
 using System;
 using System.IO;
-using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using Sentry.Extensions.Logging;
 using Serilog;
 using SystemEnvironment = System.Environment;
@@ -36,7 +36,7 @@ namespace NuGetTrends.Scheduler
             {
                 Log.Information("Starting.");
 
-                CreateWebHostBuilder(args).Build().Run();
+                CreateHostBuilder(args).Build().Run();
 
                 return 0;
             }
@@ -51,18 +51,23 @@ namespace NuGetTrends.Scheduler
             }
         }
 
-        public static IWebHostBuilder CreateWebHostBuilder(string[] args) =>
-            WebHost.CreateDefaultBuilder(args)
-                .UseConfiguration(Configuration)
-                .UseSerilog()
-                .UseSentry(o => o.AddLogEntryFilter((category, level, eventId, exception)
-                                    => eventId.ToString() ==
-                                       "Microsoft.EntityFrameworkCore.Infrastructure.SensitiveDataLoggingEnabledWarning"
-                                       && string.Equals(
-                                           category,
-                                           "Microsoft.EntityFrameworkCore.Model.Validation",
-                                           StringComparison.Ordinal))
-                )
-                .UseStartup<Startup>();
+        public static IHostBuilder CreateHostBuilder(string[] args) =>
+            Host.CreateDefaultBuilder(args)
+                .ConfigureWebHostDefaults(webBuilder =>
+                {
+                    webBuilder
+                        .UseKestrel()
+                        .UseConfiguration(Configuration)
+                        .UseSerilog()
+                        .UseSentry(o => o.AddLogEntryFilter((category, level, eventId, exception)
+                            => eventId.ToString() ==
+                               "Microsoft.EntityFrameworkCore.Infrastructure.SensitiveDataLoggingEnabledWarning"
+                               && string.Equals(
+                                   category,
+                                   "Microsoft.EntityFrameworkCore.Model.Validation",
+                                   StringComparison.Ordinal))
+                        )
+                        .UseStartup<Startup>();
+                });
     }
 }
