@@ -20,8 +20,4 @@
     </PackageReference>
   </ItemGroup>
 
-  <ItemGroup>
-    <Compile Remove="FileCursor.cs" />
-  </ItemGroup>
-
 </Project>
