@@ -150,26 +150,20 @@ namespace NuGet.Protocol.Catalog
             }
         }
 
-        private Task<CatalogLeaf> ProcessLeafAsync(CatalogLeafItem leafItem, CancellationToken token)
-        {
-            switch (leafItem.Type)
+        private Task<CatalogLeaf> ProcessLeafAsync(CatalogLeafItem leafItem, CancellationToken token) =>
+            leafItem.Type switch
             {
-                case CatalogLeafType.PackageDelete:
-                    return _client.GetPackageDeleteLeafAsync(leafItem.Url, token);
-                case CatalogLeafType.PackageDetails:
-                    return _client.GetPackageDetailsLeafAsync(leafItem.Url, token);
-                default:
-                    throw new NotSupportedException($"The catalog leaf type '{leafItem.Type}' is not supported.");
-            }
-        }
+                CatalogLeafType.PackageDelete => _client.GetPackageDeleteLeafAsync(leafItem.Url, token),
+                CatalogLeafType.PackageDetails => _client.GetPackageDetailsLeafAsync(leafItem.Url, token),
+                _ => throw new NotSupportedException($"The catalog leaf type '{leafItem.Type}' is not supported.")
+            };
 
         private async Task<DateTimeOffset> GetMinCommitTimestamp(CancellationToken token)
         {
             var minCommitTimestamp = await _cursor.GetAsync(token);
 
-            minCommitTimestamp = minCommitTimestamp
-                ?? _settings.DefaultMinCommitTimestamp
-                ?? _settings.MinCommitTimestamp;
+            minCommitTimestamp ??= _settings.DefaultMinCommitTimestamp
+                                   ?? _settings.MinCommitTimestamp;
 
             if (minCommitTimestamp.Value < _settings.MinCommitTimestamp)
             {

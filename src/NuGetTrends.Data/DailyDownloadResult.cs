@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace NuGetTrends.Data
 {
+    // ReSharper disable once ClassNeverInstantiated.Global - EF
     public class DailyDownloadResult
     {
         [Column("download_count")]

@@ -16,9 +16,9 @@ namespace NuGet.Protocol.Catalog.Models
         public int Count { get; set; }
 
         [JsonProperty("items")]
-        public List<CatalogLeafItem> Items { get; set; }
+        public List<CatalogLeafItem> Items { get; set; } = new List<CatalogLeafItem>(0);
 
         [JsonProperty("parent")]
-        public string Parent { get; set; }
+        public string? Parent { get; set; }
     }
 }

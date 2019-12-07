@@ -27,14 +27,9 @@ namespace NuGet.Protocol.Catalog.Serialization
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
             List<object> types;
-            if (reader.TokenType == JsonToken.StartArray)
-            {
-                types = serializer.Deserialize<List<object>>(reader);
-            }
-            else
-            {
-                types = new List<object> { reader.Value };
-            }
+            types = reader.TokenType == JsonToken.StartArray
+                ? serializer.Deserialize<List<object>>(reader)
+                : new List<object> { reader.Value };
 
             foreach (var type in types.OfType<string>())
             {

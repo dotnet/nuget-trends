@@ -10,9 +10,9 @@ namespace NuGetTrends.Data
     // https://github.com/npgsql/Npgsql.EntityFrameworkCore.PostgreSQL/issues/21
     public abstract class BasePostgresContext : DbContext
     {
-        private static readonly Regex _keysRegex = new Regex("^(PK|FK|IX)_", RegexOptions.Compiled);
+        private static readonly Regex KeysRegex = new Regex("^(PK|FK|IX)_", RegexOptions.Compiled);
 
-        public BasePostgresContext(DbContextOptions options)
+        protected BasePostgresContext(DbContextOptions options)
             : base(options)
         {
 
@@ -84,7 +84,7 @@ namespace NuGetTrends.Data
         }
 
         private string ConvertKeyToSnake(INpgsqlNameTranslator mapper, string keyName) =>
-            ConvertGeneralToSnake(mapper, _keysRegex.Replace(keyName, match => match.Value.ToLower()));
+            ConvertGeneralToSnake(mapper, KeysRegex.Replace(keyName, match => match.Value.ToLower()));
 
         private string ConvertGeneralToSnake(INpgsqlNameTranslator mapper, string entityName) =>
             mapper.TranslateMemberName(ModifyNameBeforeConvertion(mapper, entityName));

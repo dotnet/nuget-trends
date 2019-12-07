@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 
 namespace NuGetTrends.Api
 {
+    // ReSharper disable once ClassNeverInstantiated.Global - reflection
     internal class ExceptionInResponseMiddleware
     {
         private readonly RequestDelegate _next;

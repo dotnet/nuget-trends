@@ -18,6 +18,7 @@ using RabbitMQ.Client.Events;
 
 namespace NuGetTrends.Scheduler
 {
+    // ReSharper disable once ClassNeverInstantiated.Global - DI
     public class DailyDownloadWorker : IHostedService
     {
         private readonly DailyDownloadWorkerOptions _options;
@@ -26,9 +27,9 @@ namespace NuGetTrends.Scheduler
         private readonly INuGetSearchService _nuGetSearchService;
         private readonly ILogger<DailyDownloadWorker> _logger;
         private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
-        private ConcurrentBag<(IModel,IConnection)> _connections = new ConcurrentBag<(IModel, IConnection)>();
+        private readonly ConcurrentBag<(IModel,IConnection)> _connections = new ConcurrentBag<(IModel, IConnection)>();
 
-        private List<Task> _workers;
+        private readonly List<Task> _workers;
 
         public DailyDownloadWorker(
             IOptions<DailyDownloadWorkerOptions> options,
@@ -42,13 +43,12 @@ namespace NuGetTrends.Scheduler
             _services = services;
             _nuGetSearchService = nuGetSearchService;
             _logger = logger;
+            _workers = new List<Task>(_options.WorkerCount);
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
             _logger.LogDebug("Starting the worker.");
-
-            _workers = new List<Task>(_options.WorkerCount);
 
             for (var i = 0; i < _options.WorkerCount; i++)
             {
@@ -93,7 +93,7 @@ namespace NuGetTrends.Scheduler
 
         private async Task OnConsumerOnReceived(object sender, BasicDeliverEventArgs ea)
         {
-            List<string> packageIds = null;
+            List<string>? packageIds = null;
             try
             {
                 var body = ea.Body;
@@ -101,11 +101,15 @@ namespace NuGetTrends.Scheduler
 
                 packageIds = MessagePackSerializer.Deserialize<List<string>>(body);
 
+                if (packageIds == null)
+                {
+                    throw new InvalidOperationException($"Deserializing {body} resulted in a null reference.");
+                }
+
                 await UpdateDownloadCount(packageIds);
 
                 var consumer = (AsyncEventingBasicConsumer)sender;
                 consumer.Model.BasicAck(ea.DeliveryTag, false);
-
             }
             catch (Exception e)
             {
@@ -123,7 +127,7 @@ namespace NuGetTrends.Scheduler
 
         private async Task UpdateDownloadCount(IList<string> packageIds)
         {
-            var tasks = new List<Task<IPackageSearchMetadata>>(packageIds.Count);
+            var tasks = new List<Task<IPackageSearchMetadata?>>(packageIds.Count);
             foreach (var id in packageIds)
             {
                 tasks.Add(_nuGetSearchService.GetPackage(id, _cancellationTokenSource.Token));
@@ -134,73 +138,71 @@ namespace NuGetTrends.Scheduler
             {
                 await whenAll;
             }
-            catch when (whenAll.Exception is AggregateException ae && ae.InnerExceptions.Count > 1)
+            catch when (whenAll.Exception is {} exs && exs.InnerExceptions.Count > 1)
             {
-                throw ae; // re-throw the AggregateException to capture all errors with Sentry
+                throw exs; // re-throw the AggregateException to capture all errors with Sentry
             }
 
-            using (var scope = _services.CreateScope())
-            using (var context = scope.ServiceProvider.GetRequiredService<NuGetTrendsContext>())
+            using var scope = _services.CreateScope();
+            using var context = scope.ServiceProvider.GetRequiredService<NuGetTrendsContext>();
+            for (var i = 0; i < tasks.Count; i++)
             {
-                for (var i = 0; i < tasks.Count; i++)
+                var expectedPackageId = packageIds[i];
+                var packageMetadata = tasks[i].Result;
+                if (packageMetadata == null)
                 {
-                    var expectedPackageId = packageIds[i];
-                    var packageMetadata = tasks[i].Result;
-                    if (packageMetadata == null)
+                    // All versions are unlisted or:
+                    // "This package has been deleted from the gallery. It is no longer available for install/restore."
+                    _logger.LogInformation("Package deleted: {packageId}", expectedPackageId);
+                    await RemovePackage(context, expectedPackageId, _cancellationTokenSource.Token);
+                }
+                else
+                {
+                    context.DailyDownloads.Add(new DailyDownload
                     {
-                        // All versions are unlisted or:
-                        // "This package has been deleted from the gallery. It is no longer available for install/restore."
-                        _logger.LogInformation("Package deleted: {packageId}", expectedPackageId);
-                        await RemovePackage(context, expectedPackageId, _cancellationTokenSource.Token);
+                        PackageId = packageMetadata.Identity.Id,
+                        Date = DateTime.UtcNow.Date,
+                        DownloadCount = packageMetadata.DownloadCount
+                    });
+
+                    void Update(PackageDownload package, IPackageSearchMetadata metadata)
+                    {
+                        if (metadata.IconUrl?.ToString() is { } url)
+                        {
+                            package.IconUrl = url;
+                        }
+                        package.LatestDownloadCount = metadata.DownloadCount;
+                        package.LatestDownloadCountCheckedUtc = DateTime.UtcNow;
+                    }
+
+                    var pkgDownload = await context.PackageDownloads.FirstOrDefaultAsync(p => p.PackageIdLowered == packageMetadata.Identity.Id.ToLower());
+                    if (pkgDownload == null)
+                    {
+                        pkgDownload = new PackageDownload
+                        {
+                            PackageId = packageMetadata.Identity.Id,
+                            PackageIdLowered = packageMetadata.Identity.Id.ToLower(),
+                        };
+                        Update(pkgDownload, packageMetadata);
+                        context.PackageDownloads.Add(pkgDownload);
                     }
                     else
                     {
-                        context.DailyDownloads.Add(new DailyDownload
-                        {
-                            PackageId = packageMetadata.Identity.Id,
-                            Date = DateTime.UtcNow.Date,
-                            DownloadCount = packageMetadata.DownloadCount
-                        });
-
-                        void Update(PackageDownload package, IPackageSearchMetadata metadata)
-                        {
-                            if (metadata.IconUrl?.ToString() is string url)
-                            {
-                                package.IconUrl = url;
-                            }
-                            package.LatestDownloadCount = metadata.DownloadCount;
-                            package.LatestDownloadCountCheckedUtc = DateTime.UtcNow;
-                        }
-
-                        var pkgDownload = await context.PackageDownloads.FirstOrDefaultAsync(p => p.PackageIdLowered == packageMetadata.Identity.Id.ToLower());
-                        if (pkgDownload == null)
-                        {
-                            pkgDownload = new PackageDownload
-                            {
-                                PackageId = packageMetadata.Identity.Id,
-                                PackageIdLowered = packageMetadata.Identity.Id.ToLower(),
-                            };
-                            Update(pkgDownload, packageMetadata);
-                            context.PackageDownloads.Add(pkgDownload);
-                        }
-                        else
-                        {
-                            Update(pkgDownload, packageMetadata);
-                            context.PackageDownloads.Update(pkgDownload);
-                        }
+                        Update(pkgDownload, packageMetadata);
+                        context.PackageDownloads.Update(pkgDownload);
                     }
+                }
 
-                    try
-                    {
-                        await context.SaveChangesAsync(_cancellationTokenSource.Token);
-                    }
-                    catch (DbUpdateException e)
-                        when (e.InnerException is PostgresException pge
-                              && (pge.ConstraintName == "PK_daily_downloads"))
-                    {
-                        // Re-entrancy
-                        _logger.LogWarning(e, "Skipping record already tracked.");
-                    }
+                try
+                {
+                    await context.SaveChangesAsync(_cancellationTokenSource.Token);
+                }
+                catch (DbUpdateException e)
+                    when (e.InnerException is PostgresException pge
+                          && (pge.ConstraintName == "PK_daily_downloads"))
+                {
+                    // Re-entrancy
+                    _logger.LogWarning(e, "Skipping record already tracked.");
                 }
             }
         }
@@ -228,7 +230,7 @@ namespace NuGetTrends.Scheduler
             {
                 _cancellationTokenSource.Cancel();
 
-                if (_workers is List<Task> workers)
+                if (_workers is { } workers)
                 {
                     await Task.WhenAll(workers);
                 }

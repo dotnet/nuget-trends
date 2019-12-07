@@ -9,8 +9,7 @@ namespace NuGet.Protocol.Catalog.Models
 {
     public class CatalogLeafItem : ICatalogLeafItem
     {
-        [JsonProperty("@id")]
-        public string Url { get; set; }
+        [JsonProperty("@id")] public string Url { get; set; } = "";
 
         [JsonProperty("@type")]
         [JsonConverter(typeof(CatalogLeafItemTypeConverter))]
@@ -20,9 +19,9 @@ namespace NuGet.Protocol.Catalog.Models
         public DateTimeOffset CommitTimestamp { get; set; }
 
         [JsonProperty("nuget:id")]
-        public string PackageId { get; set; }
+        public string? PackageId { get; set; }
 
         [JsonProperty("nuget:version")]
-        public string PackageVersion { get; set; }
+        public string? PackageVersion { get; set; }
     }
 }

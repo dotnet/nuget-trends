@@ -12,15 +12,9 @@ namespace NuGet.Protocol.Catalog.Serialization
     {
         private readonly IReadOnlyDictionary<CatalogLeafType, string> _fromType;
 
-        public BaseCatalogLeafConverter(IReadOnlyDictionary<CatalogLeafType, string> fromType)
-        {
-            _fromType = fromType;
-        }
+        protected BaseCatalogLeafConverter(IReadOnlyDictionary<CatalogLeafType, string> fromType) => _fromType = fromType;
 
-        public override bool CanConvert(Type objectType)
-        {
-            return objectType == typeof(CatalogLeafType);
-        }
+        public override bool CanConvert(Type objectType) => objectType == typeof(CatalogLeafType);
 
         public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
         {

@@ -17,13 +17,13 @@ namespace NuGetTrends.Scheduler
     public class Startup
     {
         private readonly IWebHostEnvironment _hostingEnvironment;
-        public IConfiguration Configuration { get; }
+        private readonly IConfiguration _configuration;
 
         public Startup(
             IConfiguration configuration,
             IWebHostEnvironment hostingEnvironment)
         {
-            Configuration = configuration;
+            _configuration = configuration;
             _hostingEnvironment = hostingEnvironment;
         }
 
@@ -34,9 +34,9 @@ namespace NuGetTrends.Scheduler
             services.AddSingleton<INuGetSearchService, NuGetSearchService>();
             services.AddTransient<ISentryEventExceptionProcessor, DbUpdateExceptionProcessor>();
 
-            services.Configure<DailyDownloadWorkerOptions>(Configuration.GetSection("DailyDownloadWorker"));
-            services.Configure<RabbitMqOptions>(Configuration.GetSection("RabbitMq"));
-            services.Configure<BackgroundJobServerOptions>(Configuration.GetSection("Hangfire"));
+            services.Configure<DailyDownloadWorkerOptions>(_configuration.GetSection("DailyDownloadWorker"));
+            services.Configure<RabbitMqOptions>(_configuration.GetSection("RabbitMq"));
+            services.Configure<BackgroundJobServerOptions>(_configuration.GetSection("Hangfire"));
 
             services.AddSingleton<IConnectionFactory>(c =>
             {
@@ -60,7 +60,7 @@ namespace NuGetTrends.Scheduler
                 .AddEntityFrameworkNpgsql()
                 .AddDbContext<NuGetTrendsContext>(options =>
                 {
-                    options.UseNpgsql(Configuration.GetConnectionString("NuGetTrends"));
+                    options.UseNpgsql(_configuration.GetConnectionString("NuGetTrends"));
                     if (_hostingEnvironment.IsDevelopment())
                     {
                         options.EnableSensitiveDataLogging();
