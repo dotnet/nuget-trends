@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Sentry.Extensions.Logging;
 using Serilog;
+using Sentry;
 using SystemEnvironment = System.Environment;
 
 namespace NuGetTrends.Scheduler
@@ -59,14 +60,18 @@ namespace NuGetTrends.Scheduler
                         .UseKestrel()
                         .UseConfiguration(Configuration)
                         .UseSerilog()
-                        .UseSentry(o => o.AddLogEntryFilter((category, level, eventId, exception)
+                        .UseSentry(o =>
+                        {
+                            o.AddLogEntryFilter((category, level, eventId, exception)
                             => eventId.ToString() ==
                                "Microsoft.EntityFrameworkCore.Infrastructure.SensitiveDataLoggingEnabledWarning"
                                && string.Equals(
                                    category,
                                    "Microsoft.EntityFrameworkCore.Model.Validation",
-                                   StringComparison.Ordinal))
-                        )
+                                   StringComparison.Ordinal));
+                            o.AddInAppExclude("Npgsql");
+                            o.AddInAppExclude("Serilog");
+                        })
                         .UseStartup<Startup>();
                 });
     }

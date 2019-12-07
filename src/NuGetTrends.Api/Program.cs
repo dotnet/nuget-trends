@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Serilog;
 using SystemEnvironment = System.Environment;
+using Sentry;
 
 namespace NuGetTrends.Api
 {
@@ -59,7 +60,11 @@ namespace NuGetTrends.Api
                         })
                         .UseConfiguration(Configuration)
                         .UseSerilog()
-                        .UseSentry()
+                        .UseSentry(s =>
+                        {
+                            s.AddInAppExclude("Npgsql");
+                            s.AddInAppExclude("Serilog");
+                        })
                         .UseStartup<Startup>();
                 });
     }
