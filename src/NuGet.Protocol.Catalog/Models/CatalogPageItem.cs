@@ -9,7 +9,7 @@ namespace NuGet.Protocol.Catalog.Models
     public class CatalogPageItem
     {
         [JsonProperty("@id")]
-        public string Url { get; set; }
+        public string Url { get; set; } = "";
 
         [JsonProperty("commitTimeStamp")]
         public DateTimeOffset CommitTimestamp { get; set; }

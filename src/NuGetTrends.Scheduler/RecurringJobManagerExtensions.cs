@@ -10,7 +10,7 @@ namespace NuGetTrends.Scheduler
 {
     internal static class RecurringJobManagerExtensions
     {
-        public static void AddOrUpdate<TJob>(
+        private static void AddOrUpdate<TJob>(
             this IRecurringJobManager manager,
             string recurringJobId,
             Expression<Func<TJob, Task>> jobExpression,

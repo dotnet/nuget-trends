@@ -8,7 +8,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NuGetTrends.Data;
-using Swashbuckle.AspNetCore.Swagger;
 using Swashbuckle.AspNetCore.SwaggerUI;
 using Microsoft.OpenApi.Models;
 
@@ -44,7 +43,6 @@ namespace NuGetTrends.Api
                                 .AllowAnyHeader()
                                 .AllowCredentials()
                                 .SetPreflightMaxAge(TimeSpan.FromDays(1));
-                            ;
                         });
                 });
             }

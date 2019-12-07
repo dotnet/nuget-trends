@@ -37,7 +37,9 @@ SELECT AVG(COALESCE(d.download_count, NULL)) AS download_count,
 
             return context
                 .Query<DailyDownloadResult>()
+                // ReSharper disable FormatStringProblem - Drunk ReSharper
                 .FromSql(sql, packageIdParam, monthsParam)
+                // ReSharper restore FormatStringProblem
                 .ToListAsync();
         }
     }

@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFramework>netstandard2.1</TargetFramework>
     <RootNamespace>NuGet.Protocol.Catalog</RootNamespace>
     <PackageId>NuGet.Protocol.Catalog</PackageId>
     <PackageVersion>0.2.0-beta</PackageVersion>

@@ -10,9 +10,9 @@ namespace NuGet.Protocol.Catalog.Models
         public int Id { get; set; }
 
         [JsonProperty("id")]
-        public string DependencyId { get; set; }
+        public string? DependencyId { get; set; }
 
         [JsonProperty("range")]
-        public string Range { get; set; }
+        public string? Range { get; set; }
     }
 }
