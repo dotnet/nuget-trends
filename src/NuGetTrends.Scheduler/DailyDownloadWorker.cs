@@ -171,7 +171,12 @@ namespace NuGetTrends.Scheduler
                         {
                             package.IconUrl = url;
                         }
-                        package.LatestDownloadCount = metadata.DownloadCount;
+
+                        if (metadata.DownloadCount is null)
+                        {
+                            throw new InvalidOperationException("DownloadCount is required.");
+                        }
+                        package.LatestDownloadCount = metadata.DownloadCount.Value;
                         package.LatestDownloadCountCheckedUtc = DateTime.UtcNow;
                     }
 
