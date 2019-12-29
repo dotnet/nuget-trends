@@ -28,7 +28,6 @@
     "bulma": "^0.8.0",
     "bulma-start": "0.0.3",
     "chart.js": "^2.9.3",
-    "core-js": "2.6.9",
     "font-awesome": "^4.7.0",
     "ngx-toastr": "^11.2.1",
     "rxjs": "^6.5.4",
