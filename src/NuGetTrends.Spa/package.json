@@ -55,5 +55,10 @@
     "ts-node": "^8.5.4",
     "tslint": "^5.20.1",
     "typescript": "~3.5.3"
+  },
+  "resolutions": {
+    "handlebars": "^4.5.3",
+    "https-proxy-agent": "^2.2.3"
+
   }
 }
