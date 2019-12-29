@@ -58,7 +58,7 @@
   },
   "resolutions": {
     "handlebars": "^4.5.3",
-    "https-proxy-agent": "^2.2.3"
-
+    "https-proxy-agent": "^2.2.3",
+    "serialize-javascript": "^2.1.2"
   }
 }
