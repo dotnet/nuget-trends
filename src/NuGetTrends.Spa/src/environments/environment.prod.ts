@@ -1,4 +1,5 @@
 export const environment = {
+  name: 'Production',
   production: true,
   API_URL: '',
   MAX_CHART_ITEMS: 6,
