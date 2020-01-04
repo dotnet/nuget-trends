@@ -1,0 +1,3 @@
+[submodule "src/Redirectr"]
+	path = src/Redirectr
+	url = git@github.com:bruno-garcia/redirectr.git
