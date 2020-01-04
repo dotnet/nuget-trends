@@ -24,6 +24,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\NuGetTrends.Data\NuGetTrends.Data.csproj" />
+    <ProjectReference Include="..\Redirectr\src\Redirectr\Redirectr.csproj" />
   </ItemGroup>
 
 </Project>
