@@ -24,7 +24,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\NuGetTrends.Data\NuGetTrends.Data.csproj" />
-    <ProjectReference Include="..\Redirectr\src\Redirectr\Redirectr.csproj" />
+    <ProjectReference Include="..\Redirectr\src\Redirectr.AspNetCore\Redirectr.AspNetCore.csproj" />
+    <ProjectReference Include="..\Redirectr\src\Redirectr.Npgsql\Redirectr.Npgsql.csproj" />
   </ItemGroup>
 
 </Project>

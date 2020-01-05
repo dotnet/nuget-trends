@@ -29,7 +29,6 @@ namespace NuGetTrends.Api
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddControllers();
-
             if (_hostingEnvironment.IsDevelopment())
             {
                 services.AddCors(options =>
@@ -41,7 +40,6 @@ namespace NuGetTrends.Api
                                 .AllowAnyOrigin()
                                 .AllowAnyMethod()
                                 .AllowAnyHeader()
-                                .AllowCredentials()
                                 .SetPreflightMaxAge(TimeSpan.FromDays(1));
                         });
                 });
@@ -65,6 +63,8 @@ namespace NuGetTrends.Api
                 var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
                 c.IncludeXmlComments(xmlPath);
             });
+
+            services.AddRedirectr();
         }
 
         public void Configure(IApplicationBuilder app)
@@ -88,6 +88,7 @@ namespace NuGetTrends.Api
             app.UseEndpoints(endpoints => {
                 endpoints.MapControllers();
             });
+            app.UseRedirectr();
         }
     }
 }

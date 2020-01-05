@@ -26,7 +26,8 @@ namespace NuGetTrends.Data
         public void ConfigureServices(IServiceCollection services)
             => services
                 .AddEntityFrameworkNpgsql()
-                .AddDbContext<NuGetTrendsContext>(o => o.UseNpgsql(_configuration.GetConnectionString("NuGetTrends")));
+                .AddDbContext<NuGetTrendsContext>(o =>
+                    o.UseNpgsql(_configuration.GetConnectionString("NuGetTrends")));
 
         public void Configure(IApplicationBuilder app) { }
     }

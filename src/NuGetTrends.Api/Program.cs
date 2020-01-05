@@ -67,8 +67,7 @@ namespace NuGetTrends.Api
                             s.AddInAppExclude("Npgsql");
                             s.AddInAppExclude("Serilog");
                         })
-                        .UseStartup<Startup>()
-                        .UseRedirectr();
+                        .UseStartup<Startup>();
                 });
     }
 }
