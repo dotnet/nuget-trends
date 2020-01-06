@@ -137,7 +137,8 @@ namespace NuGet.Protocol.Catalog
                     }
                     else
                     {
-                        _logger.LogError("Unsupported leaf type: {type}.", task.Result?.GetType());
+                        // Lots of null leafs
+                        _logger.LogInformation("Unsupported leaf type: {type}.", task.Result?.GetType());
                     }
                 }
 

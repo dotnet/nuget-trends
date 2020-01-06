@@ -10,24 +10,18 @@ namespace NuGetTrends.Data
     public class Program
     {
         private readonly IConfiguration _configuration;
-
         public Program(IConfiguration configuration) => _configuration = configuration;
 
         public static void Main(string[] args) => CreateHostBuilder(args).Build().Run();
 
         private static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
-                .ConfigureWebHostDefaults(webBuilder =>
-                {
-                    webBuilder
-                        .UseStartup<Program>();
-                });
+                .ConfigureWebHostDefaults(webBuilder => webBuilder.UseStartup<Program>());
 
         public void ConfigureServices(IServiceCollection services)
             => services
                 .AddEntityFrameworkNpgsql()
-                .AddDbContext<NuGetTrendsContext>(o =>
-                    o.UseNpgsql(_configuration.GetConnectionString("NuGetTrends")));
+                    => o.UseNpgsql(_configuration.GetConnectionString("NuGetTrends")));
 
         public void Configure(IApplicationBuilder app) { }
     }

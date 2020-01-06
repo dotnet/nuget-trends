@@ -16,9 +16,9 @@ namespace NuGet.Protocol.Catalog.Serialization
 
         public override bool CanConvert(Type objectType) => objectType == typeof(CatalogLeafType);
 
-        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+        public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
         {
-            if (_fromType.TryGetValue((CatalogLeafType)value, out var output))
+            if (value is {} && _fromType.TryGetValue((CatalogLeafType)value, out var output))
             {
                 writer.WriteValue(output);
             }
