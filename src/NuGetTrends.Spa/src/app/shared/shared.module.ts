@@ -14,6 +14,7 @@ import {
   LoadingIndicatorComponent,
   LoadingIndicatorInterceptor
 } from './components';
+import { SharePopoverComponent } from './components/share-popover/share-popover.component';
 
 @NgModule({
   imports: [
@@ -32,7 +33,8 @@ import {
     PackageListComponent,
     SearchTypeComponent,
     SearchPeriodComponent,
-    LoadingIndicatorComponent
+    LoadingIndicatorComponent,
+    SharePopoverComponent
   ],
   exports: [
     CommonModule,
@@ -43,7 +45,8 @@ import {
     PackageListComponent,
     SearchTypeComponent,
     SearchPeriodComponent,
-    LoadingIndicatorComponent
+    LoadingIndicatorComponent,
+    SharePopoverComponent
   ],
   providers: [
     {

@@ -1,0 +1,13 @@
+<div class="popover is-popover-right">
+  <button class="button is-primary popover-trigger"
+  [class.popover-trigger]="isActive"
+  (click)="toggle()">{{ buttonText }}</button>
+  <div class="popover-content">
+    <div class="control">
+      <textarea class="textarea has-fixed-size" rows="4" cols="50" readonly placeholder="e.g. Hello world">
+        ssssssssssss
+      </textarea>
+    </div>
+    <button class="button is-primary">Copy to clipboard</button>
+  </div>
+</div>
