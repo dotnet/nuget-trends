@@ -26,7 +26,7 @@ namespace NuGetTrends.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Query<DailyDownloadResult>();
+            modelBuilder.Entity<DailyDownloadResult>().HasNoKey();
 
             base.OnModelCreating(modelBuilder);
 

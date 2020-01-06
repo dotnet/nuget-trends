@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy } from '@angular/core';
 import { Router, ActivatedRoute, Params } from '@angular/router';
 import { FormControl } from '@angular/forms';
 
@@ -10,7 +10,7 @@ import { PackageInteractionService } from '../../../core';
   templateUrl: './search-period.component.html',
   styleUrls: ['./search-period.component.scss']
 })
-export class SearchPeriodComponent implements OnInit, OnDestroy {
+export class SearchPeriodComponent implements OnDestroy {
   periodControl: FormControl;
   periodValues: Array<SearchPeriod>;
 
@@ -21,9 +21,6 @@ export class SearchPeriodComponent implements OnInit, OnDestroy {
     private activatedRoute: ActivatedRoute,
     private packageInteractionService: PackageInteractionService
   ) {
-  }
-
-  ngOnInit(): void {
     this.periodValues = DefaultSearchPeriods;
     this.addDefaultOrCurrentPeriodToUrl(InitialSearchPeriod.value);
   }

@@ -17,6 +17,7 @@ describe('SearchPeriodComponent', () => {
   let activatedRoute: MockedActivatedRoute;
 
   const queryParamName = 'months';
+  let routerSpy: any;
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
@@ -36,9 +37,10 @@ describe('SearchPeriodComponent', () => {
   }));
 
   beforeEach(() => {
+    router = TestBed.get(Router);
+    routerSpy = spyOn(router, 'navigate').and.callThrough();
     fixture = TestBed.createComponent(SearchPeriodComponent);
     component = fixture.componentInstance;
-    router = TestBed.get(Router);
     packageInteractionService = TestBed.get(PackageInteractionService);
     activatedRoute = TestBed.get(ActivatedRoute);
   });
@@ -49,34 +51,35 @@ describe('SearchPeriodComponent', () => {
   });
 
   it('should use the default query param', () => {
-    const spy = spyOn(router, 'navigate').and.callThrough();
     fixture.detectChanges();
 
     expect(packageInteractionService.searchPeriod).toBe(InitialSearchPeriod.value);
 
     // navigate should have been called with the correct query param
-    const navigateActualParams = spy.calls.mostRecent().args[1];
+    const navigateActualParams = routerSpy.calls.mostRecent().args[1];
     expect(navigateActualParams.queryParams[queryParamName]).toBe(InitialSearchPeriod.value);
   });
 
   it('should use the existing query param if present', () => {
-    const spy = spyOn(router, 'navigate').and.callThrough();
-
     const expectedPeriod = 3;
 
     activatedRoute.testParamMap = { months: 3 };
+
+    // Re-create the component here so we have the overriten ActivatedRoute
+    fixture = TestBed.createComponent(SearchPeriodComponent);
+    component = fixture.componentInstance;
+
     fixture.detectChanges();
 
     expect(packageInteractionService.searchPeriod).toBe(expectedPeriod);
 
     // navigate should have been called with the correct query param
-    const navigateActualParams = spy.calls.mostRecent().args[1];
+    const navigateActualParams = routerSpy.calls.mostRecent().args[1];
     expect(navigateActualParams.queryParams[queryParamName]).toBe(expectedPeriod);
   });
 
   it('should fire events and change url when period is changed', () => {
     spyOn(packageInteractionService, 'changeSearchPeriod').and.callThrough();
-    const spy = spyOn(router, 'navigate').and.callThrough();
     fixture.detectChanges();
 
     // should start with initial value
@@ -93,7 +96,7 @@ describe('SearchPeriodComponent', () => {
     expect(packageInteractionService.changeSearchPeriod).toHaveBeenCalledWith(expectedChangedPeriod);
     expect(packageInteractionService.searchPeriod).toBe(expectedChangedPeriod);
 
-    const navigateActualParams = spy.calls.mostRecent().args[1];
+    const navigateActualParams = routerSpy.calls.mostRecent().args[1];
     expect(navigateActualParams.queryParams[queryParamName]).toBe(expectedChangedPeriod);
   });
 

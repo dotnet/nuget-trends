@@ -13,7 +13,7 @@ import { SharedModule } from './shared/shared.module';
 import { HomeModule } from './home/home.module';
 import { CoreModule } from './core/core.module';
 
-init({dsn: environment.SENTRY_DSN});
+init({dsn: environment.SENTRY_DSN, environment: environment.name});
 
 @Injectable()
 export class SentryErrorHandler extends ErrorHandler {
