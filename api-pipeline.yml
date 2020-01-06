@@ -31,7 +31,12 @@ pool:
 
 steps:
 
-- checkout: self  # self represents the repo where the initial Pipelines YAML file was found
+- bash: |
+    mkdir ~/.ssh
+    chmod 700 ~/.ssh
+    ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
+
+- checkout: self
   submodules: true
 
 # - script: |
