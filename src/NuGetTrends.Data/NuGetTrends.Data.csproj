@@ -14,10 +14,4 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="3.1.0"/>
   </ItemGroup>
 
-  <ItemGroup>
-    <Compile Remove="Migrations\20180819193931_Init.cs"/>
-    <Compile Remove="Migrations\20180819193931_Init.Designer.cs"/>
-    <Compile Remove="Migrations\NuGetTrendsContextModelSnapshot.cs"/>
-  </ItemGroup>
-
 </Project>
