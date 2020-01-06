@@ -6,10 +6,13 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using NuGetTrends.Data;
 using Swashbuckle.AspNetCore.SwaggerUI;
 using Microsoft.OpenApi.Models;
+using Redirectr;
+using Redirectr.Npgsql;
 
 namespace NuGetTrends.Api
 {
@@ -65,6 +68,11 @@ namespace NuGetTrends.Api
             });
 
             services.AddRedirectr();
+            services.Replace(ServiceDescriptor.Singleton<IRedirectrStore, NpgsqlRedirectrStore>());
+            services.AddSingleton(c => new NpgsqlRedirectrOptions
+            {
+                ConnectionString = c.GetRequiredService<IConfiguration>().GetConnectionString("NuGetTrends")
+            });
         }
 
         public void Configure(IApplicationBuilder app)
