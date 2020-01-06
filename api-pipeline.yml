@@ -31,6 +31,10 @@ pool:
 
 steps:
 
+- script: |
+   git submodule update --init
+  displayName: 'Init submodules'
+
 - task: DotNetCoreInstaller@0
   displayName: 'Use .NET Core sdk 3.1.100'
   inputs:
