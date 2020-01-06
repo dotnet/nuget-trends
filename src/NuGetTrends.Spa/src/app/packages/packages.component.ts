@@ -64,27 +64,17 @@ export class PackagesComponent implements OnInit, OnDestroy {
     }
   }
 
-  public async generateScreenshot(): Promise<void> {
-    const chartArea = document.querySelector('#chartz') as HTMLElement;
+  public async generateShareMessage(): Promise<void> {
+    try {
+      const screenshotData = await this.prepareScreenshotData();
+      const imgLink = await this.socialShareService.uploadScreenshotToImgUr(screenshotData);
+      const currentUrlLink = await this.socialShareService.getShortLink(window.location.href);
 
-    const options = {
-      backgroundColor: '#EFF0EB'
-    };
+      console.log(imgLink);
+      console.log(currentUrlLink);
+    } catch (error) {
 
-    const canvas = await html2canvas(chartArea, options);
-    let data = canvas.toDataURL();
-    data = data.replace('data:image/png;base64,', '');
-
-    const formData = new FormData();
-    formData.append('image', data);
-    formData.append('title', this.generateImgShareText());
-    formData.append('description', 'Check what\'s trending on NuGet Trends!');
-    formData.append('type', 'base64');
-
-    const imgLink = await this.socialShareService.uploadScreenshotToImgUr(formData);
-
-    // TODO: Shorten the link and build share message
-    console.log(imgLink);
+    }
   }
 
   /**
@@ -293,6 +283,26 @@ export class PackagesComponent implements OnInit, OnDestroy {
       queryParams,
       queryParamsHandling: 'merge'
     });
+  }
+
+  private async prepareScreenshotData(): Promise<FormData> {
+    const chartArea = document.querySelector('#chartz') as HTMLElement;
+
+    const options = {
+      backgroundColor: '#EFF0EB'
+    };
+
+    const canvas = await html2canvas(chartArea, options);
+    let data = canvas.toDataURL();
+    data = data.replace('data:image/png;base64,', '');
+
+    const formData = new FormData();
+    formData.append('image', data);
+    formData.append('title', this.generateImgShareText());
+    formData.append('description', 'Check what\'s trending on NuGet Trends!');
+    formData.append('type', 'base64');
+
+    return formData;
   }
 
   private generateImgShareText(): string {
