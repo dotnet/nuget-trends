@@ -6,8 +6,11 @@ import { ActivatedRoute, Params, Router } from '@angular/router';
 import { AppAnimations } from '../shared';
 import { ToastrService } from 'ngx-toastr';
 
+import html2canvas from 'html2canvas';
+
 import { PackagesService, PackageInteractionService } from '../core';
 import { IPackageDownloadHistory, IDownloadStats } from '../shared/models/package-models';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 
 @Component({
   selector: 'app-dashboard',
@@ -27,6 +30,7 @@ export class PackagesComponent implements OnInit, OnDestroy {
   private urlParamName = 'ids';
 
   constructor(
+    private http: HttpClient,
     private packagesService: PackagesService,
     private route: Router,
     private activatedRoute: ActivatedRoute,
@@ -58,6 +62,35 @@ export class PackagesComponent implements OnInit, OnDestroy {
     if (this.trendChart) {
       this.trendChart.destroy();
     }
+  }
+
+  public async generateScreenshot(): Promise<void> {
+    const chartArea = document.querySelector('#chartz') as HTMLElement;
+
+    const options = {
+      backgroundColor: '#EFF0EB'
+    };
+
+    const canvas = await html2canvas(chartArea, options);
+    let data = canvas.toDataURL();
+    data = data.replace('data:image/png;base64,', '');
+
+    const formData = new FormData();
+    formData.append('image', data);
+    formData.append('title', this.generateImgShareText());
+    formData.append('description', 'Check what\'s trending on NuGet Trends!');
+    formData.append('type', 'base64');
+
+    const httpOptions = {
+      headers: new HttpHeaders({
+        Accept: 'application/json',
+        Authorization: 'Client-ID 734b61deda01da9' // TODO: Create a proper ID under some email?
+      })
+    };
+
+    this.http.post('https://api.imgur.com/3/image', formData, httpOptions).subscribe(response => {
+      console.log(response);
+    });
   }
 
   /**
@@ -268,4 +301,26 @@ export class PackagesComponent implements OnInit, OnDestroy {
     });
   }
 
+  private generateImgShareText(): string {
+    const packageIds = this.activatedRoute.snapshot.queryParamMap.getAll(this.urlParamName);
+
+    if (!packageIds || !packageIds.length) {
+      return 'NuGet Trends';
+    }
+
+    let screenshotTitle = '';
+
+    if (packageIds.length === 1) {
+      screenshotTitle = `See what's trending for: ${packageIds[0]}`;
+    } else {
+      packageIds.forEach((packageId: string, i: number) => {
+        if (i === 0) {
+          screenshotTitle += packageId;
+        } else {
+          screenshotTitle += ` vs ${packageId}`;
+        }
+      });
+    }
+    return screenshotTitle;
+  }
 }

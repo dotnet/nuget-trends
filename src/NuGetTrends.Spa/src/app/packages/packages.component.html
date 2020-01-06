@@ -1,7 +1,8 @@
-<div [@slideInOut]>
+<div [@slideInOut] id="chartz">
   <section class="section">
     <div class="columns is-centered">
       <app-package-list></app-package-list>
+      <input type="button" (click)="generateScreenshot()" value="take screenshot" />
     </div>
   </section>
   <div class="columns is-vcentered is-centered">
