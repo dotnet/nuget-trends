@@ -54,7 +54,7 @@ export class SocialShareService {
    * @param link The link to be shortened
    */
   async getShortLink(link: string): Promise<string> {
-    const params = new HttpParams().set('url', link);
+    const params = new HttpParams().set('url', encodeURIComponent(link));
 
     const response: any = await this.httpClient
       .put(`${this.baseUrl}/shorten`, null, { params, observe: 'response' })
