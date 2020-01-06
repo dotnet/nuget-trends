@@ -36,9 +36,9 @@ SELECT AVG(COALESCE(d.download_count, NULL)) AS download_count,
             var monthsParam = new NpgsqlParameter("@months", months);
 
             return context
-                .Query<DailyDownloadResult>()
+                .Set<DailyDownloadResult>()
                 // ReSharper disable FormatStringProblem - Drunk ReSharper
-                .FromSql(sql, packageIdParam, monthsParam)
+                .FromSqlRaw(sql, packageIdParam, monthsParam)
                 // ReSharper restore FormatStringProblem
                 .ToListAsync();
         }
