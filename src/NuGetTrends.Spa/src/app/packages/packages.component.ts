@@ -10,7 +10,7 @@ import html2canvas from 'html2canvas';
 
 import { PackagesService, PackageInteractionService } from '../core';
 import { IPackageDownloadHistory, IDownloadStats } from '../shared/models/package-models';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { SocialShareService } from '../core/services/social-share.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -30,13 +30,13 @@ export class PackagesComponent implements OnInit, OnDestroy {
   private urlParamName = 'ids';
 
   constructor(
-    private http: HttpClient,
     private packagesService: PackagesService,
     private route: Router,
     private activatedRoute: ActivatedRoute,
     private packageInteractionService: PackageInteractionService,
     private datePipe: DatePipe,
     private toastr: ToastrService,
+    private socialShareService: SocialShareService,
     private errorHandler: ErrorHandler) {
 
     this.plotPackageSubscription = this.packageInteractionService.packagePlotted$.subscribe(
@@ -81,16 +81,10 @@ export class PackagesComponent implements OnInit, OnDestroy {
     formData.append('description', 'Check what\'s trending on NuGet Trends!');
     formData.append('type', 'base64');
 
-    const httpOptions = {
-      headers: new HttpHeaders({
-        Accept: 'application/json',
-        Authorization: 'Client-ID 734b61deda01da9' // TODO: Create a proper ID under some email?
-      })
-    };
+    const imgLink = await this.socialShareService.uploadScreenshotToImgUr(formData);
 
-    this.http.post('https://api.imgur.com/3/image', formData, httpOptions).subscribe(response => {
-      console.log(response);
-    });
+    // TODO: Shorten the link and build share message
+    console.log(imgLink);
   }
 
   /**
