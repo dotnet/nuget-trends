@@ -1,13 +1,13 @@
 import { Injectable, ErrorHandler } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
-
 
 @Injectable({
   providedIn: 'root'
 })
 export class SocialShareService {
 
+  private baseUrl = `${environment.API_URL}`;
   private headers = new HttpHeaders({
     Accept: 'application/json',
     Authorization: `Client-ID ${environment.IMGUR_CLIENTID}`
@@ -29,14 +29,15 @@ export class SocialShareService {
 
       if (this.imgurClientRemainingQuota <= this.imgurDailyUploadQuota) {
         const response: any = await this.httpClient
-          .post('https://api.imgur.com/3/image', formData, {headers: this.headers, observe: 'response'})
+          .post('https://api.imgur.com/3/image', formData, { headers: this.headers, observe: 'response' })
           .toPromise();
 
         this.imgurClientRemainingQuota = +response.headers.get('X-RateLimit-ClientRemaining');
 
         // This creates the imgur url so the image is shown in a page which
         // has all the shares meta tags. Useful for Twitter cards
-        return `https://imgur.com/${response.body.data.id}`;
+        const imgurLink = `https://imgur.com/${response.body.data.id}`;
+        return await this.getShortLink(imgurLink);
       }
       return Promise.resolve(null);
 
@@ -46,5 +47,20 @@ export class SocialShareService {
       this.errorHandler.handleError(error);
       return null;
     }
+  }
+
+  /**
+   * Fetch a shortened version of the link
+   * @param link The link to be shortened
+   */
+  async getShortLink(link: string): Promise<string> {
+    const params = new HttpParams().set('url', link);
+
+    const response: any = await this.httpClient
+      .put(`${this.baseUrl}/shorten`, null, { params, observe: 'response' })
+      .toPromise();
+
+    // Location header contain the shortened link.
+    return response.headers.get('location');
   }
 }
