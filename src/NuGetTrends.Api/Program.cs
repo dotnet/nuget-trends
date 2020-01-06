@@ -3,7 +3,7 @@ using System.IO;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
-using Redirectr;
+using Shortr;
 using Serilog;
 using SystemEnvironment = System.Environment;
 using Sentry;

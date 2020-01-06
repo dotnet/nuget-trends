@@ -11,8 +11,8 @@ using Microsoft.Extensions.Hosting;
 using NuGetTrends.Data;
 using Swashbuckle.AspNetCore.SwaggerUI;
 using Microsoft.OpenApi.Models;
-using Redirectr;
-using Redirectr.Npgsql;
+using Shortr;
+using Shortr.Npgsql;
 
 namespace NuGetTrends.Api
 {
@@ -67,9 +67,9 @@ namespace NuGetTrends.Api
                 c.IncludeXmlComments(xmlPath);
             });
 
-            services.AddRedirectr();
-            services.Replace(ServiceDescriptor.Singleton<IRedirectrStore, NpgsqlRedirectrStore>());
-            services.AddSingleton(c => new NpgsqlRedirectrOptions
+            services.AddShortr();
+            services.Replace(ServiceDescriptor.Singleton<IShortrStore, NpgsqlShortrStore>());
+            services.AddSingleton(c => new NpgsqlShortrOptions
             {
                 ConnectionString = c.GetRequiredService<IConfiguration>().GetConnectionString("NuGetTrends")
             });
@@ -96,7 +96,7 @@ namespace NuGetTrends.Api
             app.UseEndpoints(endpoints => {
                 endpoints.MapControllers();
             });
-            app.UseRedirectr();
+            app.UseShortr();
         }
     }
 }
