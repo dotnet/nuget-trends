@@ -52,43 +52,71 @@ namespace NuGetTrends.Scheduler
 
             for (var i = 0; i < _options.WorkerCount; i++)
             {
-                _workers.Add(Task.Run(() =>
+                _workers.Add(Task.Run(async () =>
                 {
-                    var connection = _connectionFactory.CreateConnection();
-                    var channel = connection.CreateModel();
-                    _connections.Add((channel, connection));
-
-                    const string queueName = "daily-download";
-                    var queueDeclareOk = channel.QueueDeclare(
-                        queue: queueName,
-                        durable: true,
-                        exclusive: false,
-                        autoDelete: false,
-                        arguments: null);
-
-                    _logger.LogDebug("Queue creation OK with {QueueName}, {ConsumerCount}, {MessageCount}",
-                        queueDeclareOk.QueueName, queueDeclareOk.ConsumerCount, queueDeclareOk.MessageCount);
-
-                    var consumer = new AsyncEventingBasicConsumer(channel);
-
-                    consumer.Received += OnConsumerOnReceived;
-
-                    channel.BasicConsume(
-                        queue: queueName,
-                        autoAck: false,
-                        consumer: consumer);
-
-                    var defaultConsumer = new EventingBasicConsumer(channel);
-
-                    defaultConsumer.Received += (s, e) =>
+                    // Poor man's Polly
+                    const int maxAttempts = 3;
+                    for (var attempt = 1; attempt <= maxAttempts; attempt++)
                     {
-                        _logger.LogWarning("DefaultConsumer fired: {message}", Convert.ToBase64String(e.Body));
-                    };
+                        try
+                        {
+                            Connect();
+                            break;
+                        }
+                        catch (Exception e)
+                        {
+                            if (attempt == maxAttempts)
+                            {
+                                _logger.LogCritical(e, "Couldn't connect to the broker. Attempts: {attempts}", attempt);
+                                throw;
+                            }
 
-                    channel.DefaultConsumer = defaultConsumer;
+                            var waitMs = attempt * 10000;
+                            _logger.LogInformation(e,
+                                "Failed to connect to the broker. Waiting for {waitMs} milliseconds. Attempt {attempts}",
+                                waitMs, attempt);
+                            await Task.Delay(waitMs, cancellationToken);
+                        }
+                    }
                 }, _cancellationTokenSource.Token));
             }
             return Task.CompletedTask;
+        }
+
+        private void Connect()
+        {
+            var connection = _connectionFactory.CreateConnection();
+            var channel = connection.CreateModel();
+            _connections.Add((channel, connection));
+
+            const string queueName = "daily-download";
+            var queueDeclareOk = channel.QueueDeclare(
+                queue: queueName,
+                durable: true,
+                exclusive: false,
+                autoDelete: false,
+                arguments: null);
+
+            _logger.LogDebug("Queue creation OK with {QueueName}, {ConsumerCount}, {MessageCount}",
+                queueDeclareOk.QueueName, queueDeclareOk.ConsumerCount, queueDeclareOk.MessageCount);
+
+            var consumer = new AsyncEventingBasicConsumer(channel);
+
+            consumer.Received += OnConsumerOnReceived;
+
+            channel.BasicConsume(
+                queue: queueName,
+                autoAck: false,
+                consumer: consumer);
+
+            var defaultConsumer = new EventingBasicConsumer(channel);
+
+            defaultConsumer.Received += (s, e) =>
+            {
+                _logger.LogWarning("DefaultConsumer fired: {message}", Convert.ToBase64String(e.Body));
+            };
+
+            channel.DefaultConsumer = defaultConsumer;
         }
 
         private async Task OnConsumerOnReceived(object sender, BasicDeliverEventArgs ea)
@@ -215,7 +243,8 @@ namespace NuGetTrends.Scheduler
 
             if (package.Count == 0)
             {
-                _logger.LogError("Package with Id {packageId} not found!.", packageId);
+                // This happens a lot.
+                _logger.LogInformation("Package with Id {packageId} not found!.", packageId);
                 return;
             }
 

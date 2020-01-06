@@ -70,6 +70,7 @@ namespace NuGetTrends.Scheduler
                                    "Microsoft.EntityFrameworkCore.Model.Validation",
                                    StringComparison.Ordinal));
                             o.AddInAppExclude("Npgsql");
+                            o.AddInAppExclude("RabbitMQ");
                             o.AddInAppExclude("Serilog");
                         })
                         .UseStartup<Startup>();

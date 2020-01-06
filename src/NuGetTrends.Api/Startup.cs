@@ -41,7 +41,6 @@ namespace NuGetTrends.Api
                                 .AllowAnyOrigin()
                                 .AllowAnyMethod()
                                 .AllowAnyHeader()
-                                .AllowCredentials()
                                 .SetPreflightMaxAge(TimeSpan.FromDays(1));
                         });
                 });
