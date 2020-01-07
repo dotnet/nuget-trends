@@ -31,11 +31,6 @@ pool:
 
 steps:
 
-- bash: |
-    mkdir ~/.ssh
-    chmod 700 ~/.ssh
-    ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
-
 - checkout: self
   submodules: true
 
