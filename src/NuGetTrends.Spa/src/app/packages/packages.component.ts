@@ -6,8 +6,6 @@ import { ActivatedRoute, Params, Router } from '@angular/router';
 import { AppAnimations } from '../shared';
 import { ToastrService } from 'ngx-toastr';
 
-import html2canvas from 'html2canvas';
-
 import { PackagesService, PackageInteractionService } from '../core';
 import { IPackageDownloadHistory, IDownloadStats } from '../shared/models/package-models';
 import { SocialShareService } from '../core/services/social-share.service';
@@ -64,16 +62,13 @@ export class PackagesComponent implements OnInit, OnDestroy {
     }
   }
 
-  public async generateShareMessage(): Promise<void> {
+  public async onShared(): Promise<void> {
     try {
-      const screenshotData = await this.prepareScreenshotData();
-      const imgLink = await this.socialShareService.uploadScreenshotToImgUr(screenshotData);
-      const currentUrlLink = await this.socialShareService.getShortLink(window.location.href);
-
-      console.log(imgLink);
-      console.log(currentUrlLink);
+      const shortLink = await this.socialShareService.getShortLink(window.location.href);
+      this.socialShareService.shareChart(shortLink);
     } catch (error) {
-
+      this.errorHandler.handleError(error);
+      this.toastr.error('Couldn\'t. share this awesome chart. Maybe try again?');
     }
   }
 
@@ -283,48 +278,5 @@ export class PackagesComponent implements OnInit, OnDestroy {
       queryParams,
       queryParamsHandling: 'merge'
     });
-  }
-
-  private async prepareScreenshotData(): Promise<FormData> {
-    const chartArea = document.querySelector('#chartz') as HTMLElement;
-
-    const options = {
-      backgroundColor: '#EFF0EB'
-    };
-
-    const canvas = await html2canvas(chartArea, options);
-    let data = canvas.toDataURL();
-    data = data.replace('data:image/png;base64,', '');
-
-    const formData = new FormData();
-    formData.append('image', data);
-    formData.append('title', this.generateImgShareText());
-    formData.append('description', 'Check what\'s trending on NuGet Trends!');
-    formData.append('type', 'base64');
-
-    return formData;
-  }
-
-  private generateImgShareText(): string {
-    const packageIds = this.activatedRoute.snapshot.queryParamMap.getAll(this.urlParamName);
-
-    if (!packageIds || !packageIds.length) {
-      return 'NuGet Trends';
-    }
-
-    let screenshotTitle = '';
-
-    if (packageIds.length === 1) {
-      screenshotTitle = `See what's trending for: ${packageIds[0]}`;
-    } else {
-      packageIds.forEach((packageId: string, i: number) => {
-        if (i === 0) {
-          screenshotTitle += packageId;
-        } else {
-          screenshotTitle += ` vs ${packageId}`;
-        }
-      });
-    }
-    return screenshotTitle;
   }
 }

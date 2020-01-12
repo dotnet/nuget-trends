@@ -25,6 +25,14 @@
   display: inline-block;
 }
 
+.share-box {
+  margin-bottom: 0.5rem;
+}
+
+.share-section {
+  padding: 0.5rem 0
+}
+
 .popover .popover-content {
   z-index: 99999;
   position: absolute;
@@ -134,11 +142,6 @@
   -webkit-transform: rotate(-135deg);
           transform: rotate(-135deg);
 }
-
-// .popover.is-popover-active .popover-content, .popover:hover .popover-content {
-//   opacity: 1;
-//   visibility: visible;
-// }
 
 .popover .popover-trigger ~ .popover-content {
   opacity: 1;

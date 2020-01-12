@@ -29,7 +29,6 @@
     "bulma-start": "0.0.3",
     "chart.js": "^2.9.3",
     "font-awesome": "^4.7.0",
-    "html2canvas": "^1.0.0-rc.5",
     "ngx-toastr": "^11.2.1",
     "rxjs": "^6.5.4",
     "zone.js": "~0.9.1"

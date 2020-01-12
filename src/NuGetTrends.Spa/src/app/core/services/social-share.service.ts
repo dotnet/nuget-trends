@@ -1,5 +1,7 @@
 import { Injectable, ErrorHandler } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
+import { Subject } from 'rxjs';
+
 import { environment } from '../../../environments/environment';
 
 @Injectable({
@@ -10,13 +12,24 @@ export class SocialShareService {
   private baseUrl = `${environment.API_URL}`;
   private headers = new HttpHeaders({
     Accept: 'application/json',
-    Authorization: `Client-ID ${environment.IMGUR_CLIENTID}`
+    Authorization: `Client-ID -`
   });
 
   private imgurClientRemainingQuota = -1;
   private imgurDailyUploadQuota = 12500;
+  private sharedChartSource = new Subject<string>();
+
+  chartShared$ = this.sharedChartSource.asObservable();
 
   constructor(private httpClient: HttpClient, private errorHandler: ErrorHandler) {
+  }
+
+  /**
+   * Emits the event containing the social media share contents
+   * @param shareMessage The message containing the message and shareable link
+   */
+  shareChart(message: string): void {
+    this.sharedChartSource.next(message);
   }
 
   /**

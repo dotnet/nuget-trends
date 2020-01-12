@@ -2,18 +2,17 @@
   <section class="section">
     <div class="columns is-centered">
       <app-package-list></app-package-list>
-      <input type="button" (click)="generateShareMessage()" value="take screenshot" />
     </div>
   </section>
-
-  <app-share-popover buttonText="Click Me"></app-share-popover>
-
   <div class="columns is-vcentered is-centered">
     <div class="column has-text-right has-text-centered-mobile is-narrow">
       <label for="period" class="title is-5">Showing results for the last: </label>
     </div>
     <div class="column has-text-centered-mobile is-narrow">
       <app-search-period></app-search-period>
+    </div>
+    <div class="column has-text-centered-mobile is-narrow">
+      <app-share-popover buttonText="Share" (shared)="onShared()">></app-share-popover>
     </div>
   </div>
   <section class="section chart-section">
