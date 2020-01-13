@@ -16,10 +16,10 @@
     </section>
     <div class="field has-addons share-box">
       <p class="control is-expanded">
-        <input class="input is-small" [(ngModel)]="shareText" type="text" placeholder="Your email">
+        <input class="input is-small" [(ngModel)]="shareText" type="text">
       </p>
       <p class="control">
-        <a class="button has-background-light is-small fa fa-clipboard fa-lg"></a>
+        <a class="button has-background-light is-small fa fa-clipboard fa-lg" (click)="copyToClipboard()"></a>
       </p>
     </div>
   </div>

@@ -47,9 +47,19 @@ export class SharePopoverComponent implements OnInit, OnDestroy {
     }
   }
 
-  toggle() {
+  toggle(): void {
     if (!this.isActive) {
       this.shared.emit();
     }
+  }
+
+  copyToClipboard(): void {
+    const body = document.getElementsByTagName('body')[0];
+    const tempInput = document.createElement('INPUT') as HTMLInputElement;
+    body.appendChild(tempInput);
+    tempInput.setAttribute('value', this.shareText);
+    tempInput.select();
+    document.execCommand('copy');
+    body.removeChild(tempInput);
   }
 }
