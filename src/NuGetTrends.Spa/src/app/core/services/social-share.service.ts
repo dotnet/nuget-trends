@@ -19,8 +19,6 @@ export class SocialShareService {
   private imgurDailyUploadQuota = 12500;
   private sharedChartSource = new Subject<string>();
 
-  chartShared$ = this.sharedChartSource.asObservable();
-
   constructor(private httpClient: HttpClient, private errorHandler: ErrorHandler) {
   }
 

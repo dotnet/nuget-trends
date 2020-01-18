@@ -8,7 +8,6 @@ import { ToastrService } from 'ngx-toastr';
 
 import { PackagesService, PackageInteractionService } from '../core';
 import { IPackageDownloadHistory, IDownloadStats } from '../shared/models/package-models';
-import { SocialShareService } from '../core/services/social-share.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -34,7 +33,6 @@ export class PackagesComponent implements OnInit, OnDestroy {
     private packageInteractionService: PackageInteractionService,
     private datePipe: DatePipe,
     private toastr: ToastrService,
-    private socialShareService: SocialShareService,
     private errorHandler: ErrorHandler) {
 
     this.plotPackageSubscription = this.packageInteractionService.packagePlotted$.subscribe(
@@ -59,16 +57,6 @@ export class PackagesComponent implements OnInit, OnDestroy {
 
     if (this.trendChart) {
       this.trendChart.destroy();
-    }
-  }
-
-  public async onShared(): Promise<void> {
-    try {
-      const shortLink = await this.socialShareService.getShortLink(window.location.href);
-      this.socialShareService.shareChart(shortLink);
-    } catch (error) {
-      this.errorHandler.handleError(error);
-      this.toastr.error('Couldn\'t. share this awesome chart. Maybe try again?');
     }
   }
 

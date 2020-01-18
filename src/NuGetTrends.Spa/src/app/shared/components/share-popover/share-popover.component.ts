@@ -1,35 +1,25 @@
-import { Component, OnInit, Input, ElementRef, HostListener, EventEmitter, Output, OnDestroy } from '@angular/core';
+import { Component, Input, ElementRef, HostListener, EventEmitter, Output, ErrorHandler } from '@angular/core';
+import { ToastrService } from 'ngx-toastr';
 
 import { SocialShareService } from 'src/app/core/services/social-share.service';
-import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-share-popover',
   templateUrl: './share-popover.component.html',
   styleUrls: ['./share-popover.component.scss']
 })
-export class SharePopoverComponent implements OnInit, OnDestroy {
+export class SharePopoverComponent {
   @Input() buttonText: string;
   @Output() shared = new EventEmitter();
 
-  shareText = 'I\'\m sharing..';
+  shareShortLink: string;
   isActive = false;
-  private shareSubscription: Subscription;
 
-
-  constructor(private eRef: ElementRef, private socialShareService: SocialShareService) { }
-
-  ngOnInit() {
-    this.shareSubscription = this.socialShareService.chartShared$.subscribe((message: string) => {
-      this.shareText = message;
-    });
-  }
-
-  ngOnDestroy(): void {
-    if (this.shareSubscription) {
-      this.shareSubscription.unsubscribe();
-    }
-  }
+  constructor(
+    private eRef: ElementRef,
+    private socialShareService: SocialShareService,
+    private toastr: ToastrService,
+    private errorHandler: ErrorHandler) { }
 
   @HostListener('document:click', ['$event'])
   clickout(event: any) {
@@ -47,9 +37,15 @@ export class SharePopoverComponent implements OnInit, OnDestroy {
     }
   }
 
-  toggle(): void {
-    if (!this.isActive) {
-      this.shared.emit();
+  async toggle(): Promise<void> {
+    if (this.isActive) {
+      return;
+    }
+    try {
+      this.shareShortLink = await this.socialShareService.getShortLink(window.location.href);
+    } catch (error) {
+      this.errorHandler.handleError(error);
+      this.toastr.error('Couldn\'t. share this awesome chart. Maybe try again?');
     }
   }
 
@@ -57,7 +53,7 @@ export class SharePopoverComponent implements OnInit, OnDestroy {
     const body = document.getElementsByTagName('body')[0];
     const tempInput = document.createElement('INPUT') as HTMLInputElement;
     body.appendChild(tempInput);
-    tempInput.setAttribute('value', this.shareText);
+    tempInput.setAttribute('value', this.shareShortLink);
     tempInput.select();
     document.execCommand('copy');
     body.removeChild(tempInput);
