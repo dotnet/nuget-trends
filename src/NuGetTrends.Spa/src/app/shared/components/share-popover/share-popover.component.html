@@ -17,7 +17,7 @@
     </section>
     <div class="field has-addons share-box">
       <p class="control is-expanded">
-        <input class="input is-small" [(ngModel)]="shareShortLink" type="text">
+        <input class="input is-small" [(ngModel)]="shareShortLink" [ngModelOptions]="{standalone: true}" type="text">
       </p>
       <p class="control">
         <a class="button has-background-light is-small fa fa-clipboard fa-lg" (click)="copyToClipboard()"></a>
