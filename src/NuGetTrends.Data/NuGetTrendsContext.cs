@@ -8,7 +8,7 @@ namespace NuGetTrends.Data
     {
         public string PackageId { get; set; } = null!;
         public string PackageIdLowered { get; set; } = null!;
-        public long LatestDownloadCount { get; set; } = -1;
+        public long? LatestDownloadCount { get; set; }
         public DateTime LatestDownloadCountCheckedUtc { get; set; }
         public string? IconUrl { get; set; }
     }
