@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Net.Http;
 using System.Threading;
@@ -27,10 +28,26 @@ namespace NuGet.Protocol.Catalog
         }
 
         public Task<CatalogIndex> GetIndexAsync(string indexUrl, CancellationToken token)
-            => DeserializeUrlAsync<CatalogIndex>(indexUrl, token);
+        {
+            var index = DeserializeUrlAsync<CatalogIndex>(indexUrl, token);
+            if (index is null)
+            {
+                throw new InvalidOperationException($"Url {indexUrl} didn't return a CatalogIndex.");
+            }
+
+            return index!;
+        }
 
         public Task<CatalogPage> GetPageAsync(string pageUrl, CancellationToken token)
-            => DeserializeUrlAsync<CatalogPage>(pageUrl, token);
+        {
+            var page = DeserializeUrlAsync<CatalogPage>(pageUrl, token);
+            if (page is null)
+            {
+                throw new InvalidOperationException($"Url {pageUrl} didn't return a CatalogPage.");
+            }
+
+            return page!;
+        }
 
         public async Task<CatalogLeaf> GetLeafAsync(string leafUrl, CancellationToken token)
         {
@@ -65,12 +82,17 @@ namespace NuGet.Protocol.Catalog
                 _logger.LogInformation("Getting package leaf: {type}, {leafUrl}", type, leafUrl);
                 var leaf = await DeserializeUrlAsync<T>(leafUrl, token);
 
+                if (leaf is null)
+                {
+                    throw new InvalidOperationException("Leaf URL: {leafUrl} didn't return a valid leaf object.");
+                }
+
                 if (leaf.Type != type)
                 {
                     _logger.LogError("The leaf type found in the document does not match the expected '{type}' type.", type);
                 }
 
-                return leaf;
+                return leaf!;
             }
         }
 
@@ -89,7 +111,8 @@ namespace NuGet.Protocol.Catalog
             return result;
         }
 
-        private async Task<T> DeserializeUrlAsync<T>(string documentUrl, CancellationToken token)
+        private async Task<T?> DeserializeUrlAsync<T>(string documentUrl, CancellationToken token)
+            where T : class
         {
             _logger.LogDebug("Downloading {documentUrl} as a stream.", documentUrl);
 
@@ -99,7 +122,7 @@ namespace NuGet.Protocol.Catalog
             using var jsonReader = new JsonTextReader(textReader);
             try
             {
-                return JsonSerializer.Deserialize<T>(jsonReader);
+                return JsonSerializer.Deserialize<T?>(jsonReader);
             }
             catch (JsonReaderException e)
             {
