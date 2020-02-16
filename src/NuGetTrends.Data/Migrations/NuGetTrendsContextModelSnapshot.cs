@@ -16,8 +16,8 @@ namespace NuGetTrends.Data.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn)
-                .HasAnnotation("ProductVersion", "3.1.1")
+                .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.SerialColumn)
+                .HasAnnotation("ProductVersion", "2.1.1-rtm-30846")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             modelBuilder.Entity("NuGet.Protocol.Catalog.Models.PackageDependency", b =>
@@ -25,8 +25,7 @@ namespace NuGetTrends.Data.Migrations
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnName("id")
-                        .HasColumnType("integer")
-                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                        .HasColumnType("integer");
 
                     b.Property<string>("DependencyId")
                         .HasColumnName("dependency_id")
@@ -56,8 +55,7 @@ namespace NuGetTrends.Data.Migrations
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnName("id")
-                        .HasColumnType("integer")
-                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                        .HasColumnType("integer");
 
                     b.Property<int?>("PackageDetailsCatalogLeafId")
                         .HasColumnName("package_details_catalog_leaf_id")
@@ -81,8 +79,7 @@ namespace NuGetTrends.Data.Migrations
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnName("id")
-                        .HasColumnType("integer")
-                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                        .HasColumnType("integer");
 
                     b.Property<string>("Authors")
                         .HasColumnName("authors")
@@ -104,7 +101,7 @@ namespace NuGetTrends.Data.Migrations
                         .HasColumnName("icon_url")
                         .HasColumnType("text");
 
-                    b.Property<bool?>("IsPrerelease")
+                    b.Property<bool>("IsPrerelease")
                         .HasColumnName("is_prerelease")
                         .HasColumnType("boolean");
 
@@ -169,7 +166,6 @@ namespace NuGetTrends.Data.Migrations
                         .HasColumnType("text");
 
                     b.Property<List<string>>("Tags")
-                        .IsRequired()
                         .HasColumnName("tags")
                         .HasColumnType("text[]");
 
@@ -199,6 +195,7 @@ namespace NuGetTrends.Data.Migrations
             modelBuilder.Entity("NuGetTrends.Data.Cursor", b =>
                 {
                     b.Property<string>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnName("id")
                         .HasColumnType("text");
 
@@ -238,22 +235,10 @@ namespace NuGetTrends.Data.Migrations
                     b.ToTable("daily_downloads");
                 });
 
-            modelBuilder.Entity("NuGetTrends.Data.DailyDownloadResult", b =>
-                {
-                    b.Property<long?>("Count")
-                        .HasColumnName("download_count")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime>("Week")
-                        .HasColumnName("week")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.ToTable("daily_download_result");
-                });
-
             modelBuilder.Entity("NuGetTrends.Data.PackageDownload", b =>
                 {
                     b.Property<string>("PackageId")
+                        .ValueGeneratedOnAdd()
                         .HasColumnName("package_id")
                         .HasColumnType("text");
 
@@ -287,7 +272,7 @@ namespace NuGetTrends.Data.Migrations
                     b.HasOne("NuGet.Protocol.Catalog.Models.PackageDependencyGroup", null)
                         .WithMany("Dependencies")
                         .HasForeignKey("PackageDependencyGroupId")
-                        .HasConstraintName("fk_package_dependency_package_dependency_group_package_dependenc")
+                        .HasConstraintName("fk_package_dependency_package_dependency_group_package_dependenc~")
                         .OnDelete(DeleteBehavior.Cascade);
                 });
 
@@ -296,7 +281,7 @@ namespace NuGetTrends.Data.Migrations
                     b.HasOne("NuGet.Protocol.Catalog.Models.PackageDetailsCatalogLeaf", null)
                         .WithMany("DependencyGroups")
                         .HasForeignKey("PackageDetailsCatalogLeafId")
-                        .HasConstraintName("fk_package_dependency_group_package_details_catalog_leafs_package")
+                        .HasConstraintName("fk_package_dependency_group_package_details_catalog_leafs_package~")
                         .OnDelete(DeleteBehavior.Cascade);
                 });
 #pragma warning restore 612, 618
