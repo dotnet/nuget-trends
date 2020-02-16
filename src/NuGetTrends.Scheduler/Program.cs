@@ -72,6 +72,7 @@ namespace NuGetTrends.Scheduler
                             o.AddInAppExclude("Npgsql");
                             o.AddInAppExclude("RabbitMQ");
                             o.AddInAppExclude("Serilog");
+                            o.AddInAppExclude("Hangfire");
                         })
                         .UseStartup<Startup>();
                 });

@@ -57,7 +57,6 @@ namespace NuGetTrends.Scheduler
             });
 
             services
-                .AddEntityFrameworkNpgsql()
                 .AddDbContext<NuGetTrendsContext>(options =>
                 {
                     options.UseNpgsql(_configuration.GetConnectionString("NuGetTrends"));
