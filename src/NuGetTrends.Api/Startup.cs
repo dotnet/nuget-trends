@@ -49,7 +49,6 @@ namespace NuGetTrends.Api
             }
 
             services
-                .AddEntityFrameworkNpgsql()
                 .AddDbContext<NuGetTrendsContext>(options =>
                 {
                     options.UseNpgsql(Configuration.GetConnectionString("NuGetTrends"));
