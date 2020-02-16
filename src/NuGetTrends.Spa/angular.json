@@ -25,6 +25,7 @@
             "styles": [
               "node_modules/bulma/css/bulma.min.css",
               "node_modules/ngx-toastr/toastr.css",
+              "node_modules/font-awesome/css/font-awesome.min.css",
               "src/colors.scss",
               "src/styles.scss"
             ],

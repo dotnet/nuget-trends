@@ -267,5 +267,4 @@ export class PackagesComponent implements OnInit, OnDestroy {
       queryParamsHandling: 'merge'
     });
   }
-
 }

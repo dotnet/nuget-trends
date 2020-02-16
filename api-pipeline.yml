@@ -31,10 +31,18 @@ pool:
 
 steps:
 
-- task: DotNetCoreInstaller@0
+- checkout: self
+  submodules: true
+
+# - script: |
+#    git submodule update --init
+#   displayName: 'Init submodules'
+
+- task: UseDotNet@2
   displayName: 'Use .NET Core sdk 3.1.100'
   inputs:
-    version: 3.1.100
+    packageType: 'sdk'
+    version: '3.1.100'
 
 - task: DotNetCoreCLI@1
   displayName: NuGet Restore

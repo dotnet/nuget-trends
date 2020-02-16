@@ -55,10 +55,7 @@ namespace NuGetTrends.Api
             Host.CreateDefaultBuilder(args)
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
-                    webBuilder.ConfigureKestrel(serverOptions =>
-                        {
-                            serverOptions.AddServerHeader = false;
-                        })
+                    webBuilder
                         .UseConfiguration(Configuration)
                         .UseSerilog()
                         .UseSentry(s =>

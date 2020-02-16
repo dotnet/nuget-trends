@@ -127,18 +127,25 @@ namespace NuGet.Protocol.Catalog
 
                 foreach (var task in tasks)
                 {
-                    if (task.Result is PackageDeleteCatalogLeaf del)
+                    try
                     {
-                        await _leafProcessor.ProcessPackageDeleteAsync(del, token);
+                        if (task.Result is PackageDeleteCatalogLeaf del)
+                        {
+                            await _leafProcessor.ProcessPackageDeleteAsync(del, token);
+                        }
+                        else if (task.Result is PackageDetailsCatalogLeaf detail)
+                        {
+                            await _leafProcessor.ProcessPackageDetailsAsync(detail, token);
+                        }
+                        else
+                        {
+                            // Lots of null leafs
+                            _logger.LogInformation("Unsupported leaf type: {type}.", task.Result?.GetType());
+                        }
                     }
-                    else if (task.Result is PackageDetailsCatalogLeaf detail)
+                    catch (Exception e)
                     {
-                        await _leafProcessor.ProcessPackageDetailsAsync(detail, token);
-                    }
-                    else
-                    {
-                        // Lots of null leafs
-                        _logger.LogInformation("Unsupported leaf type: {type}.", task.Result?.GetType());
+                        _logger.LogError(e, "Failed to process {result}.", task.Result);
                     }
                 }
 

@@ -66,7 +66,7 @@ namespace NuGet.Protocol.Catalog.Models
         public string? Summary { get; set; }
 
         [JsonProperty("tags")]
-        public List<string> Tags { get; set; } = new List<string>(0);
+        public List<string>? Tags { get; set; } = new List<string>(0);
 
         [JsonProperty("title")]
         public string? Title { get; set; }

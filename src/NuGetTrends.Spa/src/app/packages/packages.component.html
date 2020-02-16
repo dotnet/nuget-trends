@@ -1,4 +1,4 @@
-<div [@slideInOut]>
+<div [@slideInOut] id="chartz">
   <section class="section">
     <div class="columns is-centered">
       <app-package-list></app-package-list>
@@ -10,6 +10,9 @@
     </div>
     <div class="column has-text-centered-mobile is-narrow">
       <app-search-period></app-search-period>
+    </div>
+    <div class="column has-text-centered-mobile is-narrow">
+      <app-share-popover buttonText="Share"></app-share-popover>
     </div>
   </div>
   <section class="section chart-section">

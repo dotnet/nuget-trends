@@ -6,10 +6,13 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using NuGetTrends.Data;
 using Swashbuckle.AspNetCore.SwaggerUI;
 using Microsoft.OpenApi.Models;
+using Shortr;
+using Shortr.Npgsql;
 
 namespace NuGetTrends.Api
 {
@@ -29,7 +32,6 @@ namespace NuGetTrends.Api
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddControllers();
-
             if (_hostingEnvironment.IsDevelopment())
             {
                 services.AddCors(options =>
@@ -47,7 +49,6 @@ namespace NuGetTrends.Api
             }
 
             services
-                .AddEntityFrameworkNpgsql()
                 .AddDbContext<NuGetTrendsContext>(options =>
                 {
                     options.UseNpgsql(Configuration.GetConnectionString("NuGetTrends"));
@@ -63,6 +64,13 @@ namespace NuGetTrends.Api
                 var xmlFile = Assembly.GetExecutingAssembly().GetName().Name + ".xml";
                 var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
                 c.IncludeXmlComments(xmlPath);
+            });
+
+            services.AddShortr();
+            services.Replace(ServiceDescriptor.Singleton<IShortrStore, NpgsqlShortrStore>());
+            services.AddSingleton(c => new NpgsqlShortrOptions
+            {
+                ConnectionString = c.GetRequiredService<IConfiguration>().GetConnectionString("NuGetTrends")
             });
         }
 
@@ -87,6 +95,7 @@ namespace NuGetTrends.Api
             app.UseEndpoints(endpoints => {
                 endpoints.MapControllers();
             });
+            app.UseShortr();
         }
     }
 }
