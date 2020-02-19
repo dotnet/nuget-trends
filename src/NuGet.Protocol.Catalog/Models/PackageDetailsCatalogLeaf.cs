@@ -30,7 +30,7 @@ namespace NuGet.Protocol.Catalog.Models
         public string? IconUrl { get; set; }
 
         [JsonProperty("isPrerelease")]
-        public bool? IsPrerelease { get; set; }
+        public bool IsPrerelease { get; set; }
 
         [JsonProperty("language")]
         public string? Language { get; set; }
