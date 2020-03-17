@@ -68,3 +68,8 @@ If you just want to quickly build, try just deleting `global.json`.
 
 * [Sentry.io](https://sentry.io) for supporting open source projects like this free of charge.
 * [Logz.io](https://logz.io) for offering a free tier.
+
+## Code of Conduct
+
+This project has adopted the code of conduct defined by the Contributor Covenant to clarify expected behavior in our community.
+For more information see the .NET Foundation Code of Conduct.
