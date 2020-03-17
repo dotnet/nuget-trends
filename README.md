@@ -64,6 +64,16 @@ We lock the .NET SDK version via `global.json` to have a reference version and a
 If you don't have that exact version, usually anything with that major works just fine.
 If you just want to quickly build, try just deleting `global.json`.
 
+## .NET Foundation
+<p align="left">
+  <a href="https://nugettrends.com" target="_blank" align="center">
+    <img src=".github/nuget-trends-spa.tar.svg" width="100">
+  </a>
+  <br />
+</p>
+
+This project is supported by the [.NET Foundation](https://dotnetfoundation.org).
+
 ## Acknowledgments
 
 * [Sentry.io](https://sentry.io) for supporting open source projects like this free of charge.
@@ -72,4 +82,4 @@ If you just want to quickly build, try just deleting `global.json`.
 ## Code of Conduct
 
 This project has adopted the code of conduct defined by the Contributor Covenant to clarify expected behavior in our community.
-For more information see the [.NET Foundation Code of Conduct](htqqtps://dotnetfoundation.org/code-of-conduct).
+For more information see the [.NET Foundation Code of Conduct](https://dotnetfoundation.org/code-of-conduct).
