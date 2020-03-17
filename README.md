@@ -15,6 +15,13 @@
 | NuGet Trends Worker | ![Azure DevOps builds (branch)](https://img.shields.io/azure-devops/build/nugettrends/nuget-trends/5/master) |
 | NuGet Trends SPA | ![Azure DevOps builds (branch)](https://img.shields.io/azure-devops/build/nugettrends/nuget-trends/6/master) ![Azure DevOps tests (branch)](https://img.shields.io/azure-devops/tests/nugettrends/nuget-trends/6/master) ![Azure DevOps coverage (branch)](https://img.shields.io/azure-devops/coverage/nugettrends/nuget-trends/6/master) |
 
+## Summary
+
+NuGet Trends holds historical data of NuGet packages download numbers.
+It's a useful tool for package maintainers to see the download rate of their packages and also for people interested in packages popularity over time.
+The database has the complete [nuget.org](https://www.nuget.org/) catalog which include target framework information.
+That means that there's a lot more features we can add, like TFM adoption overtime, dependency graphs etc.
+
 ## Developing
 
 We want to get a script to bootstrap the development environment but it's not here yet.
@@ -64,6 +71,14 @@ We lock the .NET SDK version via `global.json` to have a reference version and a
 If you don't have that exact version, usually anything with that major works just fine.
 If you just want to quickly build, try just deleting `global.json`.
 
+<h2>.NET Foundation
+<a href="https://dotnetfoundation.org/" target="_blank" align="center;bottom">
+<img src=".github/dotnetfoundationhorizontal.svg" width="70">
+</a>
+</h2>
+
+This project is supported by the [.NET Foundation](https://dotnetfoundation.org).
+
 ## Acknowledgments
 
 * [Sentry.io](https://sentry.io) for supporting open source projects like this free of charge.
@@ -72,4 +87,8 @@ If you just want to quickly build, try just deleting `global.json`.
 ## Code of Conduct
 
 This project has adopted the code of conduct defined by the Contributor Covenant to clarify expected behavior in our community.
-For more information see the [.NET Foundation Code of Conduct](htqqtps://dotnetfoundation.org/code-of-conduct).
+For more information see the [.NET Foundation Code of Conduct](https://dotnetfoundation.org/code-of-conduct).
+
+## Links
+
+*  Project [announcement on reddit](https://www.reddit.com/r/dotnet/comments/ce0ffd/nugettrends_new_resource_for_net_library_authors/).
