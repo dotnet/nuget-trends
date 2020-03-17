@@ -64,9 +64,9 @@ We lock the .NET SDK version via `global.json` to have a reference version and a
 If you don't have that exact version, usually anything with that major works just fine.
 If you just want to quickly build, try just deleting `global.json`.
 
-## .NET Foundation
+
 <p align="left">
-  <a href="https://nugettrends.com" target="_blank" align="center">
+  <a href="https://dotnetfoundation.org/" target="_blank" align="center">
     <img src=".github/nuget-trends-spa.tar.svg" width="100">
   </a>
   <br />
