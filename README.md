@@ -91,4 +91,4 @@ For more information see the [.NET Foundation Code of Conduct](https://dotnetfou
 
 ## Links
 
-* Project [announcement on reddit](https://www.reddit.com/r/dotnet/comments/ce0ffd/nugettrends_new_resource_for_net_library_authors/).
+*  Project [announcement on reddit](https://www.reddit.com/r/dotnet/comments/ce0ffd/nugettrends_new_resource_for_net_library_authors/).
