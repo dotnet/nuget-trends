@@ -72,4 +72,4 @@ If you just want to quickly build, try just deleting `global.json`.
 ## Code of Conduct
 
 This project has adopted the code of conduct defined by the Contributor Covenant to clarify expected behavior in our community.
-For more information see the .NET Foundation Code of Conduct.
+For more information see the [.NET Foundation Code of Conduct](htqqtps://dotnetfoundation.org/code-of-conduct).
