@@ -23,13 +23,11 @@ namespace NuGetTrends.Data
         public DbSet<Cursor> Cursors { get; set; } = null!;
         public DbSet<DailyDownload> DailyDownloads { get; set; } = null!;
         public DbSet<PackageDownload> PackageDownloads { get; set; } = null!;
+        public DbSet<ReversePackageDependency> ReversePackageDependencies { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            // 3.0 changed QueryTypes and now when adding a migration EF thinks this is a table
-            // following the workaround suggested by bricelam in the issue below for now
-            //https://github.com/dotnet/efcore/issues/18116
-            modelBuilder.Entity<DailyDownloadResult>().HasNoKey().ToView(null);
+            modelBuilder.Entity<DailyDownloadResult>().HasNoKey();
 
             base.OnModelCreating(modelBuilder);
 
@@ -81,6 +79,22 @@ namespace NuGetTrends.Data
             modelBuilder.Entity<PackageDownload>()
                 .Property(b => b.PackageIdLowered)
                 .IsRequired();
+
+            modelBuilder
+                .Entity<ReversePackageDependency>()
+                .HasIndex(c => c.DependencyPackageIdLowered);
+
+            // Since EF Core needs a PK to allow insert and we need to support re-entrance, use all columns for identity.
+            modelBuilder
+                .Entity<ReversePackageDependency>()
+                .HasKey(c => new
+                {
+                    c.TargetFramework,
+                    c.PackageId,
+                    c.PackageVersion,
+                    c.DependencyPackageIdLowered,
+                    c.DependencyRange
+                });
         }
     }
 }

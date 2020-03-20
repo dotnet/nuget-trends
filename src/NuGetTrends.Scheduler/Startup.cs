@@ -8,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using NuGet.Protocol.Catalog;
 using NuGetTrends.Data;
 using RabbitMQ.Client;
 using Sentry.Extensibility;
@@ -74,7 +75,8 @@ namespace NuGetTrends.Scheduler
             services.AddHttpClient("nuget"); // TODO: typed client? will be shared across all jobs
 
             services.AddScoped<CatalogCursorStore>();
-            services.AddScoped<CatalogLeafProcessor>();
+            services.AddScoped<ICatalogLeafProcessor, PackageDetailCatalogLeafProcessor>();
+            services.AddScoped<ICatalogLeafProcessor, ReverseDependencyCatalogLeafProcessor>();
             services.AddScoped<NuGetCatalogImporter>();
         }
 

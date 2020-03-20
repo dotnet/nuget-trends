@@ -15,8 +15,8 @@ namespace NuGet.Protocol.Catalog
     public class CatalogProcessor
     {
         private const string CatalogResourceType = "Catalog/3.0.0";
-        private readonly ICatalogLeafProcessor _leafProcessor;
         private readonly ICatalogClient _client;
+        private readonly IEnumerable<ICatalogLeafProcessor> _leafProcessors;
         private readonly ICursor _cursor;
         private readonly ILogger<CatalogProcessor> _logger;
         private readonly CatalogProcessorSettings _settings;
@@ -24,12 +24,12 @@ namespace NuGet.Protocol.Catalog
         public CatalogProcessor(
             ICursor cursor,
             ICatalogClient client,
-            ICatalogLeafProcessor leafProcessor,
+            IEnumerable<ICatalogLeafProcessor> leafProcessors,
             CatalogProcessorSettings settings,
             ILogger<CatalogProcessor> logger)
         {
-            _leafProcessor = leafProcessor ?? throw new ArgumentNullException(nameof(leafProcessor));
             _client = client ?? throw new ArgumentNullException(nameof(client));
+            _leafProcessors = leafProcessors ?? throw new ArgumentNullException(nameof(leafProcessors));
             _cursor = cursor ?? throw new ArgumentNullException(nameof(cursor));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
@@ -131,11 +131,11 @@ namespace NuGet.Protocol.Catalog
                     {
                         if (task.Result is PackageDeleteCatalogLeaf del)
                         {
-                            await _leafProcessor.ProcessPackageDeleteAsync(del, token);
+                            await Task.WhenAll(_leafProcessors.Select(p => p.ProcessPackageDeleteAsync(del, token)));
                         }
                         else if (task.Result is PackageDetailsCatalogLeaf detail)
                         {
-                            await _leafProcessor.ProcessPackageDetailsAsync(detail, token);
+                            await Task.WhenAll(_leafProcessors.Select(p => p.ProcessPackageDetailsAsync(detail, token)));
                         }
                         else
                         {

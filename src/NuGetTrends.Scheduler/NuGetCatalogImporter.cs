@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Hangfire;
@@ -12,18 +13,18 @@ namespace NuGetTrends.Scheduler
     {
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly CatalogCursorStore _cursorStore;
-        private readonly CatalogLeafProcessor _catalogLeafProcessor;
+        private readonly IEnumerable<ICatalogLeafProcessor> _catalogLeafProcessors;
         private readonly ILoggerFactory _loggerFactory;
 
         public NuGetCatalogImporter(
             IHttpClientFactory httpClientFactory,
             CatalogCursorStore cursorStore,
-            CatalogLeafProcessor catalogLeafProcessor,
+            IEnumerable<ICatalogLeafProcessor> catalogLeafProcessors,
             ILoggerFactory loggerFactory)
         {
             _httpClientFactory = httpClientFactory;
             _cursorStore = cursorStore;
-            _catalogLeafProcessor = catalogLeafProcessor;
+            _catalogLeafProcessors = catalogLeafProcessors;
             _loggerFactory = loggerFactory;
         }
 
@@ -44,7 +45,7 @@ namespace NuGetTrends.Scheduler
             var catalogProcessor = new CatalogProcessor(
                 _cursorStore,
                 catalogClient,
-                _catalogLeafProcessor,
+                _catalogLeafProcessors,
                 settings,
                 _loggerFactory.CreateLogger<CatalogProcessor>());
 
