@@ -1,0 +1,41 @@
+name: NuGet Trends API
+on:
+  push:
+    paths:
+      - /src/NuGetTrends.Api/*
+      - /src/NuGetTrends.Data/*
+      - /src/Directory.Build.props
+      - /api-pipeline.yml
+  pull_request:
+    paths:
+      - /src/NuGetTrends.Api/*
+      - /src/NuGetTrends.Data/*
+      - /src/Directory.Build.props
+      - /api-pipeline.yml
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+        with:
+            submodules: true
+
+      - name: Install .NET Core SDK
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: 3.1.102
+
+      - name: NuGet Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore -c Release
+
+      # - name: Test
+      #   run: dotnet test --no-build --no-restore
+
+
