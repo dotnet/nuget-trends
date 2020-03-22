@@ -1,0 +1,58 @@
+name: SPA
+env:
+  IS_BUILD_SERVER: true
+
+on:
+  push:
+    paths:
+      - 'src/NuGetTrends.Spa/**'
+      - '**/spa-workflow.yml'
+  pull_request:
+    paths:
+      - 'src/NuGetTrends.Spa/**'
+      - '**/spa-workflow.yml'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Install Node 12.x
+        uses: actions/setup-node@v1
+        with:
+          node-version: '12.x'
+
+      - name: Get yarn cache directory path
+        id: yarn-cache-dir-path
+        run: echo "::set-output name=dir::$(yarn cache dir)"
+
+      - uses: actions/cache@v1
+        id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
+        with:
+          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
+
+      - name: Install build tools
+        run: |
+          npm install -g @angular/cli@8.1.1
+          npm install -g yarn
+          ng --version
+
+      - name: 'Install app packages'
+        run: yarn install
+        working-directory: src/NuGetTrends.Spa/
+
+      - name: 'Lint'
+        run: yarn run lint
+        working-directory: src/NuGetTrends.Spa/
+
+      - name: 'Test'
+        run: yarn run test-cc
+        working-directory: src/NuGetTrends.Spa/
+
+      - name: 'Build'
+        run: yarn run prod
+        working-directory: src/NuGetTrends.Spa/
