@@ -6,12 +6,13 @@ on:
       - /src/NuGetTrends.Data/*
       - /src/Directory.Build.props
       - /api-pipeline.yml
+      - /.github/workflows/api-workflow.yml
   pull_request:
     paths:
       - /src/NuGetTrends.Api/*
       - /src/NuGetTrends.Data/*
       - /src/Directory.Build.props
-      - /api-pipeline.yml
+      - /.github/workflows/api-workflow.yml
 jobs:
   build:
     runs-on: ${{ matrix.os }}
