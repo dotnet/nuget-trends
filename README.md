@@ -7,13 +7,10 @@
 
 # NuGet Trends [![Gitter chat](https://img.shields.io/gitter/room/NuGetTrends/Lobby.svg)](https://gitter.im/NuGetTrends/Lobby) [![Twitter Follow](https://img.shields.io/twitter/follow/NuGetTrends?label=NuGetTrends&style=social)](https://twitter.com/intent/follow?screen_name=NuGetTrends)
 
-## Builds
+![](https://github.com/dotnet/nuget-trends/workflows/API/badge.svg) 
+![](https://github.com/dotnet/nuget-trends/workflows/Scheduler/badge.svg)
+![](https://github.com/dotnet/nuget-trends/workflows/SPA/badge.svg)
 
-| Component | Status |
-|-----------|--------|
-| NuGet Trends API | ![Azure DevOps builds (branch)](https://img.shields.io/azure-devops/build/nugettrends/nuget-trends/2/master)|
-| NuGet Trends Worker | ![Azure DevOps builds (branch)](https://img.shields.io/azure-devops/build/nugettrends/nuget-trends/5/master) |
-| NuGet Trends SPA | ![Azure DevOps builds (branch)](https://img.shields.io/azure-devops/build/nugettrends/nuget-trends/6/master) ![Azure DevOps tests (branch)](https://img.shields.io/azure-devops/tests/nugettrends/nuget-trends/6/master) ![Azure DevOps coverage (branch)](https://img.shields.io/azure-devops/coverage/nugettrends/nuget-trends/6/master) |
 
 ## Summary
 
