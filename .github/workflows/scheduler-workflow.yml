@@ -1,19 +1,21 @@
-name: API
+name: Scheduler
 env:
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
 on:
   push:
     paths:
-      - 'src/NuGetTrends.Api/**'
+      - 'src/NuGetTrends.Scheduler/**'
       - 'src/NuGetTrends.Data/**'
+      - 'src/NuGet.Protocol.Catalog/**'
       - 'src/Directory.Build.props'
-      - '**/api-workflow.yml'
+      - '**/scheduler-workflow.yml'
   pull_request:
     paths:
-      - 'src/NuGetTrends.Api/**'
+      - 'src/NuGetTrends.Scheduler/**'
       - 'src/NuGetTrends.Data/**'
+      - 'src/NuGet.Protocol.Catalog/**'
       - 'src/Directory.Build.props'
-      - '**/api-workflow.yml'
+      - '**/scheduler-workflow.yml'
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -33,7 +35,7 @@ jobs:
 
       - name: Build
         run: dotnet build -c Release
-        working-directory: src/NuGetTrends.Api/
+        working-directory: src/NuGetTrends.Scheduler/
 
       # - name: Test
       #   run: dotnet test --no-build --no-restore
