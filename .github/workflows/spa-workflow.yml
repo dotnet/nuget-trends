@@ -57,8 +57,8 @@ jobs:
         run: yarn run prod
         working-directory: src/NuGetTrends.Spa/
 
-      - name: Coveralls
-        uses: coverallsapp/github-action@master
+      - uses: codecov/codecov-action@v1
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          path-to-lcov: src/NuGetTrends.Spa/coverage/lcov.info
+          file: src/NuGetTrends.Spa/coverage/lcov.info
+          name: nugettrends-spa-codecov # optional
+          fail_ci_if_error: true
