@@ -10,6 +10,7 @@
 ![](https://github.com/dotnet/nuget-trends/workflows/API/badge.svg) 
 ![](https://github.com/dotnet/nuget-trends/workflows/Scheduler/badge.svg)
 ![](https://github.com/dotnet/nuget-trends/workflows/SPA/badge.svg)
+![Codecov](https://img.shields.io/codecov/c/github/dotnet/nuget-trends?label=SPA%20-%20Coverage)
 
 
 ## Summary
