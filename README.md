@@ -7,10 +7,10 @@
 
 # NuGet Trends [![Gitter chat](https://img.shields.io/gitter/room/NuGetTrends/Lobby.svg)](https://gitter.im/NuGetTrends/Lobby) [![Twitter Follow](https://img.shields.io/twitter/follow/NuGetTrends?label=NuGetTrends&style=social)](https://twitter.com/intent/follow?screen_name=NuGetTrends)
 
-![](https://github.com/dotnet/nuget-trends/workflows/API/badge.svg) 
-![](https://github.com/dotnet/nuget-trends/workflows/Scheduler/badge.svg)
-![](https://github.com/dotnet/nuget-trends/workflows/SPA/badge.svg)
-![Codecov](https://img.shields.io/codecov/c/github/dotnet/nuget-trends?label=SPA%20-%20Coverage)
+[![API](https://github.com/dotnet/nuget-trends/workflows/API/badge.svg)](https://github.com/dotnet/nuget-trends/actions?query=workflow%3AAPI)
+[![Scheduler](https://github.com/dotnet/nuget-trends/workflows/Scheduler/badge.svg)](https://github.com/dotnet/nuget-trends/actions?query=workflow%3AScheduler)
+[![SPA](https://github.com/dotnet/nuget-trends/workflows/SPA/badge.svg)](https://github.com/dotnet/nuget-trends/actions?query=workflow%3ASPA)
+[![Codecov](https://img.shields.io/codecov/c/github/dotnet/nuget-trends?label=SPA%20-%20Coverage)](https://codecov.io/gh/dotnet/nuget-trends)
 
 
 ## Summary
