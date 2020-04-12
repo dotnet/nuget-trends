@@ -82,11 +82,6 @@ This project is supported by the [.NET Foundation](https://dotnetfoundation.org)
 * [Sentry.io](https://sentry.io) for supporting open source projects like this free of charge.
 * [Logz.io](https://logz.io) for offering a free tier.
 
-## Code of Conduct
-
-This project has adopted the code of conduct defined by the Contributor Covenant to clarify expected behavior in our community.
-For more information see the [.NET Foundation Code of Conduct](https://dotnetfoundation.org/code-of-conduct).
-
 ## Links
 
 *  Project [announcement on reddit](https://www.reddit.com/r/dotnet/comments/ce0ffd/nugettrends_new_resource_for_net_library_authors/).
