@@ -25,7 +25,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shortr", "src\Shortr\src\Sh
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shortr.Npgsql", "src\Shortr\src\Shortr.Npgsql\Shortr.Npgsql.csproj", "{5100C8E5-2EBF-4E54-A3B5-A51F42B5AC7D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shortr.AspNetCore", "src\Shortr\src\Shortr.AspNetCore\Shortr.AspNetCore.csproj", "{97F2C54F-2A31-44A4-91BB-E88E24EF86AD}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Shortr.AspNetCore", "src\Shortr\src\Shortr.AspNetCore\Shortr.AspNetCore.csproj", "{97F2C54F-2A31-44A4-91BB-E88E24EF86AD}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGetTrends.Portal.BlazorWasm", "src\NuGetTrends.Portal.BlazorWasm\NuGetTrends.Portal.BlazorWasm.csproj", "{C28D96C2-2127-48C4-9944-178BB0E42E5B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -61,6 +63,10 @@ Global
 		{97F2C54F-2A31-44A4-91BB-E88E24EF86AD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{97F2C54F-2A31-44A4-91BB-E88E24EF86AD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{97F2C54F-2A31-44A4-91BB-E88E24EF86AD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C28D96C2-2127-48C4-9944-178BB0E42E5B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C28D96C2-2127-48C4-9944-178BB0E42E5B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C28D96C2-2127-48C4-9944-178BB0E42E5B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C28D96C2-2127-48C4-9944-178BB0E42E5B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
