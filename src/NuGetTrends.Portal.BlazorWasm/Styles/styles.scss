@@ -73,3 +73,26 @@ app {
     right: 0.75rem;
     top: 0.5rem;
 }
+
+
+/* For the search input */
+/* Extra styles to make the input a little nicer on the header */
+input:focus {
+    border: none;
+}
+
+::-webkit-input-placeholder {
+    text-align: center;
+}
+
+:-moz-placeholder { /* Firefox 18- */
+    text-align: center;
+}
+
+::-moz-placeholder { /* Firefox 19+ */
+    text-align: center;
+}
+
+:-ms-input-placeholder {
+    text-align: center;
+}

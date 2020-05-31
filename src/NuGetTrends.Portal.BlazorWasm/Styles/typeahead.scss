@@ -1,0 +1,184 @@
+﻿@import 'colors.scss';
+
+.blazored-typeahead__controls {
+    position: relative;
+    cursor: text;
+    display: flex;
+}
+
+.selected-template {
+    display: flex;
+    flex: 1;
+    max-width: 100%;
+    height: 2.5em;
+    border: none;
+    border-radius: 4px;
+    color: #363636;
+    font-size: 1.5rem;
+    background-color: $white-ter;
+    justify-content: start;
+    align-items: center;
+}
+
+.blazored-typeahead__input {
+    flex: 1;
+    max-width: 100%;
+    height: 2.5em;
+    border: none;
+    padding-left: 2.5em;
+    padding-right: 2.5em;
+    border-radius: 4px;
+    color: #363636;
+    font-size: 1.5rem;
+}
+
+.blazored-typeahead__input:focus {
+    outline: none;
+}
+
+.blazored-typeahead__input-hidden {
+    display: none;
+}
+
+.blazored-typeahead__input-mask-wrapper {
+    display: flex;
+    width: 100%;
+    background-color: $white-ter;
+    border: none;
+    padding-left: 2.5em;
+    padding-right: 2.5em;
+    border-radius: 4px;
+}
+
+.blazored-typeahead__input-mask {
+    display: flex;
+    align-items: start;
+    flex: 1;
+}
+
+.blazored-typeahead__input-mask:focus {
+    outline: none;
+}
+
+.blazored-typeahead__clear {
+    width: 40px;
+    display: flex;
+    padding: .5rem;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #dbdbdb;
+    display: none;
+}
+
+.blazored-typeahead__clear:hover {
+    color: #333333;
+}
+
+.blazored-typeahead__down-arrow path {
+    fill: #dbdbdb;
+}
+
+.blazored-typeahead__input-icon {
+    width: 40px;
+    display: flex;
+    border-radius: 0 5px 5px 0;
+    padding: .5rem;
+    cursor: pointer;
+    background: none;
+}
+
+.blazored-typeahead__input-icon:focus {
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(38,143,255,.5);
+}
+
+.blazored-typeahead__input-icon:hover {
+    background-color: #f5f5f5;
+}
+
+.blazored-typeahead__input-icon:hover .blazored-typeahead__down-arrow path {
+    fill: #333333;
+}
+
+.blazored-typeahead__input-icon--disabled,
+.blazored-typeahead__input-icon--disabled:hover {
+    background-color: #e9ecef;
+    cursor: not-allowed;
+}
+
+.blazored-typeahead__input-icon--disabled .blazored-typeahead__down-arrow path,
+.blazored-typeahead__input-icon--disabled:hover .blazored-typeahead__down-arrow path {
+    fill: #9c9c9c;
+}
+
+.blazored-typeahead__results {
+    position: absolute;
+    min-height: 2rem;
+    max-height: 30rem;
+    overflow-y: auto;
+    z-index: 10;
+    width: 100%;
+    font-size: 1.1em;
+    color: $grey-dark;
+    border: 1px solid $grey-light;
+    border-top: none;
+    background-color: $white-ter
+}
+
+.blazored-typeahead__result,
+.blazored-typeahead__notfound,
+.blazored-typeahead__results-help-template,
+.blazored-typeahead__results-header,
+.blazored-typeahead__results-footer {
+    padding: .5rem;
+}
+
+/*.blazored-typeahead__selected-item {
+    background-color: #dbdbdb;
+}
+
+.blazored-typeahead__selected-item-highlighted {
+    background-color: #d3e2f2;
+}*/
+
+.blazored-typeahead__active-item,
+.blazored-typeahead__result:hover,
+.blazored-typeahead__result:focus {
+    background-color: $cyan;
+    color: #fff;
+    cursor: pointer;
+}
+
+.blazored-typeahead__loader {
+    width: 24px;
+    height: 24px;
+    background-color: #333;
+    border-radius: 100%;
+    -webkit-animation: sk-scaleout 1.0s infinite ease-in-out;
+    animation: sk-scaleout 1.0s infinite ease-in-out;
+}
+
+@-webkit-keyframes sk-scaleout {
+    0% {
+        -webkit-transform: scale(0)
+    }
+
+    100% {
+        -webkit-transform: scale(1.0);
+        opacity: 0;
+    }
+}
+
+@keyframes sk-scaleout {
+    0% {
+        -webkit-transform: scale(0);
+        transform: scale(0);
+    }
+
+    100% {
+        -webkit-transform: scale(1.0);
+        transform: scale(1.0);
+        opacity: 0;
+    }
+}

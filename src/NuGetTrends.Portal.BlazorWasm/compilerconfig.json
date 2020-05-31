@@ -4,6 +4,10 @@
     "inputFile": "Styles/styles.scss"
   },
   {
+    "outputFile": "wwwroot/css/typeahead.css",
+    "inputFile": "Styles/typeahead.scss"
+  },
+  {
     "outputFile": "wwwroot/css/footer.css",
     "inputFile": "Shared/Footer/footer.scss"
   }

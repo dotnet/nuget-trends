@@ -12,7 +12,28 @@
                 <div class="columns">
                     <div class="column is-8 is-offset-2">
                         <div class="control has-icons-left has-icons-right">
-                            @*<app-search-input></app-search-input>*@
+                            <section>
+                                <div class="control is-large">
+                                        <BlazoredTypeahead SearchMethod="SearchPackages"
+                                                           TValue="Package"
+                                                           TItem="Package"
+                                                           Value="selectedPackage"
+                                                           ValueChanged="@((Package p) => SelectedResultChanged(p))" 
+                                                           ValueExpression="@( () => selectedPackage )">
+                                            <SelectedTemplate>
+                                                <div class="selected-template">
+                                                    @context.PackageId
+                                                </div>
+                                            </SelectedTemplate>
+                                            <ResultTemplate>
+                                                @context.PackageId
+                                            </ResultTemplate>
+                                            <NotFoundTemplate>
+                                                Sorry, there weren't any search results.
+                                            </NotFoundTemplate>
+                                        </BlazoredTypeahead>
+                                </div>
+                            </section>
                         </div>
                     </div>
                 </div>
@@ -27,4 +48,35 @@
 </div>
 <AppFooter />
 @*<app-loading></app-loading>*@
+
+@code {
+    private FormExample FormModel = new FormExample();
+
+    private IEnumerable<Package> Packages { get; set; }
+
+    private Package selectedPackage;
+
+    public MainLayout()
+    {
+        Packages = new[]
+        {
+            new Package("EntityFramework", 100),
+            new Package("EntityFrameworkCore", 100),
+            new Package("Dapper", 80),
+            new Package("xunit", 200),
+        };
+    }
+
+    private async Task<IEnumerable<Package>> SearchPackages(string searchText)
+    {
+        return await Task.FromResult(Packages.Where(x => x.PackageId.ToLower().Contains(searchText.ToLower())).ToList());
+    }
+
+    private void SelectedResultChanged(Package package)
+    {
+        selectedPackage = package;
+        Console.WriteLine(selectedPackage.PackageId);
+    }
+
+}
 
