@@ -1,0 +1,74 @@
+﻿@import '../../../Styles/colors.scss';
+
+.app-searchinput {
+
+    .package-img {
+        height: 32px;
+        width: 32px;
+        vertical-align: middle;
+        margin-right: 8px;
+    }
+
+    .results {
+        position: absolute;
+        min-height: 2rem;
+        max-height: 30rem;
+        overflow-y: auto;
+        z-index: 10;
+        width: 100%;
+        font-size: 1.1em;
+        color: $grey-dark;
+        border: 1px solid $grey-light;
+        border-top: none;
+        background-color: $white-ter
+    }
+
+    .result,
+    .notfound,
+    .results-help-template,
+    .results-header,
+    .results-footer {
+        padding: .5rem;
+    }
+
+    .active-item,
+    .result:hover,
+    .result:focus {
+        background-color: $cyan;
+        color: #fff;
+        cursor: pointer;
+    }
+
+    .loader {
+        width: 24px;
+        height: 24px;
+        background-color: #333;
+        border-radius: 100%;
+        -webkit-animation: sk-scaleout 1.0s infinite ease-in-out;
+        animation: sk-scaleout 1.0s infinite ease-in-out;
+    }
+
+    @-webkit-keyframes sk-scaleout {
+        0% {
+            -webkit-transform: scale(0)
+        }
+
+        100% {
+            -webkit-transform: scale(1.0);
+            opacity: 0;
+        }
+    }
+
+    @keyframes sk-scaleout {
+        0% {
+            -webkit-transform: scale(0);
+            transform: scale(0);
+        }
+
+        100% {
+            -webkit-transform: scale(1.0);
+            transform: scale(1.0);
+            opacity: 0;
+        }
+    }
+}

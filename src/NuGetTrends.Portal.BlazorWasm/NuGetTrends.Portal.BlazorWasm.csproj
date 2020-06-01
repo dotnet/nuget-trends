@@ -22,7 +22,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Blazored.Typeahead" Version="4.3.0" />
     <PackageReference Include="BuildWebCompiler" Version="1.12.394" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="3.2.0" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Build" Version="3.2.0" PrivateAssets="all" />

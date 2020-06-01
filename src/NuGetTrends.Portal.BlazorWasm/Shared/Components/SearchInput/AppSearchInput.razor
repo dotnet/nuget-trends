@@ -1,0 +1,50 @@
+﻿@inherits AppSearchInputBase
+
+<section class="app-searchinput">
+
+    <div class="control is-large">
+
+        <input @ref="SearchInput"
+               @bind-value="SearchText"
+               @bind-value:event="oninput"
+               @onkeyup="HandleKeyup"
+               @onkeyup:stopPropagation="@StopPropagation"
+               @onkeyup:preventDefault="@PreventDefault"
+               @onblur="ResetControl"
+               autocomplete="off"
+               type="text"
+               class="input is-large is-shadowless" />
+        <span class="icon is-medium is-left"><i class="fa fa-search"></i></span>
+
+        @if (IsSearching)
+        {
+            <div class="loader"></div>
+        }
+    </div>
+
+    @if (ShouldShowSuggestions())
+    {
+        <div class="results">
+
+            @for (var i = 0; i < Suggestions.Length; i++)
+            {
+                var item = Suggestions[i];
+
+                <div @key="item"
+                     class="result @GetSelectedSuggestionClass(i)"
+                     @onclick="@(_ => SelectResult(item))">
+                    <img class="package-img" src="https://nuget.org/Content/Images/packageDefaultIcon-50x50.png" />
+                    <span>@item.PackageId</span>
+                </div>
+            }
+        </div>
+    }
+    else if (ShowNotFound())
+    {
+        <div class="results">
+            <div class="notfound">
+                No Results Found
+            </div>
+        </div>
+    }
+</section>

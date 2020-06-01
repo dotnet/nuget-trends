@@ -1,4 +1,5 @@
 ﻿@inherits LayoutComponentBase
+@using NuGetTrends.Portal.BlazorWasm.Shared.Components.SearchInput
 
 <div class="site-content">
     <section class="hero search-pattern is-primary">
@@ -14,24 +15,11 @@
                         <div class="control has-icons-left has-icons-right">
                             <section>
                                 <div class="control is-large">
-                                        <BlazoredTypeahead SearchMethod="SearchPackages"
-                                                           TValue="Package"
-                                                           TItem="Package"
-                                                           Value="selectedPackage"
-                                                           ValueChanged="@((Package p) => SelectedResultChanged(p))" 
-                                                           ValueExpression="@( () => selectedPackage )">
-                                            <SelectedTemplate>
-                                                <div class="selected-template">
-                                                    @context.PackageId
-                                                </div>
-                                            </SelectedTemplate>
-                                            <ResultTemplate>
-                                                @context.PackageId
-                                            </ResultTemplate>
-                                            <NotFoundTemplate>
-                                                Sorry, there weren't any search results.
-                                            </NotFoundTemplate>
-                                        </BlazoredTypeahead>
+                                    <AppSearchInput SearchMethod="SearchPackages"
+                                                    Value="selectedPackage"
+                                                    ValueChanged="SelectedResultChanged"
+                                                    ValueExpression="@( () => selectedPackage )">
+                                    </AppSearchInput>
                                 </div>
                             </section>
                         </div>
@@ -62,6 +50,13 @@
         {
             new Package("EntityFramework", 100),
             new Package("EntityFrameworkCore", 100),
+            new Package("EntityFrameworkCore2", 100),
+            new Package("EntityFrameworkCore3", 100),
+            new Package("EntityFrameworkCore4", 100),
+            new Package("EntityFrameworkCore5", 100),
+            new Package("EntityFrameworkCore6", 100),
+            new Package("EntityFrameworkCore7", 100),
+            new Package("EntityFrameworkCore8", 100),
             new Package("Dapper", 80),
             new Package("xunit", 200),
         };
@@ -77,6 +72,5 @@
         selectedPackage = package;
         Console.WriteLine(selectedPackage.PackageId);
     }
-
 }
 

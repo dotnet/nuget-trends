@@ -5,7 +5,7 @@
   },
   {
     "outputFile": "wwwroot/css/typeahead.css",
-    "inputFile": "Styles/typeahead.scss"
+    "inputFile": "Shared/Components/SearchInput/typeahead.scss"
   },
   {
     "outputFile": "wwwroot/css/footer.css",
