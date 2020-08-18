@@ -89,12 +89,13 @@ export class SearchInputComponent implements AfterViewInit {
   private async getNuGetPackageHistory(packageId: string, period: number): Promise<void> {
     try {
       const downloadHistory = await this.packagesService.getPackageDownloadHistory(packageId, period).toPromise();
+      const downloadTrend = await this.packagesService.getPackageDownloadTrend(packageId, period).toPromise();
 
       if (this.router.url.includes('/packages')) {
-        this.feedPackageHistoryResults(downloadHistory);
+        this.feedPackageHistoryResults(downloadHistory, { ...downloadTrend, isTrend: true });
       } else {
         this.router.navigate(['/packages']).then(() => {
-          this.feedPackageHistoryResults(downloadHistory);
+          this.feedPackageHistoryResults(downloadHistory, { ...downloadTrend, isTrend: true });
         });
       }
     } catch (error) {
@@ -106,7 +107,8 @@ export class SearchInputComponent implements AfterViewInit {
   /**
    * Marks the item as selected and feed the results to the chart
    */
-  private feedPackageHistoryResults(packageHistory: IPackageDownloadHistory): void {
+  private feedPackageHistoryResults(packageHistory: IPackageDownloadHistory, packageTrend: IPackageDownloadHistory): void {
+    this.packageInteractionService.addPackage(packageTrend);
     this.packageInteractionService.addPackage(packageHistory);
     this.showResults = false;
     this.queryField.setValue('');

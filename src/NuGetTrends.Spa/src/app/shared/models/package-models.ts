@@ -21,6 +21,7 @@ export interface IPackageDownloadHistory {
   id: string;
   downloads: Array<IDownloadStats>;
   color?: string;
+  isTrend: boolean
 }
 
 export interface IDownloadStats {
@@ -74,4 +75,14 @@ const DefaultSearchPeriods: Array<SearchPeriod> = [
 
 const InitialSearchPeriod: SearchPeriod = DefaultSearchPeriods[2];
 
-export { DefaultSearchPeriods, InitialSearchPeriod };
+const DefaultForecastPeriods: Array<SearchPeriod> = [
+  {value: 0, text: 'None'},
+  {value: 1, text: '1 month'},
+  {value: 3, text: '3 months'},
+  {value: 6, text: '6 months'},
+  {value: 12, text: '1 year'}
+];
+
+const InitialForecastPeriod: SearchPeriod = DefaultForecastPeriods[0];
+
+export { DefaultSearchPeriods, InitialSearchPeriod, DefaultForecastPeriods, InitialForecastPeriod };

@@ -73,6 +73,8 @@ export class PackagesComponent implements OnInit, OnDestroy {
 
     packageIds.forEach(async (packageId: string) => {
       try {
+        const downloadTrend = await this.packagesService.getPackageDownloadTrend(packageId, period).toPromise();
+        this.packageInteractionService.updatePackage({ ...downloadTrend, isTrend: true });
         const downloadHistory = await this.packagesService.getPackageDownloadHistory(packageId, period).toPromise();
         this.packageInteractionService.updatePackage(downloadHistory);
       } catch (error) {
@@ -189,7 +191,8 @@ export class PackagesComponent implements OnInit, OnDestroy {
       label: packageHistory.id,
       backgroundColor: packageHistory.color,
       borderColor: packageHistory.color,
-      pointRadius: 6,
+      borderDash: packageHistory.isTrend ? [10, 5] : [],
+      pointRadius: packageHistory.isTrend ? 0 : 6,
       pointHoverRadius: 8,
       pointBackgroundColor: packageHistory.color,
       pointBorderColor: '#fff',
@@ -213,6 +216,11 @@ export class PackagesComponent implements OnInit, OnDestroy {
 
     packageIds.forEach(async (packageId: string) => {
       try {
+        const downloadTrend = await this.packagesService.getPackageDownloadTrend(
+          packageId, this.packageInteractionService.searchPeriod).toPromise();
+
+        this.packageInteractionService.addPackage({ ...downloadTrend, isTrend: true });
+
         const downloadHistory = await this.packagesService.getPackageDownloadHistory(
           packageId, this.packageInteractionService.searchPeriod).toPromise();
 

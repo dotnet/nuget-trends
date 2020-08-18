@@ -68,11 +68,16 @@ export class PackageListComponent implements OnDestroy {
       return;
     }
 
-    if (packageHistory && !this.packageList.some(p => p.id === packageHistory.id)) {
+    if (packageHistory && !packageHistory.isTrend && this.packageList.some(p => p.id === packageHistory.id)) {
+      const packageColor = this.packageList.find(p => p.id === packageHistory.id);
+      packageHistory.color = packageColor.color;
+      this.packageInteractionService.plotPackage(packageHistory);
+    }
+    else if (packageHistory && !this.packageList.some(p => p.id === packageHistory.id)) {
       const color = this.colorsList.find(p => p.isInUse() === false);
       color.setUsed();
       packageHistory.color = color.code;
-      this.packageList.push({id: packageHistory.id, color: color.code} as IPackageColor);
+      this.packageList.push({ id: packageHistory.id, color: color.code } as IPackageColor);
       this.packageInteractionService.plotPackage(packageHistory);
     }
   }
