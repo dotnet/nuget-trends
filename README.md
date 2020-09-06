@@ -81,6 +81,7 @@ This project is supported by the [.NET Foundation](https://dotnetfoundation.org)
 
 * [Sentry.io](https://sentry.io) for supporting open source projects like this free of charge.
 * [Logz.io](https://logz.io) for offering a free tier.
+* [JetBrains](https://www.jetbrains.com/?from=NuGetTrends) for providing free licenses for core contributors.
 
 ## Links
 
