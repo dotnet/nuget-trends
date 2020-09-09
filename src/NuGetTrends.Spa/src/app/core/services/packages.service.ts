@@ -22,6 +22,10 @@ export class PackagesService {
     return this.httpClient.get<IPackageDownloadHistory>(`${this.baseUrl}/package/history/${term}?months=${months}`);
   }
 
+  getPackageDownloadTrend(term: string, months: number = 12, next: number = 6): Observable<IPackageDownloadHistory> {
+    return this.httpClient.get<IPackageDownloadHistory>(`${this.baseUrl}/package/trend/${term}?months=${months}&next=${next}`);
+  }
+
   searchFramework(term: string): Observable<IPackageSearchResult[]> {
     return this.httpClient.get<IPackageSearchResult[]>(`${this.baseUrl}/framework/search?q=${term}`);
   }
