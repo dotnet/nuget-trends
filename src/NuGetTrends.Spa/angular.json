@@ -13,6 +13,9 @@
         "build": {
           "builder": "@angular-devkit/build-angular:browser",
           "options": {
+            "allowedCommonJsDependencies": [
+              "chart.js"
+           ],
             "aot": true,
             "outputPath": "dist/nuget-trends",
             "index": "src/index.html",
@@ -48,7 +51,11 @@
               ],
               "optimization": true,
               "outputHashing": "all",
-              "sourceMap": true,
+              "sourceMap": {
+                "scripts": true,
+                "styles": false,
+                "vendor": true
+              },
               "extractCss": true,
               "namedChunks": false,
               "aot": true,

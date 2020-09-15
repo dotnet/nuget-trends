@@ -37,7 +37,7 @@ jobs:
 
       - name: Install build tools
         run: |
-          npm install -g @angular/cli@8.1.1
+          npm install -g @angular/cli@10.1.1
           npm install -g yarn
           ng --version
 
