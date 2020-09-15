@@ -34,7 +34,7 @@ class PackagesServiceMock {
       ]
     }];
 
-  getPackageDownloadHistory(packageId: string): Observable<IPackageDownloadHistory> {
+  getPackageDownloadHistory(packageId: string, _months: number = 12): Observable<IPackageDownloadHistory> {
     return of(PackagesServiceMock.mockedDownloadHistory.find(p => p.id === packageId));
   }
 }
