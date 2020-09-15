@@ -9,7 +9,8 @@
     "lint": "ng lint",
     "e2e": "ng e2e",
     "prod": "ng build --prod",
-    "test-cc": "ng test --watch=false --code-coverage"
+    "test-cc": "ng test --watch=false --code-coverage",
+    "postinstall": "ngcc"
   },
   "private": true,
   "dependencies": {
