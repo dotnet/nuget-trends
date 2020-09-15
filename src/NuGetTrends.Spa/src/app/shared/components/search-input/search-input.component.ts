@@ -1,7 +1,7 @@
 import { AfterViewInit, Component, ElementRef, ErrorHandler, ViewChild, ViewEncapsulation } from '@angular/core';
 import { FormControl } from '@angular/forms';
 import { Router } from '@angular/router';
-import { MatAutocomplete, MatAutocompleteSelectedEvent } from '@angular/material';
+import { MatAutocomplete, MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
 import { catchError, debounceTime, distinctUntilChanged, filter, map, startWith, switchMap, tap } from 'rxjs/operators';
 import { EMPTY, Observable } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
