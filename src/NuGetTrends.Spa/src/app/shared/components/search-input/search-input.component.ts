@@ -16,8 +16,8 @@ import { PackagesService, PackageInteractionService } from '../../../core';
   encapsulation: ViewEncapsulation.None,
 })
 export class SearchInputComponent implements AfterViewInit {
-  @ViewChild(MatAutocomplete, {static: false}) autoComplete: MatAutocomplete;
-  @ViewChild('searchBox', {static: false}) searchBox: ElementRef;
+  @ViewChild(MatAutocomplete) autoComplete: MatAutocomplete;
+  @ViewChild('searchBox') searchBox: ElementRef;
 
   queryField: FormControl = new FormControl('');
   results$: Observable<IPackageSearchResult[]>;
