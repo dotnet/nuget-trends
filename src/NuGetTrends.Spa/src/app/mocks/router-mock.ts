@@ -4,7 +4,7 @@ import { ParamMap, convertToParamMap } from '@angular/router';
 export class MockedRouter {
   url: string;
   events: Subject<any> = new Subject();
-  navigate(): Promise<boolean> {
+  navigate(_commands: any[]): Promise<boolean> {
     return Promise.resolve(true);
   }
 }

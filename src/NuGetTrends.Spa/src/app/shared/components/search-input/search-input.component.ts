@@ -1,7 +1,7 @@
 import { AfterViewInit, Component, ElementRef, ErrorHandler, ViewChild, ViewEncapsulation } from '@angular/core';
 import { FormControl } from '@angular/forms';
 import { Router } from '@angular/router';
-import { MatAutocomplete, MatAutocompleteSelectedEvent } from '@angular/material';
+import { MatAutocomplete, MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
 import { catchError, debounceTime, distinctUntilChanged, filter, map, startWith, switchMap, tap } from 'rxjs/operators';
 import { EMPTY, Observable } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
@@ -16,8 +16,8 @@ import { PackagesService, PackageInteractionService } from '../../../core';
   encapsulation: ViewEncapsulation.None,
 })
 export class SearchInputComponent implements AfterViewInit {
-  @ViewChild(MatAutocomplete, {static: false}) autoComplete: MatAutocomplete;
-  @ViewChild('searchBox', {static: false}) searchBox: ElementRef;
+  @ViewChild(MatAutocomplete) autoComplete: MatAutocomplete;
+  @ViewChild('searchBox') searchBox: ElementRef;
 
   queryField: FormControl = new FormControl('');
   results$: Observable<IPackageSearchResult[]>;

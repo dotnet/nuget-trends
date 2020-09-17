@@ -1,8 +1,8 @@
 export class ToastrMock {
-  warning(): any {
+  warning(_message: string): any {
     return null;
   }
-  error(): any {
+  error(_message: string): any {
     return null;
   }
 }

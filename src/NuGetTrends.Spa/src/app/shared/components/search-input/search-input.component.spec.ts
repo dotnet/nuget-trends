@@ -1,7 +1,7 @@
 import { async, ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { RouterTestingModule } from '@angular/router/testing';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { MatAutocompleteModule } from '@angular/material';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { HttpClientModule, HttpResponse } from '@angular/common/http';
 import { ToastrModule, ToastrService } from 'ngx-toastr';
 import { Observable, of, throwError } from 'rxjs';
