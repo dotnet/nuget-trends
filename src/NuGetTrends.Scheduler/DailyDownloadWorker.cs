@@ -113,7 +113,7 @@ namespace NuGetTrends.Scheduler
 
             defaultConsumer.Received += (s, e) =>
             {
-                _logger.LogWarning("DefaultConsumer fired: {message}", Convert.ToBase64String(e.Body));
+                _logger.LogWarning("DefaultConsumer fired: {message}", Convert.ToBase64String(e.Body.ToArray()));
             };
 
             channel.DefaultConsumer = defaultConsumer;

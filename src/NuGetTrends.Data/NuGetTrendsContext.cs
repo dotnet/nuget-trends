@@ -13,7 +13,7 @@ namespace NuGetTrends.Data
         public string? IconUrl { get; set; }
     }
 
-    public class NuGetTrendsContext : BasePostgresContext
+    public class NuGetTrendsContext : DbContext
     {
         public NuGetTrendsContext(DbContextOptions<NuGetTrendsContext> options)
             : base(options)
