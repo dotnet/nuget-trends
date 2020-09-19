@@ -19,17 +19,47 @@ namespace NuGetTrends.Scheduler
             {
                 _hub.ConfigureScope(s =>
                 {
-                    s.SetTag("ConstraintName", postgres.ConstraintName);
-                    s.SetTag("TableName", postgres.TableName);
-                    s.SetTag("ColumnName", postgres.ColumnName);
-                    s.SetTag("ColumnName", postgres.DataTypeName);
-                    s.SetTag("Hint", postgres.Hint);
-                    s.SetTag("Routine", postgres.Routine);
-                    s.SetTag("SchemaName", postgres.SchemaName);
-                    s.SetTag("SqlState", postgres.SqlState);
+                    if (postgres.ConstraintName is { } constraintName)
+                    {
+                        s.SetTag(nameof(postgres.ConstraintName), constraintName);
+                    }
+                    if (postgres.TableName is { } tableName)
+                    {
+                        s.SetTag(nameof(postgres.TableName), tableName);
+                    }
+                    if (postgres.ColumnName is { } columnName)
+                    {
+                        s.SetTag(nameof(postgres.ColumnName), columnName);
+                    }
+                    if (postgres.DataTypeName is { } dataTypeName)
+                    {
+                        s.SetTag(nameof(postgres.DataTypeName), dataTypeName);
+                    }
+                    if (postgres.Hint is { } hint)
+                    {
+                        s.SetTag(nameof(postgres.Hint), hint);
+                    }
+                    if (postgres.Routine is { } routine)
+                    {
+                        s.SetTag(nameof(postgres.Routine), routine);
+                    }
+                    if (postgres.SchemaName is { } schemaName)
+                    {
+                        s.SetTag(nameof(postgres.SchemaName), schemaName);
+                    }
+                    if (postgres.SqlState is { } sqlState)
+                    {
+                        s.SetTag(nameof(postgres.SqlState), sqlState);
+                    }
 
-                    s.SetExtra("InternalQuery", postgres.InternalQuery);
-                    s.SetExtra("Detail", postgres.Detail);
+                    if (postgres.InternalQuery is { } internalQuery)
+                    {
+                        s.SetTag(nameof(postgres.InternalQuery), internalQuery);
+                    }
+                    if (postgres.Detail is { } detail)
+                    {
+                        s.SetTag(nameof(postgres.Detail), detail);
+                    }
                 });
             }
         }
