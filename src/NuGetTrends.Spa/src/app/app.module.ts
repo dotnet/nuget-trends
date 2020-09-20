@@ -24,7 +24,7 @@ Sentry.init({
       routingInstrumentation: Sentry.routingInstrumentation,
     }),
   ],
-  tracesSampleRate: 1.0, // what value should be used here for prod? Docs are not clear..
+  tracesSampleRate: 1.0,
 });
 
 @NgModule({
