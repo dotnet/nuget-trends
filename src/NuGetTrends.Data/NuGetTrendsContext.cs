@@ -26,12 +26,9 @@ namespace NuGetTrends.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            // 3.0 changed QueryTypes and now when adding a migration EF thinks this is a table
-            // following the workaround suggested by bricelam in the issue below for now
-            //https://github.com/dotnet/efcore/issues/18116
-            modelBuilder.Entity<DailyDownloadResult>().HasNoKey().ToView(null);
-
             base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<DailyDownloadResult>().HasNoKey();
 
             modelBuilder.Entity<DailyDownload>()
                 .HasKey(k => new { k.PackageId, k.Date });
