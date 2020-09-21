@@ -52,8 +52,7 @@ namespace NuGetTrends.Api
                 .AddDbContext<NuGetTrendsContext>(options =>
                 {
                     options
-                        .UseNpgsql(Configuration.GetConnectionString("NuGetTrends"))
-                        .UseSnakeCaseNamingConvention();
+                        .UseNpgsql(Configuration.GetConnectionString("NuGetTrends"));
                     if (_hostingEnvironment.IsDevelopment())
                     {
                         options.EnableSensitiveDataLogging();

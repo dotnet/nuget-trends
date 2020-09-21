@@ -19,8 +19,7 @@ namespace NuGetTrends.Scheduler.Infrastructure
 
             var builder = new DbContextOptionsBuilder<NuGetTrendsContext>();
             builder
-                .UseNpgsql(configuration.GetConnectionString("NuGetTrends"))
-                .UseSnakeCaseNamingConvention();
+                .UseNpgsql(configuration.GetConnectionString("NuGetTrends"));
 
             return new NuGetTrendsContext(builder.Options);
         }

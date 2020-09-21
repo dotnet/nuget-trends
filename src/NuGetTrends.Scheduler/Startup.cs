@@ -60,8 +60,7 @@ namespace NuGetTrends.Scheduler
                 .AddDbContext<NuGetTrendsContext>(options =>
                 {
                     options
-                        .UseNpgsql(_configuration.GetConnectionString("NuGetTrends"))
-                        .UseSnakeCaseNamingConvention();
+                        .UseNpgsql(_configuration.GetConnectionString("NuGetTrends"));
 
                     if (_hostingEnvironment.IsDevelopment())
                     {
