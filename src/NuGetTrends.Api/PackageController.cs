@@ -23,7 +23,7 @@ namespace NuGetTrends.Api
             => await _context.PackageDownloads
                 .AsNoTracking()
                 .Where(p => p.LatestDownloadCount != null
-                            && p.PackageIdLowered.Contains(q.ToLower(CultureInfo.InvariantCulture)))
+                            && p.PackageIdLowered.Contains(q.Trim().ToLower(CultureInfo.InvariantCulture)))
                 .OrderByDescending(p => p.LatestDownloadCount)
                 .Take(20)
                 .Select(p => new
