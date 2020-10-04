@@ -50,20 +50,8 @@ export class SearchInputComponent implements AfterViewInit {
         this.isSearching = false;
         return caught;
       }),
-      tap((value) => {
-        if (value && value.length === 0) {
-          switch (this.packageInteractionService.searchType) {
-            case SearchType.NuGetPackage:
-              this.toastr.info('No packages found!');
-              break;
-            case SearchType.Framework:
-              this.toastr.info('No frameworks found!');
-              break;
-            default:
-              this.toastr.info('Nothing found!');
-              break;
-          }
-        }
+      tap((value: IPackageSearchResult[]) => {
+        this.showInfoIfResultIsEmpty(value);
         this.isSearching = false;
       }));
   }
@@ -94,6 +82,25 @@ export class SearchInputComponent implements AfterViewInit {
         return this.packagesService.searchFramework(term);
       default:
         return EMPTY;
+    }
+  }
+
+  /**
+   * Show an info if the result is empty.
+   */
+  private showInfoIfResultIsEmpty(value: IPackageSearchResult[]): void {
+    if (value && value.length === 0) {
+      switch (this.packageInteractionService.searchType) {
+        case SearchType.NuGetPackage:
+          this.toastr.info('No packages found!');
+          break;
+        case SearchType.Framework:
+          this.toastr.info('No frameworks found!');
+          break;
+        default:
+          this.toastr.info('Nothing found!');
+          break;
+      }
     }
   }
 
