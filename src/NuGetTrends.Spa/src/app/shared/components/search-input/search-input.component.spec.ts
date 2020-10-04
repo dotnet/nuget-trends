@@ -106,6 +106,17 @@ describe('SearchInputComponent', () => {
       .toBe(PackagesServiceMock.mockedPackageResult.length);
   }));
 
+  it('should trim search term', fakeAsync(() => {
+    spyOn(mockedPackageService, 'searchPackage').and.callThrough();
+    fixture.detectChanges();
+
+    // Act
+    dispatchMatAutocompleteEvents(' searchterm ', component);
+
+    // Assert - Should show all the options
+    expect(mockedPackageService.searchPackage).toHaveBeenCalledWith('searchterm');
+  }));
+
   it('should show error message in case the search fails', fakeAsync(() => {
     spyOn(mockedPackageService, 'searchPackage').and.callThrough();
     spyOn(mockedToastr, 'error').and.callThrough();
