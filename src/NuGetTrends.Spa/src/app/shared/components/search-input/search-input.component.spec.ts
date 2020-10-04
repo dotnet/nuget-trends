@@ -45,6 +45,9 @@ class ToastrMock {
   error(): any {
     return null;
   }
+  info(): any {
+    return null;
+  }
 }
 
 describe('SearchInputComponent', () => {
@@ -125,6 +128,25 @@ describe('SearchInputComponent', () => {
 
     expect(mockedPackageService.searchPackage).toHaveBeenCalledWith(expectedSearchTerm);
     expect(mockedToastr.error).toHaveBeenCalled();
+  }));
+
+  it('should show info message in case the search is empty', fakeAsync(() => {
+    spyOn(mockedPackageService, 'searchPackage').and.callThrough();
+    spyOn(mockedToastr, 'info').and.callThrough();
+
+    fixture.detectChanges();
+
+    mockedPackageService.searchPackage$ = of([]);
+
+    // Act
+    const expectedSearchTerm = 'an empty array as result';
+    component.queryField.setValue(expectedSearchTerm);
+    tick(300);
+    fixture.detectChanges();
+    tick(300);
+
+    expect(mockedPackageService.searchPackage).toHaveBeenCalledWith(expectedSearchTerm);
+    expect(mockedToastr.info).toHaveBeenCalled();
   }));
 
   it('should get the download history when selecting a package from the results', fakeAsync(() => {
