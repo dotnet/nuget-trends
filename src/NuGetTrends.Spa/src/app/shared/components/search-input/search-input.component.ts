@@ -44,13 +44,28 @@ export class SearchInputComponent implements AfterViewInit {
       distinctUntilChanged(),
       filter((value: string) => value && !!value.trim()),
       tap(() => this.isSearching = true),
-      switchMap((term: string) => this.searchNuGet(term, this.packageInteractionService.searchType)),
+      switchMap((term: string) => this.searchNuGet(term.trim(), this.packageInteractionService.searchType)),
       catchError((_, caught) => {
         this.toastr.error('Our servers are too cool (or not) to handle your request at the moment.');
         this.isSearching = false;
         return caught;
       }),
-      tap(() => this.isSearching = false));
+      tap((value) => {
+        if (value && value.length === 0) {
+          switch (this.packageInteractionService.searchType) {
+            case SearchType.NuGetPackage:
+              this.toastr.info('No packages found!');
+              break;
+            case SearchType.Framework:
+              this.toastr.info('No frameworks found!');
+              break;
+            default:
+              this.toastr.info('Nothing found!');
+              break;
+          }
+        }
+        this.isSearching = false;
+      }));
   }
 
   /**
