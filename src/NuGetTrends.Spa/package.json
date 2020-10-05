@@ -66,6 +66,8 @@
   "resolutions": {
     "handlebars": "^4.5.3",
     "https-proxy-agent": "^5.0.0",
-    "serialize-javascript": "^5.0.1"
+    "serialize-javascript": "^5.0.1",
+    "selfsigned": "^1.10.8",
+    "kind-of": "^6.0.3"
   }
 }
