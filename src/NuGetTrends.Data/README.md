@@ -6,7 +6,9 @@ This project (along with `NuGet.Protocol.Catalog`) contains all the EF Core rela
 
 `NuGetTrends.Data` will hold the `Migrations` folder (AKA Migrations Assembly), but ***will not be the start-up project*** where the EF commands are executed.
 
-The `dotnet ef` commands **must be executed** from inside the `NuGetTrends.Scheduler` folder. The `Scheduler` project has a [IDesignTimeDbContextFactory](https://docs.microsoft.com/en-us/dotnet/api/microsoft.entityframeworkcore.design.idesigntimedbcontextfactory-1?view=efcore-3.1) which knows how to create instances of the `NuGetTrendsContext`. The goal of this is so the `NuGetTrends.Data` project remains a simple `netcoreapp` class lib.
+The `dotnet ef` commands **must be executed** from inside the `NuGetTrends.Scheduler` folder. 
+The `Scheduler` project has a [IDesignTimeDbContextFactory](https://docs.microsoft.com/en-us/dotnet/api/microsoft.entityframeworkcore.design.idesigntimedbcontextfactory-1?view=efcore-3.1) which knows how to create instances of the `NuGetTrendsContext`. 
+The goal of this is so the `NuGetTrends.Data` project remains a simple class lib.
 
 Below you can find a few `dotnet ef` migration commands:
 
@@ -46,5 +48,5 @@ $ dotnet ef database update -p ../NuGetTrends.Data
 
 ## Requirements
 
-- EF Core global tool 3.1.1. See [here](https://docs.microsoft.com/en-us/ef/core/miscellaneous/cli/dotnet#installing-the-tools) for installation instructions
+- EF Core global tool 5.0. See [here](https://docs.microsoft.com/en-us/ef/core/miscellaneous/cli/dotnet#installing-the-tools) for installation instructions
 - Docker (to be able to start the Postgres via `docker-compose`)
