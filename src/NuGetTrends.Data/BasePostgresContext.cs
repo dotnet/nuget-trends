@@ -58,7 +58,11 @@ namespace NuGetTrends.Data
                     table.SetTableName(ConvertGeneralToSnake(mapper, table.GetTableName()));
                     break;
                 case IMutableProperty property:
+#pragma warning disable 618
+                    // https://github.com/dotnet/efcore/issues/23301#issuecomment-727003676
+                    // If you have a model for 3.1 and you haven't changed it to use TPT, then you should be okay calling the implementation above in 5.0.
                     property.SetColumnName(ConvertGeneralToSnake(mapper, property.GetColumnName()));
+#pragma warning restore 618
                     break;
                 case IMutableKey primaryKey:
                     primaryKey.SetName(ConvertKeyToSnake(mapper, primaryKey.GetName()));
