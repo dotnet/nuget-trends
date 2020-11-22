@@ -16,29 +16,29 @@ namespace NuGetTrends.Data.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn)
-                .HasAnnotation("ProductVersion", "3.1.1")
-                .HasAnnotation("Relational:MaxIdentifierLength", 63);
+                .UseSerialColumns()
+                .HasAnnotation("Relational:MaxIdentifierLength", 63)
+                .HasAnnotation("ProductVersion", "5.0.0-rc.1.20451.13");
 
             modelBuilder.Entity("NuGet.Protocol.Catalog.Models.PackageDependency", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnName("id")
                         .HasColumnType("integer")
-                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                        .HasColumnName("id")
+                        .UseSerialColumn();
 
                     b.Property<string>("DependencyId")
-                        .HasColumnName("dependency_id")
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("dependency_id");
 
                     b.Property<int?>("PackageDependencyGroupId")
-                        .HasColumnName("package_dependency_group_id")
-                        .HasColumnType("integer");
+                        .HasColumnType("integer")
+                        .HasColumnName("package_dependency_group_id");
 
                     b.Property<string>("Range")
-                        .HasColumnName("range")
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("range");
 
                     b.HasKey("Id")
                         .HasName("pk_package_dependency");
@@ -46,7 +46,7 @@ namespace NuGetTrends.Data.Migrations
                     b.HasIndex("DependencyId");
 
                     b.HasIndex("PackageDependencyGroupId")
-                        .HasName("ix_package_dependency_package_dependency_group_id");
+                        .HasDatabaseName("ix_package_dependency_package_dependency_group_id");
 
                     b.ToTable("package_dependency");
                 });
@@ -55,23 +55,23 @@ namespace NuGetTrends.Data.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnName("id")
                         .HasColumnType("integer")
-                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                        .HasColumnName("id")
+                        .UseSerialColumn();
 
                     b.Property<int?>("PackageDetailsCatalogLeafId")
-                        .HasColumnName("package_details_catalog_leaf_id")
-                        .HasColumnType("integer");
+                        .HasColumnType("integer")
+                        .HasColumnName("package_details_catalog_leaf_id");
 
                     b.Property<string>("TargetFramework")
-                        .HasColumnName("target_framework")
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("target_framework");
 
                     b.HasKey("Id")
                         .HasName("pk_package_dependency_group");
 
                     b.HasIndex("PackageDetailsCatalogLeafId")
-                        .HasName("ix_package_dependency_group_package_details_catalog_leaf_id");
+                        .HasDatabaseName("ix_package_dependency_group_package_details_catalog_leaf_id");
 
                     b.ToTable("package_dependency_group");
                 });
@@ -80,109 +80,109 @@ namespace NuGetTrends.Data.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnName("id")
                         .HasColumnType("integer")
-                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+                        .HasColumnName("id")
+                        .UseSerialColumn();
 
                     b.Property<string>("Authors")
-                        .HasColumnName("authors")
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("authors");
 
                     b.Property<DateTimeOffset>("CommitTimestamp")
-                        .HasColumnName("commit_timestamp")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("commit_timestamp");
 
                     b.Property<DateTimeOffset>("Created")
-                        .HasColumnName("created")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created");
 
                     b.Property<string>("Description")
-                        .HasColumnName("description")
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("description");
 
                     b.Property<string>("IconUrl")
-                        .HasColumnName("icon_url")
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("icon_url");
 
-                    b.Property<bool?>("IsPrerelease")
-                        .HasColumnName("is_prerelease")
-                        .HasColumnType("boolean");
+                    b.Property<bool>("IsPrerelease")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_prerelease");
 
                     b.Property<string>("Language")
-                        .HasColumnName("language")
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("language");
 
                     b.Property<DateTimeOffset>("LastEdited")
-                        .HasColumnName("last_edited")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_edited");
 
                     b.Property<string>("LicenseUrl")
-                        .HasColumnName("license_url")
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("license_url");
 
                     b.Property<bool?>("Listed")
-                        .HasColumnName("listed")
-                        .HasColumnType("boolean");
+                        .HasColumnType("boolean")
+                        .HasColumnName("listed");
 
                     b.Property<string>("MinClientVersion")
-                        .HasColumnName("min_client_version")
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("min_client_version");
 
                     b.Property<string>("PackageHash")
-                        .HasColumnName("package_hash")
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("package_hash");
 
                     b.Property<string>("PackageHashAlgorithm")
-                        .HasColumnName("package_hash_algorithm")
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("package_hash_algorithm");
 
                     b.Property<string>("PackageId")
-                        .HasColumnName("package_id")
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("package_id");
 
                     b.Property<long>("PackageSize")
-                        .HasColumnName("package_size")
-                        .HasColumnType("bigint");
+                        .HasColumnType("bigint")
+                        .HasColumnName("package_size");
 
                     b.Property<string>("PackageVersion")
-                        .HasColumnName("package_version")
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("package_version");
 
                     b.Property<string>("ProjectUrl")
-                        .HasColumnName("project_url")
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("project_url");
 
                     b.Property<DateTimeOffset>("Published")
-                        .HasColumnName("published")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("published");
 
                     b.Property<string>("ReleaseNotes")
-                        .HasColumnName("release_notes")
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("release_notes");
 
                     b.Property<bool?>("RequireLicenseAgreement")
-                        .HasColumnName("require_license_agreement")
-                        .HasColumnType("boolean");
+                        .HasColumnType("boolean")
+                        .HasColumnName("require_license_agreement");
 
                     b.Property<string>("Summary")
-                        .HasColumnName("summary")
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("summary");
 
                     b.Property<List<string>>("Tags")
-                        .HasColumnName("tags")
-                        .HasColumnType("text[]");
+                        .HasColumnType("text[]")
+                        .HasColumnName("tags");
 
                     b.Property<string>("Title")
-                        .HasColumnName("title")
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("title");
 
                     b.Property<int>("Type")
-                        .HasColumnName("type")
-                        .HasColumnType("integer");
+                        .HasColumnType("integer")
+                        .HasColumnName("type");
 
                     b.Property<string>("VerbatimVersion")
-                        .HasColumnName("verbatim_version")
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("verbatim_version");
 
                     b.HasKey("Id")
                         .HasName("pk_package_details_catalog_leafs");
@@ -198,12 +198,12 @@ namespace NuGetTrends.Data.Migrations
             modelBuilder.Entity("NuGetTrends.Data.Cursor", b =>
                 {
                     b.Property<string>("Id")
-                        .HasColumnName("id")
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("id");
 
                     b.Property<DateTimeOffset>("Value")
-                        .HasColumnName("value")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("value");
 
                     b.HasKey("Id")
                         .HasName("pk_cursors");
@@ -221,16 +221,16 @@ namespace NuGetTrends.Data.Migrations
             modelBuilder.Entity("NuGetTrends.Data.DailyDownload", b =>
                 {
                     b.Property<string>("PackageId")
-                        .HasColumnName("package_id")
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("package_id");
 
                     b.Property<DateTime>("Date")
-                        .HasColumnName("date")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("date");
 
                     b.Property<long?>("DownloadCount")
-                        .HasColumnName("download_count")
-                        .HasColumnType("bigint");
+                        .HasColumnType("bigint")
+                        .HasColumnName("download_count");
 
                     b.HasKey("PackageId", "Date");
 
@@ -240,38 +240,38 @@ namespace NuGetTrends.Data.Migrations
             modelBuilder.Entity("NuGetTrends.Data.DailyDownloadResult", b =>
                 {
                     b.Property<long?>("Count")
-                        .HasColumnName("download_count")
-                        .HasColumnType("bigint");
+                        .HasColumnType("bigint")
+                        .HasColumnName("download_count");
 
                     b.Property<DateTime>("Week")
-                        .HasColumnName("week")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("week");
 
-                    b.ToTable("daily_download_result");
+                    b.ToTable("DailyDownloadResult");
                 });
 
             modelBuilder.Entity("NuGetTrends.Data.PackageDownload", b =>
                 {
                     b.Property<string>("PackageId")
-                        .HasColumnName("package_id")
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("package_id");
 
                     b.Property<string>("IconUrl")
-                        .HasColumnName("icon_url")
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("icon_url");
 
                     b.Property<long?>("LatestDownloadCount")
-                        .HasColumnName("latest_download_count")
-                        .HasColumnType("bigint");
+                        .HasColumnType("bigint")
+                        .HasColumnName("latest_download_count");
 
                     b.Property<DateTime>("LatestDownloadCountCheckedUtc")
-                        .HasColumnName("latest_download_count_checked_utc")
-                        .HasColumnType("timestamp without time zone");
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("latest_download_count_checked_utc");
 
                     b.Property<string>("PackageIdLowered")
                         .IsRequired()
-                        .HasColumnName("package_id_lowered")
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("package_id_lowered");
 
                     b.HasKey("PackageId");
 
@@ -286,7 +286,7 @@ namespace NuGetTrends.Data.Migrations
                     b.HasOne("NuGet.Protocol.Catalog.Models.PackageDependencyGroup", null)
                         .WithMany("Dependencies")
                         .HasForeignKey("PackageDependencyGroupId")
-                        .HasConstraintName("fk_package_dependency_package_dependency_group_package_dependenc")
+                        .HasConstraintName("fk_package_dependency_package_dependency_group_id")
                         .OnDelete(DeleteBehavior.Cascade);
                 });
 
@@ -295,8 +295,18 @@ namespace NuGetTrends.Data.Migrations
                     b.HasOne("NuGet.Protocol.Catalog.Models.PackageDetailsCatalogLeaf", null)
                         .WithMany("DependencyGroups")
                         .HasForeignKey("PackageDetailsCatalogLeafId")
-                        .HasConstraintName("fk_package_dependency_group_package_details_catalog_leafs_package")
+                        .HasConstraintName("fk_package_dependency_group_package_details_catalog_leafs_id")
                         .OnDelete(DeleteBehavior.Cascade);
+                });
+
+            modelBuilder.Entity("NuGet.Protocol.Catalog.Models.PackageDependencyGroup", b =>
+                {
+                    b.Navigation("Dependencies");
+                });
+
+            modelBuilder.Entity("NuGet.Protocol.Catalog.Models.PackageDetailsCatalogLeaf", b =>
+                {
+                    b.Navigation("DependencyGroups");
                 });
 #pragma warning restore 612, 618
         }

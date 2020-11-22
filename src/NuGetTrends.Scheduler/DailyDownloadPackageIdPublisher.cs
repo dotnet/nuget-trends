@@ -52,11 +52,11 @@ namespace NuGetTrends.Scheduler
             try
             {
                 await using var conn = _context.Database.GetDbConnection();
-                conn.Open();
+                await conn.OpenAsync();
 
                 // Insert some data
                 await using var cmd = new NpgsqlCommand("SELECT package_id FROM pending_packages_daily_downloads", (NpgsqlConnection)conn);
-                await using var reader = cmd.ExecuteReader();
+                await using var reader = await cmd.ExecuteReaderAsync();
                 var batchSize = 25; // TODO: Configurable
                 var batch = new List<string>(batchSize);
 

@@ -26,12 +26,16 @@ namespace NuGetTrends.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            // 3.0 changed QueryTypes and now when adding a migration EF thinks this is a table
-            // following the workaround suggested by bricelam in the issue below for now
-            //https://github.com/dotnet/efcore/issues/18116
-            modelBuilder.Entity<DailyDownloadResult>().HasNoKey().ToView(null);
-
             base.OnModelCreating(modelBuilder);
+
+            // Opt-out of the default identity-columns strategy for auto increment
+            // TODO: Consider changing and dealing with the migrations later
+            modelBuilder.UseSerialColumns();
+
+            // This is still not working in EF 5 (table is still being created), but calling ToView now is worse
+            // as it fails in our custom FixSnakeCaseNames since it expects the object to exist in the db.
+            // TODO: Will manually remove the table from the migration - Follow GH issues later to see what's new
+            modelBuilder.Entity<DailyDownloadResult>().HasNoKey();
 
             modelBuilder.Entity<DailyDownload>()
                 .HasKey(k => new { k.PackageId, k.Date });
@@ -56,13 +60,13 @@ namespace NuGetTrends.Data
             modelBuilder
                 .Entity<PackageDetailsCatalogLeaf>()
                 .HasMany(p => p.DependencyGroups)
-                .WithOne()
+                .WithOne().HasConstraintName("fk_package_dependency_group_package_details_catalog_leafs_id") //so it doesn't get truncated
                 .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder
                 .Entity<PackageDependencyGroup>()
                 .HasMany(p => p.Dependencies)
-                .WithOne()
+                .WithOne().HasConstraintName("fk_package_dependency_package_dependency_group_id") //so it doesn't get truncated
                 .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder

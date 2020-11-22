@@ -23,13 +23,10 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v2
-        with:
-            submodules: true
-
-      - name: Install .NET Core SDK
+      - name: .NET Core CLI 5.0 RC1
         uses: actions/setup-dotnet@v1
         with:
-          dotnet-version: 3.1.102
+          dotnet-version: '5.0.100'
 
       - name: Build
         run: dotnet build -c Release
