@@ -14,26 +14,32 @@ using Microsoft.OpenApi.Models;
 using Shortr;
 using Shortr.Npgsql;
 
-namespace NuGetTrends.Api
+namespace NuGetTrends.Web
 {
     public class Startup
     {
         private readonly IWebHostEnvironment _hostingEnvironment;
-        public IConfiguration Configuration { get; }
+        private readonly IConfiguration _configuration;
 
-        public Startup(
-            IConfiguration configuration,
-            IWebHostEnvironment hostingEnvironment)
+        public Startup(IConfiguration configuration, IWebHostEnvironment hostingEnvironment)
         {
-            Configuration = configuration;
+            _configuration = configuration;
             _hostingEnvironment = hostingEnvironment;
         }
 
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddControllers();
+
+            // In production, the Angular files will be served from this directory
+            services.AddSpaStaticFiles(configuration =>
+            {
+                configuration.RootPath = "Portal/dist";
+            });
+
             if (_hostingEnvironment.IsDevelopment())
             {
+                // keep cors during development so we can still run the spa on Angular default port (4200)
                 services.AddCors(options =>
                 {
                     options.AddPolicy("AllowAll",
@@ -48,54 +54,71 @@ namespace NuGetTrends.Api
                 });
             }
 
-            services
-                .AddDbContext<NuGetTrendsContext>(options =>
+            services.AddDbContext<NuGetTrendsContext>(options =>
+            {
+                options.UseNpgsql(_configuration.GetConnectionString("NuGetTrends"));
+                if (_hostingEnvironment.IsDevelopment())
                 {
-                    options
-                        .UseNpgsql(Configuration.GetConnectionString("NuGetTrends"));
-                    if (_hostingEnvironment.IsDevelopment())
-                    {
-                        options.EnableSensitiveDataLogging();
-                    }
-                });
+                    options.EnableSensitiveDataLogging();
+                }
+            });
 
             services.AddSwaggerGen(c =>
             {
-                c.SwaggerDoc("v1", new OpenApiInfo { Title = "NuGet Trends", Version = "v1" });
+                c.SwaggerDoc("v1", new OpenApiInfo {Title = "NuGet Trends", Version = "v1"});
                 var xmlFile = Assembly.GetExecutingAssembly().GetName().Name + ".xml";
                 var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
                 c.IncludeXmlComments(xmlPath);
             });
 
             services.AddShortr();
-            services.Replace(ServiceDescriptor.Singleton<IShortrStore, NpgsqlShortrStore>());
-            services.AddSingleton(c => new NpgsqlShortrOptions
+            if (!_hostingEnvironment.IsDevelopment())
             {
-                ConnectionString = c.GetRequiredService<IConfiguration>().GetConnectionString("NuGetTrends")
-            });
+                services.Replace(ServiceDescriptor.Singleton<IShortrStore, NpgsqlShortrStore>());
+                services.AddSingleton(c => new NpgsqlShortrOptions
+                {
+                    ConnectionString = c.GetRequiredService<IConfiguration>().GetConnectionString("NuGetTrends")
+                });
+            }
         }
 
         public void Configure(IApplicationBuilder app)
         {
+            app.UseStaticFiles();
+            if (!_hostingEnvironment.IsDevelopment())
+            {
+                app.UseSpaStaticFiles();
+            }
+
             app.UseRouting();
             if (_hostingEnvironment.IsDevelopment())
             {
                 app.UseCors("AllowAll");
                 app.UseMiddleware<ExceptionInResponseMiddleware>();
-
                 app.UseSwaggerUI(c =>
                 {
                     c.SwaggerEndpoint("/swagger/v1/swagger.json", "NuGet Trends");
-
                     c.DocumentTitle = "NuGet Trends API";
                     c.DocExpansion(DocExpansion.None);
                 });
             }
 
             app.UseSwagger();
-            app.UseEndpoints(endpoints => {
+            app.UseEndpoints(endpoints =>
+            {
                 endpoints.MapControllers();
             });
+
+            app.UseSpa(spa =>
+            {
+                spa.Options.SourcePath = "Portal";
+                if (_hostingEnvironment.IsDevelopment())
+                {
+                    // use the external angular CLI server instead
+                    spa.UseProxyToSpaDevelopmentServer("http://localhost:4200");
+                }
+            });
+
             app.UseShortr();
         }
     }
