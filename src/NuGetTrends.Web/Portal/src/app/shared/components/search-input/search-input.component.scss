@@ -1,0 +1,43 @@
+@import '../../../../colors';
+
+.mat-autocomplete-panel {
+  font-size: 1.1em;
+  color: $grey-dark;
+  border: 1px solid $grey-light;
+  border-top: none;
+  background-color: $white-ter
+}
+
+.package-img {
+  height: 32px;
+  width: 32px;  
+  vertical-align: middle;
+  margin-right: 8px;
+}
+
+.mat-option:hover:not(.mat-option-disabled),
+.mat-option.mat-active {
+  background-color: $cyan;
+  color: #fff
+}
+
+/* Extra styles to make the input a little nicer on the header */
+input:focus{
+  border: none;
+}
+
+::-webkit-input-placeholder {
+  text-align: center;
+}
+
+:-moz-placeholder { /* Firefox 18- */
+  text-align: center;
+}
+
+::-moz-placeholder {  /* Firefox 19+ */
+  text-align: center;
+}
+
+:-ms-input-placeholder {
+  text-align: center;
+}

@@ -1,0 +1,16 @@
+@import '../node_modules/bulma/sass/utilities/initial-variables.sass';
+
+// brand colors
+$blue-dark: #215C84;
+$blue-darker: #153B54;
+$blue-light: #A2BACB;
+$bg-color: #EFF0EB;
+
+// loading indicator chart
+$chart-loading-icon: $bg-color;
+
+// Bulma Overrides
+$primary: $blue-dark;
+
+$body-background-color: $bg-color;
+$navbar-item-img-max-height: 3rem;

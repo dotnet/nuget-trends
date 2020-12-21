@@ -1,0 +1,34 @@
+[
+  {
+    "packageId": "Entity Framework",
+    "downloads": 1010101
+  },
+  {
+    "packageId": "Dapper",
+    "downloads": 1010101
+  },
+  {
+    "packageId": "Newtonsoft.json",
+    "downloads": 1010101
+  },
+  {
+    "packageId": "xunit",
+    "downloads": 1010101
+  },
+  {
+    "packageId": "nunit",
+    "downloads": 1010101
+  },
+  {
+    "packageId": "automapper",
+    "downloads": 1010101
+  },
+  {
+    "packageId": "autofac",
+    "downloads": 1010101
+  },
+  {
+    "packageId": "simpleinjector",
+    "downloads": 1010101
+  }
+]
