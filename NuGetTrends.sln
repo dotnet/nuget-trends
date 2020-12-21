@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.27906.1
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGetTrends.Api", "src\NuGetTrends.Api\NuGetTrends.Api.csproj", "{74F6B811-9533-4C03-868C-BC1DBD3C4D22}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGetTrends.Web", "src\NuGetTrends.Web\NuGetTrends.Web.csproj", "{74F6B811-9533-4C03-868C-BC1DBD3C4D22}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGet.Protocol.Catalog", "src\NuGet.Protocol.Catalog\NuGet.Protocol.Catalog.csproj", "{9691BF79-1E62-476B-85BA-5F7A06939E47}"
 EndProject

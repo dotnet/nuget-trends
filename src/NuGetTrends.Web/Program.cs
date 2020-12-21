@@ -7,9 +7,9 @@ using Serilog;
 using SystemEnvironment = System.Environment;
 using Sentry;
 
-namespace NuGetTrends.Api
+namespace NuGetTrends.Web
 {
-    public class Program
+    public static class Program
     {
         private static readonly string Environment
             = SystemEnvironment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";

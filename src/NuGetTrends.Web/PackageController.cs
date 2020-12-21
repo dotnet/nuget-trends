@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NuGetTrends.Data;
 
-namespace NuGetTrends.Api
+namespace NuGetTrends.Web
 {
     [Route("api/[controller]")]
     [ApiController]
@@ -19,9 +19,10 @@ namespace NuGetTrends.Api
         public PackageController(NuGetTrendsContext context) => _context = context;
 
         [HttpGet("search")]
-        public async Task<ActionResult<IEnumerable<object>>> Search([FromQuery] string q, CancellationToken cancellationToken)
-            => await _context.PackageDownloads
-                .AsNoTracking()
+        public async Task<ActionResult<IEnumerable<object>>> Search([FromQuery] string q,
+            CancellationToken cancellationToken)
+        {
+            return await _context.PackageDownloads
                 .Where(p => p.LatestDownloadCount != null
                             && p.PackageIdLowered.Contains(q.Trim().ToLower(CultureInfo.InvariantCulture)))
                 .OrderByDescending(p => p.LatestDownloadCount)
@@ -33,6 +34,7 @@ namespace NuGetTrends.Api
                     IconUrl = p.IconUrl ?? "https://www.nuget.org/Content/gallery/img/default-package-icon.svg"
                 })
                 .ToListAsync(cancellationToken);
+        }
 
         [HttpGet("history/{id}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
