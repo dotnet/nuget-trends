@@ -3,15 +3,13 @@
   <PropertyGroup>
     <TargetFramework>net5.0</TargetFramework>
     <IncludeOpenAPIAnalyzers>true</IncludeOpenAPIAnalyzers>
+    <IsPackable>false</IsPackable>
+    <SpaRoot>Portal/</SpaRoot>
+    <DefaultItemExcludes>$(DefaultItemExcludes);$(SpaRoot)node_modules/**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="appsettings.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-
-  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.SpaServices.Extensions" Version="5.0.1" />
     <PackageReference Include="Shortr.AspNetCore" Version="1.0.0-beta01" />
     <PackageReference Include="Shortr.Npgsql" Version="1.0.0-beta01" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="5.6.1" />
@@ -26,6 +24,25 @@
 
   <ItemGroup>
     <ProjectReference Include="..\NuGetTrends.Data\NuGetTrends.Data.csproj" />
-   </ItemGroup>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Don't publish the SPA source files, but do show them in the project files list -->
+    <Content Remove="$(SpaRoot)**" />
+    <None Remove="$(SpaRoot)**" />
+    <None Include="$(SpaRoot)**" Exclude="$(SpaRoot)node_modules/**" />
+  </ItemGroup>
+
+  <Target Name="PublishRunWebpack" AfterTargets="ComputeFilesToPublish">
+    <!-- Include the newly-built spa files in the publish output -->
+    <ItemGroup>
+      <DistFiles Include="$(SpaRoot)dist/**" />
+      <ResolvedFileToPublish Include="@(DistFiles->'%(FullPath)')" Exclude="@(ResolvedFileToPublish)">
+        <RelativePath>%(DistFiles.Identity)</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+      </ResolvedFileToPublish>
+    </ItemGroup>
+  </Target>
 
 </Project>

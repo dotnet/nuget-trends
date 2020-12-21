@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
-namespace NuGetTrends.Api
+namespace NuGetTrends.Web
 {
     // ReSharper disable once ClassNeverInstantiated.Global - reflection
     internal class ExceptionInResponseMiddleware
