@@ -14,7 +14,7 @@ using Microsoft.OpenApi.Models;
 using Shortr;
 using Shortr.Npgsql;
 
-namespace NuGetTrends.Api
+namespace NuGetTrends.Web
 {
     public class Startup
     {
@@ -32,36 +32,18 @@ namespace NuGetTrends.Api
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddControllers();
-            if (_hostingEnvironment.IsDevelopment())
+            services.AddDbContext<NuGetTrendsContext>(options =>
             {
-                services.AddCors(options =>
+                options.UseNpgsql(Configuration.GetConnectionString("NuGetTrends"));
+                if (_hostingEnvironment.IsDevelopment())
                 {
-                    options.AddPolicy("AllowAll",
-                        builder =>
-                        {
-                            builder
-                                .AllowAnyOrigin()
-                                .AllowAnyMethod()
-                                .AllowAnyHeader()
-                                .SetPreflightMaxAge(TimeSpan.FromDays(1));
-                        });
-                });
-            }
-
-            services
-                .AddDbContext<NuGetTrendsContext>(options =>
-                {
-                    options
-                        .UseNpgsql(Configuration.GetConnectionString("NuGetTrends"));
-                    if (_hostingEnvironment.IsDevelopment())
-                    {
-                        options.EnableSensitiveDataLogging();
-                    }
-                });
+                    options.EnableSensitiveDataLogging();
+                }
+            });
 
             services.AddSwaggerGen(c =>
             {
-                c.SwaggerDoc("v1", new OpenApiInfo { Title = "NuGet Trends", Version = "v1" });
+                c.SwaggerDoc("v1", new OpenApiInfo {Title = "NuGet Trends", Version = "v1"});
                 var xmlFile = Assembly.GetExecutingAssembly().GetName().Name + ".xml";
                 var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
                 c.IncludeXmlComments(xmlPath);
@@ -80,9 +62,7 @@ namespace NuGetTrends.Api
             app.UseRouting();
             if (_hostingEnvironment.IsDevelopment())
             {
-                app.UseCors("AllowAll");
                 app.UseMiddleware<ExceptionInResponseMiddleware>();
-
                 app.UseSwaggerUI(c =>
                 {
                     c.SwaggerEndpoint("/swagger/v1/swagger.json", "NuGet Trends");
@@ -93,7 +73,8 @@ namespace NuGetTrends.Api
             }
 
             app.UseSwagger();
-            app.UseEndpoints(endpoints => {
+            app.UseEndpoints(endpoints =>
+            {
                 endpoints.MapControllers();
             });
             app.UseShortr();
