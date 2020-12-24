@@ -1,4 +1,4 @@
-import { async, ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { ComponentFixture, TestBed, fakeAsync, tick, waitForAsync } from '@angular/core/testing';
 
 import { LoadingIndicatorComponent } from './loading-indicator.component';
 import { LoadingIndicatorService } from './loading-indicator.service';
@@ -8,7 +8,7 @@ describe('LoadingIndicatorComponent', () => {
   let fixture: ComponentFixture<LoadingIndicatorComponent>;
   let service: LoadingIndicatorService;
 
-  beforeEach(async(() => {
+  beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       declarations: [LoadingIndicatorComponent],
       providers: [LoadingIndicatorService]

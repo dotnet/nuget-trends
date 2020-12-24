@@ -1,4 +1,4 @@
-import { async, TestBed, inject, fakeAsync, tick } from '@angular/core/testing';
+import { TestBed, inject, fakeAsync, tick, waitForAsync } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { PackagesService } from './packages.service';
 import { IPackageSearchResult, IPackageDownloadHistory } from 'src/app/shared/models/package-models';
@@ -8,7 +8,7 @@ describe('PackagesService', () => {
   let service: PackagesService;
   let httpMock: HttpTestingController;
 
-  beforeEach(async(() => {
+  beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
       providers: [PackagesService],
