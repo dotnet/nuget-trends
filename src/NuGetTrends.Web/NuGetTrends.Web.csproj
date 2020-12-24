@@ -9,12 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="appsettings.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-
-  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.SpaServices.Extensions" Version="5.0.1" />
     <PackageReference Include="Shortr.AspNetCore" Version="1.0.0-beta01" />
     <PackageReference Include="Shortr.Npgsql" Version="1.0.0-beta01" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="5.6.1" />
@@ -39,11 +34,7 @@
   </ItemGroup>
 
   <Target Name="PublishRunWebpack" AfterTargets="ComputeFilesToPublish">
-    <!-- As part of publishing, ensure the JS resources are freshly built in production mode -->
-    <Exec WorkingDirectory="$(SpaRoot)" Command="yarn install" />
-    <Exec WorkingDirectory="$(SpaRoot)" Command="yarn run prod" />
-
-    <!-- Include the newly-built files in the publish output -->
+    <!-- Include the newly-built spa files in the publish output -->
     <ItemGroup>
       <DistFiles Include="$(SpaRoot)dist/**" />
       <ResolvedFileToPublish Include="@(DistFiles->'%(FullPath)')" Exclude="@(ResolvedFileToPublish)">
