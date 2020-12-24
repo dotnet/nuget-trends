@@ -1,4 +1,4 @@
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { ToastrModule, ToastrService } from 'ngx-toastr';
 
 import { ToastrMock } from 'src/app/mocks';
@@ -14,7 +14,7 @@ describe('PackageListComponent', () => {
   let mockedToastr: ToastrMock;
   let packageInteractionService: PackageInteractionService;
 
-  beforeEach(async(() => {
+  beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       declarations: [ PackageListComponent ],
       imports: [

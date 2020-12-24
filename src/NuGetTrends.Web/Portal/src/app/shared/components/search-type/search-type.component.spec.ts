@@ -1,4 +1,4 @@
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { FormsModule } from '@angular/forms';
 
 import { PackageInteractionService } from 'src/app/core';
@@ -11,7 +11,7 @@ describe('SearchTypeComponent', () => {
   let packageInteractionService: PackageInteractionService;
   let checkboxControl: HTMLElement;
 
-  beforeEach(async(() => {
+  beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       declarations: [SearchTypeComponent],
       imports: [FormsModule]
