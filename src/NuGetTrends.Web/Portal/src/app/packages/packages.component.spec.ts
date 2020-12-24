@@ -4,7 +4,7 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { RouterTestingModule } from '@angular/router/testing';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { async, ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { ComponentFixture, TestBed, fakeAsync, tick, waitForAsync } from '@angular/core/testing';
 import { ToastrModule, ToastrService } from 'ngx-toastr';
 import { of, Observable, throwError } from 'rxjs';
 
@@ -49,7 +49,7 @@ describe('PackagesComponent', () => {
   let packageInteractionService: PackageInteractionService;
   const queryParamName = 'ids';
 
-  beforeEach(async(() => {
+  beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       declarations: [PackagesComponent, PackageListComponent, SearchPeriodComponent, SharePopoverComponent],
       imports: [
