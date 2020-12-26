@@ -22,6 +22,7 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v2
+        fetch-depth: 0
 
       - name: Install Node 15.0.1
         uses: actions/setup-node@v1
