@@ -13,8 +13,8 @@ describe('PackagesService', () => {
       imports: [HttpClientTestingModule],
       providers: [PackagesService],
     });
-    service = TestBed.get(PackagesService);
-    httpMock = TestBed.get(HttpTestingController);
+    service = TestBed.inject(PackagesService);
+    httpMock = TestBed.inject(HttpTestingController);
   }));
 
   it('should be initialized', inject([PackagesService], (packageService: PackagesService) => {

@@ -18,7 +18,7 @@ describe('LoadingIndicatorComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(LoadingIndicatorComponent);
     component = fixture.componentInstance;
-    service = TestBed.get(LoadingIndicatorService);
+    service = TestBed.inject(LoadingIndicatorService);
     fixture.detectChanges();
   });
 

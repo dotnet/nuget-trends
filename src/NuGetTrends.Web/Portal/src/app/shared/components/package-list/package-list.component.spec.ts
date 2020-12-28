@@ -33,8 +33,8 @@ describe('PackageListComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(PackageListComponent);
     component = fixture.componentInstance;
-    mockedToastr = TestBed.get(ToastrService);
-    packageInteractionService = TestBed.get(PackageInteractionService);
+    mockedToastr = TestBed.inject(ToastrService);
+    packageInteractionService = TestBed.inject(PackageInteractionService);
   });
 
   it('should create', () => {

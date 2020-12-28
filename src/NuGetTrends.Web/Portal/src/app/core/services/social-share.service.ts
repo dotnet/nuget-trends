@@ -50,13 +50,13 @@ export class SocialShareService {
         const imgurLink = `https://imgur.com/${response.body.data.id}`;
         return await this.getShortLink(imgurLink);
       }
-      return Promise.resolve(null);
+      return Promise.resolve('');
 
     } catch (error) {
       // Upload might throw errors if the quota is reached.
       // https://api.imgur.com/#freeusage
       this.errorHandler.handleError(error);
-      return null;
+      return '';
     }
   }
 

@@ -74,7 +74,7 @@
     "no-inferrable-types": [true, "ignore-params"],
     "no-shadowed-variable": true,
     "no-trailing-whitespace": true,
-    "no-non-null-assertion": true,
+    "no-non-null-assertion": false,
     "no-var-keyword": true,
     "no-redundant-jsdoc": true,
     "no-switch-case-fall-through": true,
