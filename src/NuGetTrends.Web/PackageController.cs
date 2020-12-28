@@ -19,8 +19,8 @@ namespace NuGetTrends.Web
         public PackageController(NuGetTrendsContext context) => _context = context;
 
         [HttpGet("search")]
-        public async Task<ActionResult<IEnumerable<object>>> Search([FromQuery] string q,
-            CancellationToken cancellationToken)
+        public async Task<ActionResult<IEnumerable<object>>> Search(
+            [FromQuery] string q, CancellationToken cancellationToken)
         {
             return await _context.PackageDownloads
                 .Where(p => p.LatestDownloadCount != null
