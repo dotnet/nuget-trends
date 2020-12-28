@@ -37,12 +37,12 @@ describe('SearchPeriodComponent', () => {
   }));
 
   beforeEach(() => {
-    router = TestBed.get(Router);
+    router = TestBed.inject(Router);
     routerSpy = spyOn(router, 'navigate').and.callThrough();
     fixture = TestBed.createComponent(SearchPeriodComponent);
     component = fixture.componentInstance;
-    packageInteractionService = TestBed.get(PackageInteractionService);
-    activatedRoute = TestBed.get(ActivatedRoute);
+    packageInteractionService = TestBed.inject(PackageInteractionService);
+    activatedRoute = MockedActivatedRoute.injectMockActivatedRoute();
   });
 
   it('should create', () => {

@@ -13,8 +13,8 @@ export class PackageInteractionService {
   private packagePlottedSource = new Subject<IPackageDownloadHistory>();
   private packageRemovedSource = new Subject<string>();
   private searchPeriodChangedSource = new Subject<number>();
-  private _searchType: SearchType;
-  private _searchPeriod: number;
+  private _searchType!: SearchType;
+  private _searchPeriod!: number;
 
   packageAdded$ = this.packageAddedSource.asObservable();
   packageUpdated$ = this.packageUpdatedSource.asObservable();
@@ -24,6 +24,7 @@ export class PackageInteractionService {
 
   constructor() {
     this.searchType = SearchType.NuGetPackage;
+    this.searchPeriod = 12;
   }
 
   /**

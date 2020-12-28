@@ -22,7 +22,7 @@ describe('SearchTypeComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(SearchTypeComponent);
     component = fixture.componentInstance;
-    packageInteractionService = TestBed.get(PackageInteractionService);
+    packageInteractionService = TestBed.inject(PackageInteractionService);
     checkboxControl = fixture.nativeElement.querySelector('input');
   });
 

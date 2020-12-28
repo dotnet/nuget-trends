@@ -1,5 +1,5 @@
 import { Component, ErrorHandler, OnDestroy, OnInit } from '@angular/core';
-import { Chart, ChartDataSets, ChartOptions } from 'chart.js';
+import { Chart, ChartData, ChartDataSets, ChartOptions } from 'chart.js';
 import { DatePipe } from '@angular/common';
 import { Subscription } from 'rxjs';
 import { ActivatedRoute, Params, Router } from '@angular/router';
@@ -17,10 +17,10 @@ import { IPackageDownloadHistory, IDownloadStats } from '../shared/models/packag
 })
 export class PackagesComponent implements OnInit, OnDestroy {
 
-  private trendChart: Chart;
+  private trendChart!: Chart;
   private canvas: any;
   private ctx: any;
-  private chartData = { labels: [], datasets: [] };
+  private chartData: ChartData = { labels: [], datasets: [] };
   private plotPackageSubscription: Subscription;
   private removePackageSubscription: Subscription;
   private searchPeriodSubscription: Subscription;
@@ -90,10 +90,10 @@ export class PackagesComponent implements OnInit, OnDestroy {
       const dataset = this.parseDataSet(packageHistory);
 
       setTimeout(() => {
-        if (this.chartData.datasets.length === 0) {
+        if (this.chartData.datasets!.length === 0) {
           this.initializeChart(packageHistory);
         } else {
-          this.chartData.datasets.push(dataset);
+          this.chartData.datasets!.push(dataset);
           this.trendChart.update();
         }
         this.addPackageToUrl(packageHistory.id);
@@ -105,7 +105,7 @@ export class PackagesComponent implements OnInit, OnDestroy {
    * Handles the removePackage event
    */
   private removePackage(packageId: string): void {
-    this.chartData.datasets = this.chartData.datasets.filter(d => d.label !== packageId);
+    this.chartData.datasets = this.chartData.datasets!.filter(d => d.label !== packageId);
     this.trendChart.update();
     this.removePackageFromUrl(packageId);
 
@@ -119,10 +119,10 @@ export class PackagesComponent implements OnInit, OnDestroy {
    */
   private initializeChart(firstPackageData: IPackageDownloadHistory): void {
     this.chartData.labels = firstPackageData.downloads.map((download: IDownloadStats) => {
-      return this.datePipe.transform(download.week, 'MMM d');
+      return this.datePipe.transform(download.week, 'MMM d')!;
     });
 
-    this.chartData.datasets.push(this.parseDataSet(firstPackageData));
+    this.chartData.datasets!.push(this.parseDataSet(firstPackageData));
     Chart.defaults.global.defaultFontSize = 13;
 
     const chartOptions: ChartOptions = {

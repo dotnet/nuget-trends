@@ -11,7 +11,7 @@ import { PackageInteractionService } from '../../../core';
   styleUrls: ['./search-period.component.scss']
 })
 export class SearchPeriodComponent implements OnDestroy {
-  periodControl: FormControl;
+  periodControl!: FormControl;
   periodValues: Array<SearchPeriod>;
 
   private urlPeriodName = 'months';

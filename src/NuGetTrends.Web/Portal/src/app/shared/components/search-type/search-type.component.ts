@@ -8,15 +8,15 @@ import { PackageInteractionService } from '../../../core';
   styleUrls: ['./search-type.component.scss']
 })
 export class SearchTypeComponent implements OnInit {
-  @Output() packagedTypeChanged: EventEmitter<SearchType>;
+  @Output() packagedTypeChanged: EventEmitter<SearchType> = new EventEmitter<SearchType>();
 
   isNuGetPackage: boolean;
 
   constructor(private packageInteractionService: PackageInteractionService) {
+    this.isNuGetPackage = true;
   }
 
   ngOnInit(): void {
-    this.isNuGetPackage = true;
     this.packageInteractionService.searchType = SearchType.NuGetPackage;
   }
 

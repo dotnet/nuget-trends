@@ -35,7 +35,7 @@ class PackagesServiceMock {
     }];
 
   getPackageDownloadHistory(packageId: string, _months: number = 12): Observable<IPackageDownloadHistory> {
-    return of(PackagesServiceMock.mockedDownloadHistory.find(p => p.id === packageId));
+    return of(PackagesServiceMock.mockedDownloadHistory.find(p => p.id === packageId)!);
   }
 }
 
@@ -76,11 +76,11 @@ describe('PackagesComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(PackagesComponent);
     component = fixture.componentInstance;
-    activatedRoute = TestBed.get(ActivatedRoute);
-    mockedPackageService = TestBed.get(PackagesService);
-    packageInteractionService = TestBed.get(PackageInteractionService);
-    router = TestBed.get(Router);
-    mockedToastr = TestBed.get(ToastrService);
+    activatedRoute = MockedActivatedRoute.injectMockActivatedRoute();
+    mockedPackageService = TestBed.inject(PackagesService);
+    packageInteractionService = TestBed.inject(PackageInteractionService);
+    router = MockedRouter.injectMockRouter();
+    mockedToastr = TestBed.inject(ToastrService);
   });
 
   it('should create', () => {

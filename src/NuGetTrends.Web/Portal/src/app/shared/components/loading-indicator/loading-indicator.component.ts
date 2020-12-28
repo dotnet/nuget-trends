@@ -11,7 +11,7 @@ import { LoadingIndicatorService } from './loading-indicator.service';
 })
 export class LoadingIndicatorComponent implements AfterViewInit, OnDestroy {
 
-  loadingSubscription: Subscription;
+  loadingSubscription?: Subscription;
 
   constructor(
     private _elmRef: ElementRef,
