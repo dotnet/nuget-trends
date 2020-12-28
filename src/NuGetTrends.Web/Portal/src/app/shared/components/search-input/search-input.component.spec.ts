@@ -106,7 +106,7 @@ describe('SearchInputComponent', () => {
       .toBe(PackagesServiceMock.mockedPackageResult.length);
   }));
 
-  it('should trim search term', fakeAsync(() => {
+  it('should trim the search term', fakeAsync(() => {
     spyOn(mockedPackageService, 'searchPackage').and.callThrough();
     fixture.detectChanges();
 
@@ -117,7 +117,7 @@ describe('SearchInputComponent', () => {
     expect(mockedPackageService.searchPackage).toHaveBeenCalledWith('searchterm');
   }));
 
-  it('should not call API when term is empty', fakeAsync(() => {
+  it('should not call the API when the term is empty', fakeAsync(() => {
     spyOn(mockedPackageService, 'searchPackage').and.callThrough();
     fixture.detectChanges();
 
