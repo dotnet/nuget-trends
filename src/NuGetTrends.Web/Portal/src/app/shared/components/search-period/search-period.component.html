@@ -1,0 +1,11 @@
+<div class="field">
+  <div class="control control-center">
+    <div class="select is-medium">
+      <select id="period" [formControl]="periodControl" (change)="changePeriod()">
+        <option *ngFor="let period of periodValues" [ngValue]="period.value">
+          {{ period.text }}
+        </option>
+      </select>
+    </div>
+  </div>
+</div>

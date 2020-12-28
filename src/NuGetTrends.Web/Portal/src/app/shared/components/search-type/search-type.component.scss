@@ -1,0 +1,69 @@
+@import '../../../../colors';
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 220px;
+  height: 45px;
+}
+
+.switch input {display:none;}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: $blue-darker;
+  -webkit-transition: .10s;
+  transition: .10s;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 45px;
+  width: 110px;
+  left: 0px;
+  background-color: #00c144;
+  color:black;
+  -webkit-transition: .5s;
+  transition: .5s;
+}
+
+input:not(:checked) + .slider:before {
+  -webkit-transform: translateX(110px);
+  -ms-transform: translateX(110px);
+  transform: translateX(110px);
+}
+
+.slider.round {
+   border-radius: 34px;
+}
+
+.slider.round:before {
+  border-radius: 34px;
+}
+
+.toggle-label {
+  position:absolute;
+  cursor: pointer;
+  color: #afafaf;
+  font-weight: 500;
+}
+
+.toggle-label-left {  
+  top: 10px;
+  left: 20px; 
+}
+
+.toggle-label-right {
+  top: 10px;
+  right: 10px;  
+}
+
+.label-inverted-color {
+  color: $white-ter;
+}

@@ -1,0 +1,27 @@
+<div class="popover is-popover-bottom">
+  <button id="shareButton" class="button is-warning is-rounded popover-trigger"
+          [class.popover-trigger]="isActive" (click)="toggle()">
+    <span class="icon">
+      <i class="fa fa-lg fa-share-square-o" aria-hidden="true"></i>
+    </span>
+    <span>{{ buttonText }}</span>
+  </button>
+  <div class="popover-content">
+    <section class="section is-small share-section">
+      <div class="container">
+        <h5 class="title is-5">Share this chart</h5>
+        <h6 class="subtitle is-7">
+          Use the short link below to share the results on your favorite social media 😎
+        </h6>
+      </div>
+    </section>
+    <div class="field has-addons share-box">
+      <p class="control is-expanded">
+        <input class="input is-small" [(ngModel)]="shareShortLink" [ngModelOptions]="{standalone: true}" type="text">
+      </p>
+      <p class="control">
+        <a class="button has-background-light is-small fa fa-clipboard fa-lg" (click)="copyToClipboard()"></a>
+      </p>
+    </div>
+  </div>
+</div>

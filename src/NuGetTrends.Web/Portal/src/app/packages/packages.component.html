@@ -1,0 +1,27 @@
+<div [@slideInOut] id="chartz">
+  <section class="section">
+    <div class="columns is-centered">
+      <app-package-list></app-package-list>
+    </div>
+  </section>
+  <div class="columns is-vcentered is-centered">
+    <div class="column has-text-right has-text-centered-mobile is-narrow">
+      <label for="period" class="title is-5">Showing results for the last: </label>
+    </div>
+    <div class="column has-text-centered-mobile is-narrow">
+      <app-search-period></app-search-period>
+    </div>
+    <div class="column has-text-centered-mobile is-narrow">
+      <app-share-popover buttonText="Share"></app-share-popover>
+    </div>
+  </div>
+  <section class="section chart-section">
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-8">
+        <div class="box is-shadowless">
+          <canvas id="trend-chart" width="500" height="380"></canvas>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
