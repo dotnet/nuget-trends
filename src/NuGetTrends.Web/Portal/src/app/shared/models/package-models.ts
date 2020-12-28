@@ -63,6 +63,11 @@ export class TagColor {
 export class SearchPeriod {
   text: string;
   value: number;
+
+  constructor() {
+    this.text = '';
+    this.value = 0;
+  }
 }
 
 const DefaultSearchPeriods: Array<SearchPeriod> = [

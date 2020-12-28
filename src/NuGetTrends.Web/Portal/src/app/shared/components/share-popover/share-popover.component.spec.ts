@@ -35,8 +35,8 @@ describe('SharePopoverComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(SharePopoverComponent);
     component = fixture.componentInstance;
-    mockedToastr = TestBed.get(ToastrService);
-    shareService = TestBed.get(SocialShareService);
+    mockedToastr = TestBed.inject(ToastrService);
+    shareService = TestBed.inject(SocialShareService);
   });
 
   it('should create', () => {

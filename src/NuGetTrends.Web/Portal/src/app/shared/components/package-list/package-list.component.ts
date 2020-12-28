@@ -52,7 +52,7 @@ export class PackageListComponent implements OnDestroy {
   removePackage(packageColor: IPackageColor): void {
     if (packageColor) {
       const color = this.colorsList.find(p => p.code === packageColor.color);
-      color.setUnused();
+      color?.setUnused();
       this.packageInteractionService.removePackage(packageColor.id);
       this.packageList = this.packageList.filter(p => p.id !== packageColor.id);
     }
@@ -69,7 +69,7 @@ export class PackageListComponent implements OnDestroy {
     }
 
     if (packageHistory && !this.packageList.some(p => p.id === packageHistory.id)) {
-      const color = this.colorsList.find(p => p.isInUse() === false);
+      const color = this.colorsList.find(p => p.isInUse() === false)!;
       color.setUsed();
       packageHistory.color = color.code;
       this.packageList.push({id: packageHistory.id, color: color.code} as IPackageColor);

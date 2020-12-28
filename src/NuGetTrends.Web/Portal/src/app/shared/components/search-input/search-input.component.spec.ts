@@ -84,10 +84,10 @@ describe('SearchInputComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(SearchInputComponent);
     component = fixture.componentInstance;
-    mockedPackageService = TestBed.get(PackagesService);
-    mockedToastr = TestBed.get(ToastrService);
-    packageInteractionService = TestBed.get(PackageInteractionService);
-    router = TestBed.get(Router);
+    mockedPackageService = (TestBed.inject(PackagesService) as unknown) as PackagesServiceMock;
+    mockedToastr = TestBed.inject(ToastrService);
+    packageInteractionService = TestBed.inject(PackageInteractionService);
+    router = MockedRouter.injectMockRouter();
   });
 
   it('should create', () => {
@@ -115,6 +115,17 @@ describe('SearchInputComponent', () => {
 
     // Assert - Should show all the options
     expect(mockedPackageService.searchPackage).toHaveBeenCalledWith('searchterm');
+  }));
+
+  it('should not call API when term is empty', fakeAsync(() => {
+    spyOn(mockedPackageService, 'searchPackage').and.callThrough();
+    fixture.detectChanges();
+
+    // Act
+    dispatchMatAutocompleteEvents(' ', component);
+
+    // Assert - Should filter out empty search terms
+    expect(mockedPackageService.searchPackage).not.toHaveBeenCalled();
   }));
 
   it('should show error message in case the search fails', fakeAsync(() => {

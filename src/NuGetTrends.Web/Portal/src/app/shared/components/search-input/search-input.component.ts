@@ -16,11 +16,11 @@ import { PackagesService, PackageInteractionService } from '../../../core';
   encapsulation: ViewEncapsulation.None,
 })
 export class SearchInputComponent implements AfterViewInit {
-  @ViewChild(MatAutocomplete) autoComplete: MatAutocomplete;
-  @ViewChild('searchBox') searchBox: ElementRef;
+  @ViewChild(MatAutocomplete) autoComplete!: MatAutocomplete;
+  @ViewChild('searchBox') searchBox!: ElementRef;
 
   queryField: FormControl = new FormControl('');
-  results$: Observable<IPackageSearchResult[]>;
+  results$!: Observable<IPackageSearchResult[]>;
   isSearching = false;
   showResults = true;
 
@@ -42,7 +42,7 @@ export class SearchInputComponent implements AfterViewInit {
       map((value: string) => value),
       debounceTime(300),
       distinctUntilChanged(),
-      filter((value: string) => value && !!value.trim()),
+      filter((value: string, _: number) => !!value.trim()),
       tap(() => this.isSearching = true),
       switchMap((term: string) => this.searchNuGet(term.trim(), this.packageInteractionService.searchType)),
       catchError((_, caught) => {

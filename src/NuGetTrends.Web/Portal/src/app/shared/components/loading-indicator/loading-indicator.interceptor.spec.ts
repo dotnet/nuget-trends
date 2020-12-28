@@ -26,9 +26,9 @@ describe(`LoadingIndicatorInterceptor`, () => {
       ],
     });
 
-    service = TestBed.get(PackagesService);
-    loadingIndicatorService = TestBed.get(LoadingIndicatorService);
-    httpMock = TestBed.get(HttpTestingController);
+    service = TestBed.inject(PackagesService);
+    loadingIndicatorService = TestBed.inject(LoadingIndicatorService);
+    httpMock = TestBed.inject(HttpTestingController);
   });
 
   it('should show loading indicator when making an HTTP request', fakeAsync(() => {

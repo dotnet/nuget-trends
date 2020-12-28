@@ -9,10 +9,10 @@ import { SocialShareService } from 'src/app/core/services/social-share.service';
   styleUrls: ['./share-popover.component.scss']
 })
 export class SharePopoverComponent {
-  @Input() buttonText: string;
+  @Input() buttonText = '';
   @Output() shared = new EventEmitter();
 
-  shareShortLink: string;
+  shareShortLink = '';
   isActive = false;
 
   constructor(
@@ -23,7 +23,7 @@ export class SharePopoverComponent {
 
   @HostListener('document:click', ['$event'])
   clickout(event: any) {
-    const shareBtn = document.querySelector('#shareButton');
+    const shareBtn = document.querySelector('#shareButton')!;
     if (this.eRef.nativeElement.contains(event.target)) {
 
       // Clicking on the button when the popover is over closes it
