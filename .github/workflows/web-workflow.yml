@@ -1,4 +1,4 @@
-name: Nuget Trends Web
+name: Web
 env:
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
   IS_BUILD_SERVER: true
