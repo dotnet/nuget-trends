@@ -1,14 +1,12 @@
-﻿# NuGetTrends.Data
+﻿# NuGetTrends.Scheduler
 
-This project (along with `NuGet.Protocol.Catalog`) contains all the EF Core related code.
+The project that pulls data from the NuGet API.
 
-## Migrations
+## EF Migrations
 
-`NuGetTrends.Data` will hold the `Migrations` folder (AKA Migrations Assembly), but ***will not be the start-up project*** where the EF commands are executed.
+The EF Migration commands must be executed from the Scheduler project.
 
-The `dotnet ef` commands **must be executed** from inside the `NuGetTrends.Scheduler` folder. 
-The `Scheduler` project has a [IDesignTimeDbContextFactory](https://docs.microsoft.com/en-us/dotnet/api/microsoft.entityframeworkcore.design.idesigntimedbcontextfactory-1?view=efcore-3.1) which knows how to create instances of the `NuGetTrendsContext`. 
-The goal of this is so the `NuGetTrends.Data` project remains a simple class lib.
+> The scheduler project is the entry point for EF Migrations (it has a [IDesignTimeDbContextFactory](https://docs.microsoft.com/en-us/dotnet/api/microsoft.entityframeworkcore.design.idesigntimedbcontextfactory-1?view=efcore-3.1)). The migration files are inside the `NuGetTrends.Data` project. This is mainly so things are better organized and the Data project is simply a class lib and not an executable.
 
 Below you can find a few `dotnet ef` migration commands:
 
@@ -19,13 +17,13 @@ Below you can find a few `dotnet ef` migration commands:
 $ dotnet ef migrations add MyMigration -p ../NuGetTrends.Data
 ```
 
-#### 2. Remove latest unapplied migration
+#### 2. Remove the latest unapplied migration
 
 ```
 /nuget-trends/src/NuGetTrends.Scheduler 
 $ dotnet ef migrations remove -p ../NuGetTrends.Data
 ```
->This will remove the latest migration file plus "rollback" the `ModelSnapshot.cs` file. It's the best way to "undo" a migration
+>This will remove the latest migration file plus "rollback" the `ModelSnapshot.cs` file. It's the best way to "undo" a migration that hasn't been applied to the db yet.
 
 #### 3. Generate a SQL script for a migration (to update the db manually)
 
@@ -33,7 +31,8 @@ $ dotnet ef migrations remove -p ../NuGetTrends.Data
 /nuget-trends/src/NuGetTrends.Scheduler 
 $ dotnet ef migrations script <from migration> <to migration> -o migration.sql -p ../NuGetTrends.Data
 ```
->Tip: You just need the "name" portion of the migration file. E.g `20180929220242_Init`, you just use `Init` in the command above
+
+>Tip: You just need the class name of the migration `.cs` file. E.g `ShortenConstrNames`
 
 >Tip: In case you want a rollback script use the same command above but invert the from/to migrations. EF Core will generate rollback script based on the `Down` methods.
 
