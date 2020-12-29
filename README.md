@@ -7,10 +7,13 @@
 
 # NuGet Trends [![Gitter chat](https://img.shields.io/gitter/room/NuGetTrends/Lobby.svg)](https://gitter.im/NuGetTrends/Lobby) [![Twitter Follow](https://img.shields.io/twitter/follow/NuGetTrends?label=NuGetTrends&style=social)](https://twitter.com/intent/follow?screen_name=NuGetTrends)
 
-[![API](https://github.com/dotnet/nuget-trends/workflows/API/badge.svg)](https://github.com/dotnet/nuget-trends/actions?query=workflow%3AAPI)
-[![Scheduler](https://github.com/dotnet/nuget-trends/workflows/Scheduler/badge.svg)](https://github.com/dotnet/nuget-trends/actions?query=workflow%3AScheduler)
-[![SPA](https://github.com/dotnet/nuget-trends/workflows/SPA/badge.svg)](https://github.com/dotnet/nuget-trends/actions?query=workflow%3ASPA)
+[![Nuget Trends Web](https://github.com/dotnet/nuget-trends/workflows/Nuget%20Trends%20Web/badge.svg)](https://github.com/dotnet/nuget-trends/actions?query=workflow%3A%22Nuget+Trends+Web%22)
+
 [![Codecov](https://img.shields.io/codecov/c/github/dotnet/nuget-trends?label=SPA%20-%20Coverage)](https://codecov.io/gh/dotnet/nuget-trends)
+
+[![Scheduler](https://github.com/dotnet/nuget-trends/workflows/Scheduler/badge.svg)](https://github.com/dotnet/nuget-trends/actions?query=workflow%3AScheduler)
+
+
 
 
 ## Summary
@@ -37,6 +40,13 @@ Or:
 3. Run the _catalog importer_ from scratch.
 4. Run the _daily download importer_ for a few days to get some data in.
 
+### Requirements
+
+- .NET SDK 5.x.x
+- Docker, Compose (for the dependencies, postgres, rabbitmq)
+- Node.js 15.0.1 (might also work with higher versions)
+- Yarn (We use Yarn instead of npm)
+
 ### Run the jobs
 
 Background jobs are done using [_Hangfire_](https://github.com/HangfireIO/Hangfire). It lives in the
@@ -49,11 +59,23 @@ The second is to hit the nuget.org's API and get the current number of downloads
 
 ### Website
 
-The website is composed by two parts, the single page application and the REST web API.
+The website is composed by two parts: An Angular SPA and an ASP.NET Core API. The API is at the root of `src/NuGetTrends.Web/` and the SPA is in the `Portal` sub-folder.
 
-The SPA can be build using `yarn` and it's under `src\NuGetTrends.Spa`
+To run it localy:
 
-The API can be run with `dotnet run` and it's under `src\NuGetTrends.Api`
+**SPA** (src/NuGetTrends.Web/Portal)
+1. Install the SPA dependencies: `yarn install` (only the first time)
+2. Run the SPA: `ng serve`
+
+**API** (src/NuGetTrends.Web)
+2. Run the API with `dotnet run`
+
+The app can be browsed at:
+- `http://localhost:5000`
+- `https://localhost:5001`
+- `http://localhost:4200` (default ng serve port)
+
+> Note: You might need to see how to [install/trust the ASP.NET Core HTTPS development certificates](https://docs.microsoft.com/en-us/aspnet/core/security/enforcing-ssl?view=aspnetcore-5.0&tabs=visual-studio#trust-the-aspnet-core-https-development-certificate-on-windows-and-macos) (not required but nice to have)
 
 ### Database backup for contributors
 
