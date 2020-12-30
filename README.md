@@ -42,7 +42,7 @@ Or:
 
 ### Requirements
 
-- .NET SDK 5.x.x
+- .NET SDK 5
 - Docker, Compose (for the dependencies, postgres, rabbitmq)
 - Node.js 15.0.1 (might also work with higher versions)
 - Yarn (We use Yarn instead of npm)
