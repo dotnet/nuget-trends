@@ -30,7 +30,7 @@ jobs:
       - name: Prepare Docker
         id: docker-prep
         run: |
-          DOCKER_IMAGE=nugt/nugettrends.web
+          DOCKER_IMAGE=nugettrends/nugettrends.web
           VERSION=noop
           ENVIRONMENT=test
           if [[ $GITHUB_REF == refs/tags/* ]]; then
@@ -58,7 +58,6 @@ jobs:
           echo ${{ steps.docker-prep.outputs.version }}
           echo ${{ steps.docker-prep.outputs.tags }}
           echo ${{ steps.docker-prep.outputs.created }}
-
 
       - name: Install Node 15.0.1
         uses: actions/setup-node@v1
