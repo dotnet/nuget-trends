@@ -80,7 +80,7 @@ jobs:
 
       - name: Install SPA build tools
         run: |
-          npm install -g @angular/cli@11.0.5
+          npm install -g @angular/cli@11.2.9
           npm install -g yarn
           ng --version
 
