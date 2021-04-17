@@ -69,10 +69,6 @@ namespace NuGetTrends.Scheduler
                                    category,
                                    "Microsoft.EntityFrameworkCore.Model.Validation",
                                    StringComparison.Ordinal));
-                            o.AddInAppExclude("Npgsql");
-                            o.AddInAppExclude("RabbitMQ");
-                            o.AddInAppExclude("Serilog");
-                            o.AddInAppExclude("Hangfire");
                         })
                         .UseStartup<Startup>();
                 });
