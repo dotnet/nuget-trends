@@ -18,6 +18,10 @@ It's a useful tool for package maintainers to see the download rate of their pac
 The database has the complete [nuget.org](https://www.nuget.org/) catalog which include target framework information.
 That means that there's a lot more features we can add, like TFM adoption overtime, dependency graphs etc.
 
+## Docker
+
+Images published at: https://hub.docker.com/u/nugettrends
+
 ## Developing
 
 We want to get a script to bootstrap the development environment but it's not here yet.
