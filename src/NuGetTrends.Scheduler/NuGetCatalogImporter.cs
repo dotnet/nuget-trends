@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Hangfire;
 using Microsoft.Extensions.Logging;
 using NuGet.Protocol.Catalog;
+using Sentry;
 
 namespace NuGetTrends.Scheduler
 {
@@ -13,22 +14,26 @@ namespace NuGetTrends.Scheduler
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly CatalogCursorStore _cursorStore;
         private readonly CatalogLeafProcessor _catalogLeafProcessor;
+        private readonly IHub _hub;
         private readonly ILoggerFactory _loggerFactory;
 
         public NuGetCatalogImporter(
             IHttpClientFactory httpClientFactory,
             CatalogCursorStore cursorStore,
             CatalogLeafProcessor catalogLeafProcessor,
+            IHub hub,
             ILoggerFactory loggerFactory)
         {
             _httpClientFactory = httpClientFactory;
             _cursorStore = cursorStore;
             _catalogLeafProcessor = catalogLeafProcessor;
+            _hub = hub;
             _loggerFactory = loggerFactory;
         }
 
         public async Task Import(IJobCancellationToken token)
         {
+            var transaction = _hub.StartTransaction("import-catalog", "Import nuget catalog");
             var logger = _loggerFactory.CreateLogger<NuGetCatalogImporter>();
 
             logger.LogInformation("Starting importing catalog.");
@@ -51,6 +56,7 @@ namespace NuGetTrends.Scheduler
             await catalogProcessor.ProcessAsync(token.ShutdownToken);
 
             logger.LogInformation("Finished importing catalog.");
+            transaction.Finish(SpanStatus.Ok);
         }
     }
 }

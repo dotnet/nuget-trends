@@ -11,6 +11,7 @@ using Microsoft.Extensions.Hosting;
 using NuGetTrends.Data;
 using Swashbuckle.AspNetCore.SwaggerUI;
 using Microsoft.OpenApi.Models;
+using Sentry.AspNetCore;
 using Shortr;
 using Shortr.Npgsql;
 
@@ -91,6 +92,8 @@ namespace NuGetTrends.Web
             }
 
             app.UseRouting();
+            app.UseSentryTracing();
+
             if (_hostingEnvironment.IsDevelopment())
             {
                 app.UseCors("AllowAll");
