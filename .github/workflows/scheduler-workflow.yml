@@ -3,6 +3,10 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
 on:
   push:
+    tags:
+      - 'v*.*.*'
+    branches:
+      - main
     paths:
       - 'src/NuGetTrends.Scheduler/**'
       - 'src/NuGetTrends.Data/**'
