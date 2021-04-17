@@ -25,16 +25,11 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v2
-      - name: .NET Core CLI 5.0 RC1
+      - name: .NET Core CLI 5.0
         uses: actions/setup-dotnet@v1
         with:
-          dotnet-version: '5.0.100'
+          dotnet-version: '5.0.202'
 
       - name: Build
         run: dotnet build -c Release
         working-directory: src/NuGetTrends.Scheduler/
-
-      # - name: Test
-      #   run: dotnet test --no-build --no-restore
-
-
