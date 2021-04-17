@@ -35,6 +35,7 @@ namespace NuGetTrends.Scheduler
 
         public async Task Import(IJobCancellationToken token)
         {
+            using var _ = _hub.PushScope();
             var transaction = _hub.StartTransaction("daily-download-pkg-id-publisher", "job",
                 "queues package ids to fetch download numbers");
             try
@@ -68,12 +69,14 @@ namespace NuGetTrends.Scheduler
                     await conn.OpenAsync();
                     dbConnectSpan.Finish();
 
-                    var dbQuerySpan = queueIdsSpan.StartChild("db.query", "Connect to Postgres");
+                    var dbQuerySpan = queueIdsSpan.StartChild("db.query", "Query ids");
                     await using var cmd = new NpgsqlCommand("SELECT package_id FROM pending_packages_daily_downloads", (NpgsqlConnection)conn);
                     await using var reader = await cmd.ExecuteReaderAsync();
                     dbQuerySpan.Finish();
 
                     var batchSize = 25; // TODO: Configurable
+                    var processBatchSpan = queueIdsSpan.StartChild("db.read",
+                        $"Go through reader and queue in batches of {batchSize} ids");
                     var batch = new List<string>(batchSize);
                     while (await reader.ReadAsync())
                     {
@@ -87,14 +90,16 @@ namespace NuGetTrends.Scheduler
                             batch.Clear();
                         }
                     }
+                    processBatchSpan.Finish();
 
                     if (batch.Count != 0)
                     {
                         var queueSpan = queueIdsSpan.StartChild("queue.enqueue", "Enqueue incomplete batch.");
                         Queue(batch, channel, queueName, properties);
-                        queueSpan.Finish(SpanStatus.Ok);
+                        queueSpan.Finish();
                     }
 
+                    queueIdsSpan.SetTag("queue-name", queueName);
                     queueIdsSpan.SetTag("batch-size", batchSize.ToString());
                     queueIdsSpan.SetTag("message-count", messageCount.ToString());
                     queueIdsSpan.Finish();

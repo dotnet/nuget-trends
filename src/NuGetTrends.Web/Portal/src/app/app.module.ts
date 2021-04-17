@@ -20,7 +20,7 @@ Sentry.init({
   environment: environment.name,
   integrations: [
     new Integrations.BrowserTracing({
-      tracingOrigins: ['localhost', 'https://nugettrends.com/', 'https://nugettrends.com/api'],
+      tracingOrigins: ['localhost', /nugettrends|nugt/],
       routingInstrumentation: Sentry.routingInstrumentation,
     }),
   ],
