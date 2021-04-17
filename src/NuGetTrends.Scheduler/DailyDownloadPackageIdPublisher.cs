@@ -35,6 +35,7 @@ namespace NuGetTrends.Scheduler
 
         public async Task Import(IJobCancellationToken token)
         {
+            using var _ = _hub.PushScope();
             var transaction = _hub.StartTransaction("daily-download-pkg-id-publisher", "job",
                 "queues package ids to fetch download numbers");
             try

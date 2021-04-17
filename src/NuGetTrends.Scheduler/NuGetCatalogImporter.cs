@@ -33,6 +33,7 @@ namespace NuGetTrends.Scheduler
 
         public async Task Import(IJobCancellationToken token)
         {
+            using var _ = _hub.PushScope();
             var transaction = _hub.StartTransaction("import-catalog", "Import nuget catalog");
             var logger = _loggerFactory.CreateLogger<NuGetCatalogImporter>();
 
