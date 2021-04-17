@@ -1,7 +1,6 @@
 name: Web
 env:
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
-  IS_BUILD_SERVER: true
 on:
   push:
     tags:
@@ -109,13 +108,13 @@ jobs:
       - name: Install .NET SDK
         uses: actions/setup-dotnet@v1
         with:
-          dotnet-version: '5.0.100'
+          dotnet-version: '5.0.202'
 
-      - name: API Build
+      - name: Web Build
         run: dotnet build -c Release
         working-directory: src/NuGetTrends.Web/
 
-      - name: API Publish
+      - name: Web Publish
         run: dotnet publish -c Release -o publish --no-build
         working-directory: src/NuGetTrends.Web/
 
