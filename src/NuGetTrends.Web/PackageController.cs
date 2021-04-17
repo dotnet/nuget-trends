@@ -10,7 +10,7 @@ using NuGetTrends.Data;
 
 namespace NuGetTrends.Web
 {
-    [Route("api/[controller]")]
+    [Route("api/package")]
     [ApiController]
     public class PackageController : ControllerBase
     {
