@@ -1,6 +1,7 @@
 name: Web
 env:
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  IS_BUILD_SERVER: true # Needed by spa testing
 on:
   push:
     tags:
