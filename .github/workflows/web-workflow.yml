@@ -104,7 +104,7 @@ jobs:
         run: sed -i 's/SF:/SF:src\/NuGetTrends.Web\/Portal\//g' src/NuGetTrends.Web/Portal/coverage/lcov.info
 
       - name: Upload SPA coverage report to Codecov
-        run: bash <(curl -s https://codecov.io/bash) -Z
+        uses: codecov/codecov-action@v1
 
       - name: Install .NET SDK
         uses: actions/setup-dotnet@v1
