@@ -2,8 +2,8 @@ import { AfterViewInit, Component, ElementRef, ErrorHandler, ViewChild, ViewEnca
 import { FormControl } from '@angular/forms';
 import { Router } from '@angular/router';
 import { MatAutocomplete, MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
-import { catchError, debounceTime, distinctUntilChanged, filter, map, startWith, switchMap, tap } from 'rxjs/operators';
-import { EMPTY, Observable } from 'rxjs';
+import { catchError, debounceTime, distinctUntilChanged, filter, map, mapTo, startWith, switchMap, tap } from 'rxjs/operators';
+import { EMPTY, Observable, Subject, merge } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 
 import { IPackageDownloadHistory, IPackageSearchResult, SearchType } from '../../models/package-models';
@@ -23,6 +23,7 @@ export class SearchInputComponent implements AfterViewInit {
   results$!: Observable<IPackageSearchResult[]>;
   isSearching = false;
   showResults = true;
+  private searchClear$ = new Subject<IPackageSearchResult[]>();
 
   constructor(
     private router: Router,
@@ -37,23 +38,24 @@ export class SearchInputComponent implements AfterViewInit {
     this.autoComplete._keyManager.withWrap(false);
     this.searchBox.nativeElement.focus();
 
-    this.results$ = this.queryField.valueChanges.pipe(
-      startWith(''),
-      map((value: string) => value),
-      debounceTime(300),
-      distinctUntilChanged(),
-      filter((value: string, _: number) => !!value.trim()),
-      tap(() => this.isSearching = true),
-      switchMap((term: string) => this.searchNuGet(term.trim(), this.packageInteractionService.searchType)),
-      catchError((_, caught) => {
-        this.toastr.error('Our servers are too cool (or not) to handle your request at the moment.');
-        this.isSearching = false;
-        return caught;
-      }),
-      tap((value: IPackageSearchResult[]) => {
-        this.showInfoIfResultIsEmpty(value);
-        this.isSearching = false;
-      }));
+    this.results$ = merge(
+       this.queryField.valueChanges.pipe(
+        startWith(''),
+        map((value: string) => value),
+        debounceTime(300),
+        distinctUntilChanged(),
+        filter((value: string, _: number) => !!value.trim()),
+        tap(() => this.isSearching = true),
+        switchMap((term: string) => this.searchNuGet(term.trim(), this.packageInteractionService.searchType)),
+        catchError((_, caught) => {
+          this.toastr.error('Our servers are too cool (or not) to handle your request at the moment.');
+          this.isSearching = false;
+          return caught;
+        }),
+        tap((value: IPackageSearchResult[]) => {
+          this.showInfoIfResultIsEmpty(value);
+          this.isSearching = false;
+        })), this.searchClear$.pipe(mapTo([])));
   }
 
   /**
@@ -68,6 +70,12 @@ export class SearchInputComponent implements AfterViewInit {
 
     if (this.packageInteractionService.searchType === SearchType.NuGetPackage) {
       await this.getNuGetPackageHistory(packageId, this.packageInteractionService.searchPeriod);
+    }
+  }
+
+  clear() {
+    if (!this.queryField.value) {
+      this.searchClear$.next([]);
     }
   }
 
