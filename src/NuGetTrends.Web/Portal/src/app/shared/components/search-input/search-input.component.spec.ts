@@ -224,6 +224,45 @@ describe('SearchInputComponent', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/packages']);
   }));
 
+  it('should clear results when removing text and leaving the field', fakeAsync(() => {
+    fixture.detectChanges();
+
+    // Arrange
+    dispatchMatAutocompleteEvents('entity', component);
+    expect(document.querySelectorAll('.mat-option').length)
+      .toBe(PackagesServiceMock.mockedPackageResult.length);
+
+    // Act
+    dispatchMatAutocompleteEvents('', component);
+
+    // simulate leaving the input field
+    const element: HTMLInputElement = fixture.nativeElement.querySelector('input');
+    element.dispatchEvent(new Event('focusout'));
+
+    // Act
+    dispatchMatAutocompleteEvents('', component);
+
+    // Assert
+    expect(document.querySelectorAll('.mat-option').length)
+      .toBe(0);
+  }));
+
+  it('should not clear results when removing text and leaving the field', fakeAsync(() => {
+    fixture.detectChanges();
+
+    // Arrange
+    dispatchMatAutocompleteEvents('entity', component);
+    expect(document.querySelectorAll('.mat-option').length)
+      .toBe(PackagesServiceMock.mockedPackageResult.length);
+
+    // Act
+    dispatchMatAutocompleteEvents('', component);
+
+    // Assert
+    expect(document.querySelectorAll('.mat-option').length)
+      .toBe(PackagesServiceMock.mockedPackageResult.length);
+  }));
+
   function dispatchMatAutocompleteEvents(text: string, sut: SearchInputComponent) {
 
     const inputElement: HTMLInputElement = fixture.nativeElement.querySelector('input');
