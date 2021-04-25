@@ -6,6 +6,7 @@
     <input
       class="input is-large is-shadowless"
       type="text"
+      (focusout)="clear()"
       #searchBox
       placeholder="Start typing to discover NuGet Trends"
       [formControl]="queryField"
