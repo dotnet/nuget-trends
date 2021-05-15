@@ -59,10 +59,10 @@ jobs:
           echo ${{ steps.docker-prep.outputs.tags }}
           echo ${{ steps.docker-prep.outputs.created }}
 
-      - name: Install Node 15.0.1
+      - name: Install Node 14.17.0
         uses: actions/setup-node@v1
         with:
-          node-version: '15.0.1'
+          node-version: '14.17.0'
 
       - name: Get yarn cache directory path
         id: yarn-cache-dir-path
@@ -80,7 +80,7 @@ jobs:
 
       - name: Install SPA build tools
         run: |
-          npm install -g @angular/cli@11.2.9
+          npm install -g @angular/cli@12.0.0
           npm install -g yarn
           ng --version
 
@@ -97,7 +97,8 @@ jobs:
         working-directory: src/NuGetTrends.Web/Portal
 
       - name: 'SPA prod build'
-        run: yarn run prod
+        # Angular 12 runs a prod build by default
+        run: yarn run build
         working-directory: src/NuGetTrends.Web/Portal
 
       - name: Replace SPA path on coverage file (Hack codecov) # https://community.codecov.io/t/looking-for-assistance-with-path-fixing/1669/9
