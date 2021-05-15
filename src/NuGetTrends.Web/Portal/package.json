@@ -31,10 +31,8 @@
     "bulma-start": "^0.0.4",
     "chart.js": "2.9.4",
     "font-awesome": "^4.7.0",
-    "handlebars": "^4.7.7",
     "ngx-toastr": "13.2.1",
     "rxjs": "^6.6.7",
-    "serialize-javascript": "^5.0.1",
     "tslib": "^2.2.0",
     "zone.js": "~0.11.4"
   },
@@ -47,7 +45,7 @@
     "@types/jasminewd2": "^2.0.8",
     "@types/node": "^14.14.41",
     "codelyzer": "^6.0.1",
-    "jasmine-core": "~3.6.0",
+    "jasmine-core": "^3.7.1",
     "jasmine-spec-reporter": "~5.0.0",
     "karma": "^6.3.2",
     "karma-chrome-launcher": "~3.1.0",
@@ -55,19 +53,12 @@
     "karma-jasmine": "~4.0.0",
     "karma-jasmine-html-reporter": "^1.5.0",
     "karma-junit-reporter": "^2.0.1",
-    "kind-of": "^6.0.3",
-    "protractor": "~7.0.0",
-    "puppeteer": "^5.3.0",
-    "selfsigned": "^1.10.8",
+    "puppeteer": "^5.5.0",
     "ts-node": "9.1.1",
     "tslint": "~6.1.0",
     "typescript": "4.2.4"
   },
   "resolutions": {
-    "elliptic": "^6.5.4",
-    "https-proxy-agent": "^5.0.0",
-    "serialize-javascript": "^5.0.1",
-    "selfsigned": "^1.10.8",
     "kind-of": "^6.0.3"
   }
 }
