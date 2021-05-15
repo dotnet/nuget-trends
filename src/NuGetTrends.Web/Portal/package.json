@@ -7,7 +7,6 @@
     "build": "ng build",
     "test-no-watch": "ng test --watch=false",
     "lint": "ng lint",
-    "prod": "ng build --prod",
     "test-cc": "ng test --watch=false --code-coverage",
     "postinstall": "ngcc"
   },
@@ -23,8 +22,8 @@
     "@angular/platform-browser": "^12.0.0",
     "@angular/platform-browser-dynamic": "^12.0.0",
     "@angular/router": "^12.0.0",
-    "@sentry/angular": "6.2.5",
-    "@sentry/tracing": "6.2.5",
+    "@sentry/angular": "^6.3.6",
+    "@sentry/tracing": "6.3.6",
     "@types/chart.js": "2.9.32",
     "bulma": "^0.9.2",
     "bulma-start": "^0.0.4",

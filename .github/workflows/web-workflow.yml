@@ -97,7 +97,8 @@ jobs:
         working-directory: src/NuGetTrends.Web/Portal
 
       - name: 'SPA prod build'
-        run: yarn run prod
+        # Angular 12 runs a prod build by default
+        run: yarn run build
         working-directory: src/NuGetTrends.Web/Portal
 
       - name: Replace SPA path on coverage file (Hack codecov) # https://community.codecov.io/t/looking-for-assistance-with-path-fixing/1669/9
