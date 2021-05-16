@@ -44,7 +44,7 @@ services:
       context: "."
       dockerfile: "NuGetTrends.Web.Portal.dockerfile"
     ports:
-      - "3000:80"
+      - "4200:80"
     depends_on:
       - "web"
 
