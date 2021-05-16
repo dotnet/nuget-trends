@@ -3,7 +3,7 @@
 FROM node:12 as build
 WORKDIR /app
 
-RUN npm install --global yarn
+RUN npm install --global yarn --force
 
 COPY src/NuGetTrends.Web/Portal/package.json .
 COPY src/NuGetTrends.Web/Portal/yarn.lock .
