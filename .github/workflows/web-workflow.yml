@@ -132,8 +132,8 @@ jobs:
         uses: docker/build-push-action@v2
         id: docker_build
         with:
-          context: ./src/NuGetTrends.Web
-          file: ./src/NuGetTrends.Web/Dockerfile
+          context: .
+          file: NuGetTrends.Web.dockerfile
           build-args: |
             ENVIRONMENT=${{ steps.docker-prep.outputs.environment }}
             VERSION=${{ steps.docker-prep.outputs.version }}
