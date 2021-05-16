@@ -1,0 +1,1 @@
+& docker compose up rabbitmq postgres pgadmin portal --build

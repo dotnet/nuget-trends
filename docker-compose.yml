@@ -34,6 +34,8 @@ services:
     build:
       context: "."
       dockerfile: "NuGetTrends.Web.dockerfile"
+    environment:
+      ConnectionStrings__NuGetTrends: "Server=postgres;Database=postgres;Username=postgres;Password=PUg2rt6Pp8Arx7Z9FbgJLFvxEL7pZ2"
     ports:
       - "5000:80"
     depends_on:
