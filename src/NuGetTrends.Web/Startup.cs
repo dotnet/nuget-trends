@@ -12,6 +12,7 @@ using NuGetTrends.Data;
 using Swashbuckle.AspNetCore.SwaggerUI;
 using Microsoft.OpenApi.Models;
 using Sentry.AspNetCore;
+using Sentry.Tunnel;
 using Shortr;
 using Shortr.Npgsql;
 
@@ -30,7 +31,9 @@ namespace NuGetTrends.Web
 
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddSentryTunneling(); // Add Sentry Tunneling to avoid ad-blockers.
             services.AddControllers();
+            services.AddHttpClient();
 
             // In production, the Angular files will be served from this directory
             services.AddSpaStaticFiles(configuration =>
@@ -93,6 +96,9 @@ namespace NuGetTrends.Web
 
             app.UseRouting();
             app.UseSentryTracing();
+
+            // Proxy Sentry events from the frontend to sentry.io
+            app.UseSentryTunneling("/t");
 
             if (_hostingEnvironment.IsDevelopment())
             {

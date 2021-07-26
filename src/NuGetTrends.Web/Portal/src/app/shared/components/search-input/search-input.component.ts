@@ -5,6 +5,7 @@ import { MatAutocomplete, MatAutocompleteSelectedEvent } from '@angular/material
 import { catchError, debounceTime, distinctUntilChanged, filter, map, mapTo, startWith, switchMap, tap } from 'rxjs/operators';
 import { EMPTY, Observable, Subject, merge } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
+import * as Sentry from '@sentry/angular';
 
 import { IPackageDownloadHistory, IPackageSearchResult, SearchType } from '../../models/package-models';
 import { PackagesService, PackageInteractionService } from '../../../core';
@@ -47,7 +48,8 @@ export class SearchInputComponent implements AfterViewInit {
         filter((value: string, _: number) => !!value.trim()),
         tap(() => this.isSearching = true),
         switchMap((term: string) => this.searchNuGet(term.trim(), this.packageInteractionService.searchType)),
-        catchError((_, caught) => {
+        catchError((error, caught) => {
+          this.errorHandler.handleError(error);
           this.toastr.error('Our servers are too cool (or not) to handle your request at the moment.');
           this.isSearching = false;
           return caught;
@@ -67,7 +69,6 @@ export class SearchInputComponent implements AfterViewInit {
     const packageId = event.option.value;
     this.queryField.setValue('');
     event.option.deselect();
-
     if (this.packageInteractionService.searchType === SearchType.NuGetPackage) {
       await this.getNuGetPackageHistory(packageId, this.packageInteractionService.searchPeriod);
     }
@@ -98,17 +99,21 @@ export class SearchInputComponent implements AfterViewInit {
    */
   private showInfoIfResultIsEmpty(value: IPackageSearchResult[]): void {
     if (value && value.length === 0) {
+      let message = 'Nothing found!';
       switch (this.packageInteractionService.searchType) {
         case SearchType.NuGetPackage:
-          this.toastr.info('No packages found!');
+          message = 'No packages found!';
           break;
         case SearchType.Framework:
-          this.toastr.info('No frameworks found!');
-          break;
-        default:
-          this.toastr.info('Nothing found!');
+          message = 'No framework found!';
           break;
       }
+      Sentry.addBreadcrumb({
+        category: 'search.result',
+        message,
+        level: Sentry.Severity.Info,
+      });
+      this.toastr.info(message);
     }
   }
 
