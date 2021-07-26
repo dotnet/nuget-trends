@@ -24,6 +24,7 @@ Sentry.init({
     }),
   ],
   tracesSampleRate: 1.0,
+  tunnel: environment.SENTRY_TUNNEL,
 });
 
 @NgModule({
@@ -45,8 +46,8 @@ Sentry.init({
     {
       provide: ErrorHandler,
       useValue: Sentry.createErrorHandler({
-        showDialog: false,
-        logErrors: !environment.production// log console errors in dev mode
+        showDialog: environment.production, // User Feedback enabled in production
+        logErrors: !environment.production // log console errors in dev mode
       }),
     },
     {
