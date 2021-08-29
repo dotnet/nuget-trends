@@ -36,7 +36,9 @@ namespace NuGetTrends.Web
             {
                 Log.Information("Starting.");
 
-                CreateHostBuilder(args).Build().Run();
+                SentrySdk.CaptureMessage("Works");
+                // throw new Exception("Test!");
+                // CreateHostBuilder(args).Build().Run();
 
                 return 0;
             }
@@ -58,11 +60,7 @@ namespace NuGetTrends.Web
                     webBuilder
                         .UseConfiguration(Configuration)
                         .UseSerilog()
-                        .UseSentry(s =>
-                        {
-                            s.AddInAppExclude("Npgsql");
-                            s.AddInAppExclude("Serilog");
-                        })
+                        .UseSentry()
                         .UseStartup<Startup>();
                 });
     }
