@@ -36,9 +36,7 @@ namespace NuGetTrends.Web
             {
                 Log.Information("Starting.");
 
-                SentrySdk.CaptureMessage("Works");
-                // throw new Exception("Test!");
-                // CreateHostBuilder(args).Build().Run();
+                CreateHostBuilder(args).Build().Run();
 
                 return 0;
             }
