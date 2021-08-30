@@ -58,7 +58,15 @@ namespace NuGetTrends.Scheduler
                     }
                     if (postgres.Detail is { } detail)
                     {
-                        s.SetTag(nameof(postgres.Detail), detail);
+                            // Detail redacted as it may contain sensitive data. Specify 'Include Error Detail' in the connection string to include this information.
+                        if (detail.StartsWith("Detail redacted"))
+                        {
+                            s.SetTag(nameof(postgres.Detail), "redacted");
+                        }
+                        else
+                        {
+                            s.SetTag(nameof(postgres.Detail), detail);
+                        }
                     }
                 });
             }

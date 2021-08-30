@@ -58,7 +58,7 @@ namespace NuGetTrends.Web
                     webBuilder
                         .UseConfiguration(Configuration)
                         .UseSerilog()
-                        .UseSentry()
+                        .UseSentry(o => o.AddExceptionFilterForType<OperationCanceledException>())
                         .UseStartup<Startup>();
                 });
     }

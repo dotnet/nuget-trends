@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NuGet.Protocol.Catalog.Models;
 using NuGet.Protocol.Core.Types;
+using Sentry;
 
 namespace NuGet.Protocol.Catalog
 {
@@ -48,6 +49,7 @@ namespace NuGet.Protocol.Catalog
 
             // Clone the settings to avoid mutability issues.
             _settings = settings.Clone();
+            SentrySdk.ConfigureScope(s => s.Contexts["CatalogProcessorSettings"] = _settings);
         }
 
         /// <summary>
@@ -58,7 +60,10 @@ namespace NuGet.Protocol.Catalog
         /// </summary>
         public async Task ProcessAsync(CancellationToken token)
         {
+            var catalogIndexSpan = SentrySdk.GetSpan()?.StartChild("catalog.index", "Retrieving catalog index");
             var catalogIndexUrl = await GetCatalogIndexUrlAsync(token);
+            catalogIndexSpan?.SetTag("catalogIndexUrl", catalogIndexUrl);
+            catalogIndexSpan?.Finish();
 
             var minCommitTimestamp = await GetMinCommitTimestamp(token);
 
@@ -67,7 +72,10 @@ namespace NuGet.Protocol.Catalog
                 minCommitTimestamp,
                 _settings.MaxCommitTimestamp);
 
+            var processIndexSpan = SentrySdk.GetSpan()?.StartChild("catalog.process", "Processing catalog");
+            processIndexSpan?.SetTag("minCommitTimestamp", minCommitTimestamp.ToString());
             await ProcessIndexAsync(catalogIndexUrl, minCommitTimestamp, token);
+            processIndexSpan?.Finish();
         }
 
         private async Task ProcessIndexAsync(string catalogIndexUrl, DateTimeOffset minCommitTimestamp, CancellationToken token)
@@ -100,6 +108,8 @@ namespace NuGet.Protocol.Catalog
                 minCommitTimestamp,
                 _settings.MaxCommitTimestamp,
                 _settings.ExcludeRedundantLeaves);
+
+            SentrySdk.GetSpan()?.SetTag("leafItemsCount", leafItems.Count.ToString());
 
             _logger.LogInformation(
                 "On page {page}, {leaves} out of {totalLeaves} were in the time bounds.",

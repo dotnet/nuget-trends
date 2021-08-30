@@ -15,6 +15,7 @@ using NuGet.Protocol.Core.Types;
 using NuGetTrends.Data;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using Sentry;
 
 namespace NuGetTrends.Scheduler
 {
@@ -49,36 +50,71 @@ namespace NuGetTrends.Scheduler
         public Task StartAsync(CancellationToken cancellationToken)
         {
             _logger.LogDebug("Starting the worker.");
-
-            for (var i = 0; i < _options.WorkerCount; i++)
+            var startWorkerTransaction = SentrySdk.StartTransaction("start-daily-download-worker", "worker.start.trigger");
+            startWorkerTransaction.SetTag("worker_count", _options.WorkerCount.ToString());
+            var traceHeader = startWorkerTransaction.GetTraceHeader();
+            try
             {
-                _workers.Add(Task.Run(async () =>
+                for (var i = 0; i < _options.WorkerCount; i++)
                 {
-                    // Poor man's Polly
-                    const int maxAttempts = 3;
-                    for (var attempt = 1; attempt <= maxAttempts; attempt++)
+                    _workers.Add(Task.Run(async () =>
                     {
+                        using var _ = SentrySdk.PushScope();
+                        var startSpan = SentrySdk.StartTransaction("worker.start", "worker.start", traceHeader);
+                        SentrySdk.ConfigureScope(s =>
+                        {
+                            s.Transaction = startSpan;
+                            s.SetTag("worker_thread_id", Thread.CurrentThread.ManagedThreadId.ToString());
+                        });
+
                         try
                         {
-                            Connect();
-                            break;
+                            // Poor man's Polly
+                            const int maxAttempts = 3;
+                            for (var attempt = 1; attempt <= maxAttempts; attempt++)
+                            {
+                                var connectSpan =
+                                    startSpan.StartChild("rabbit.mq.connect", "Connecting to RabbitMQ");
+                                try
+                                {
+                                    Connect();
+                                    connectSpan.Finish(SpanStatus.Ok);
+                                    break;
+                                }
+                                catch (Exception e)
+                                {
+                                    if (attempt == maxAttempts)
+                                    {
+                                        connectSpan.Finish(e);
+                                        _logger.LogCritical(e, "Couldn't connect to the broker. Attempts: {attempts}",
+                                            attempt);
+                                        throw;
+                                    }
+
+                                    var waitMs = attempt * 10000;
+                                    _logger.LogInformation(e,
+                                        "Failed to connect to the broker. Waiting for {waitMs} milliseconds. Attempt {attempts}",
+                                        waitMs, attempt);
+                                    await Task.Delay(waitMs, cancellationToken);
+                                    connectSpan.SetTag("waited_ms", waitMs.ToString());
+                                    connectSpan.Finish(e);
+                                }
+                            }
+                            startSpan.Finish(SpanStatus.Ok);
                         }
                         catch (Exception e)
                         {
-                            if (attempt == maxAttempts)
-                            {
-                                _logger.LogCritical(e, "Couldn't connect to the broker. Attempts: {attempts}", attempt);
-                                throw;
-                            }
-
-                            var waitMs = attempt * 10000;
-                            _logger.LogInformation(e,
-                                "Failed to connect to the broker. Waiting for {waitMs} milliseconds. Attempt {attempts}",
-                                waitMs, attempt);
-                            await Task.Delay(waitMs, cancellationToken);
+                            startSpan.Finish(e);
+                            throw;
                         }
-                    }
-                }, _cancellationTokenSource.Token));
+                    }, _cancellationTokenSource.Token));
+                }
+
+                startWorkerTransaction.Finish();
+            }
+            catch (Exception e)
+            {
+                startWorkerTransaction.Finish(e);
             }
             return Task.CompletedTask;
         }
@@ -121,23 +157,40 @@ namespace NuGetTrends.Scheduler
 
         private async Task OnConsumerOnReceived(object sender, BasicDeliverEventArgs ea)
         {
+            using var _ = _logger.BeginScope("OnConsumerOnReceived");
+            var batchProcessSpan = SentrySdk.StartTransaction("daily-download-fetch", "queue.read");
+            SentrySdk.ConfigureScope(s => s.Transaction = batchProcessSpan);
             List<string>? packageIds = null;
             try
             {
                 var body = ea.Body;
                 _logger.LogDebug("Received message with body size: {size}", body.Length);
-
+                SentrySdk.ConfigureScope(s => s.SetTag("msg_size", body.Length.ToString()));
+                var deserializationSpan = batchProcessSpan.StartChild("json.deserialize");
                 packageIds = MessagePackSerializer.Deserialize<List<string>>(body);
+                deserializationSpan.Finish(SpanStatus.Ok);
 
                 if (packageIds == null)
                 {
                     throw new InvalidOperationException($"Deserializing {body} resulted in a null reference.");
                 }
 
-                await UpdateDownloadCount(packageIds);
+                var updateCountSpan = batchProcessSpan.StartChild("update.download.count", "Updates the DB with the current daily downloads");
+                updateCountSpan.SetTag("packageIds", packageIds.Count.ToString());
+                try
+                {
+                    await UpdateDownloadCount(packageIds, updateCountSpan);
+                    updateCountSpan.Finish(SpanStatus.Ok);
+                }
+                catch (Exception e)
+                {
+                    updateCountSpan.Finish(e);
+                    throw;
+                }
 
                 var consumer = (AsyncEventingBasicConsumer)sender;
                 consumer.Model.BasicAck(ea.DeliveryTag, false);
+                batchProcessSpan.Finish(SpanStatus.Ok);
             }
             catch (Exception e)
             {
@@ -148,26 +201,31 @@ namespace NuGetTrends.Scheduler
                         e.Data.Add("Package:#" + i.ToString("D2"), packageIds[i]);
                     }
                 }
+                batchProcessSpan.Finish(e);
                 _logger.LogCritical(e, "Failed to process batch.");
                 throw;
             }
         }
 
-        private async Task UpdateDownloadCount(IList<string> packageIds)
+        private async Task UpdateDownloadCount(IList<string> packageIds, ISpan parentSpan)
         {
+            var packageInfoQueue = parentSpan.StartChild("package.info.queue", "Start task to fetch package detail");
             var tasks = new List<Task<IPackageSearchMetadata?>>(packageIds.Count);
             foreach (var id in packageIds)
             {
                 tasks.Add(_nuGetSearchService.GetPackage(id, _cancellationTokenSource.Token));
             }
-
+            packageInfoQueue.Finish(SpanStatus.Ok);
+            var waitSpan = parentSpan.StartChild("package.info.wait", "Await for all tasks");
             var whenAll = Task.WhenAll(tasks);
             try
             {
                 await whenAll;
+                waitSpan.Finish(SpanStatus.Ok);
             }
             catch when (whenAll.Exception is {} exs && exs.InnerExceptions.Count > 1)
             {
+                waitSpan.Finish(exs);
                 throw exs; // re-throw the AggregateException to capture all errors with Sentry
             }
 
@@ -208,7 +266,8 @@ namespace NuGetTrends.Scheduler
                         package.LatestDownloadCountCheckedUtc = DateTime.UtcNow;
                     }
 
-                    var pkgDownload = await context.PackageDownloads.FirstOrDefaultAsync(p => p.PackageIdLowered == packageMetadata.Identity.Id.ToLower());
+                    var pkgDownload = await context.PackageDownloads.FirstOrDefaultAsync(
+                        p => p.PackageIdLowered == packageMetadata.Identity.Id.ToLower());
                     if (pkgDownload == null)
                     {
                         pkgDownload = new PackageDownload

@@ -36,7 +36,7 @@ namespace NuGetTrends.Scheduler
         public async Task Import(IJobCancellationToken token)
         {
             using var _ = _hub.PushScope();
-            var transaction = _hub.StartTransaction("daily-download-pkg-id-publisher", "job",
+            var transaction = _hub.StartTransaction("daily-download-pkg-id-publisher", "queue.write",
                 "queues package ids to fetch download numbers");
             try
             {
@@ -69,8 +69,9 @@ namespace NuGetTrends.Scheduler
                     await conn.OpenAsync();
                     dbConnectSpan.Finish();
 
-                    var dbQuerySpan = queueIdsSpan.StartChild("db.query", "Query ids");
-                    await using var cmd = new NpgsqlCommand("SELECT package_id FROM pending_packages_daily_downloads", (NpgsqlConnection)conn);
+                    const string queryIds = "SELECT package_id FROM pending_packages_daily_downloads";
+                    var dbQuerySpan = queueIdsSpan.StartChild("db.query", queryIds);
+                    await using var cmd = new NpgsqlCommand(queryIds, (NpgsqlConnection)conn);
                     await using var reader = await cmd.ExecuteReaderAsync();
                     dbQuerySpan.Finish();
 
@@ -95,6 +96,7 @@ namespace NuGetTrends.Scheduler
                     if (batch.Count != 0)
                     {
                         var queueSpan = queueIdsSpan.StartChild("queue.enqueue", "Enqueue incomplete batch.");
+                        queueSpan.SetTag("count", batch.Count.ToString());
                         Queue(batch, channel, queueName, properties);
                         queueSpan.Finish();
                     }

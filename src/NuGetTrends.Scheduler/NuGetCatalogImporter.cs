@@ -34,30 +34,38 @@ namespace NuGetTrends.Scheduler
         public async Task Import(IJobCancellationToken token)
         {
             using var _ = _hub.PushScope();
-            var transaction = _hub.StartTransaction("import-catalog", "Import nuget catalog");
+            var transaction = _hub.StartTransaction("import-catalog", "catalog.import");
+            _hub.ConfigureScope(s => s.Transaction = transaction);
             var logger = _loggerFactory.CreateLogger<NuGetCatalogImporter>();
-
             logger.LogInformation("Starting importing catalog.");
-
-            var httpClient = _httpClientFactory.CreateClient("nuget");
-            var catalogClient = new CatalogClient(httpClient, _loggerFactory.CreateLogger<CatalogClient>());
-            var settings = new CatalogProcessorSettings
+            try
             {
-                DefaultMinCommitTimestamp = DateTimeOffset.MinValue, // Read everything
-                ExcludeRedundantLeaves = false,
-            };
 
-            var catalogProcessor = new CatalogProcessor(
-                _cursorStore,
-                catalogClient,
-                _catalogLeafProcessor,
-                settings,
-                _loggerFactory.CreateLogger<CatalogProcessor>());
+                var httpClient = _httpClientFactory.CreateClient("nuget");
+                var catalogClient = new CatalogClient(httpClient, _loggerFactory.CreateLogger<CatalogClient>());
+                var settings = new CatalogProcessorSettings
+                {
+                    DefaultMinCommitTimestamp = DateTimeOffset.MinValue, // Read everything
+                    ExcludeRedundantLeaves = false,
+                };
 
-            await catalogProcessor.ProcessAsync(token.ShutdownToken);
+                var catalogProcessor = new CatalogProcessor(
+                    _cursorStore,
+                    catalogClient,
+                    _catalogLeafProcessor,
+                    settings,
+                    _loggerFactory.CreateLogger<CatalogProcessor>());
 
-            logger.LogInformation("Finished importing catalog.");
-            transaction.Finish(SpanStatus.Ok);
+                await catalogProcessor.ProcessAsync(token.ShutdownToken);
+
+                logger.LogInformation("Finished importing catalog.");
+                transaction.Finish(SpanStatus.Ok);
+            }
+            catch (Exception e)
+            {
+                transaction.Finish(e);
+                throw;
+            }
         }
     }
 }

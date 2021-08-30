@@ -12,6 +12,7 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using NuGet.Protocol.Catalog.Models;
 using NuGet.Protocol.Catalog.Serialization;
+using Sentry;
 
 namespace NuGet.Protocol.Catalog
 {
@@ -120,13 +121,18 @@ namespace NuGet.Protocol.Catalog
             await using var stream = await response.Content.ReadAsStreamAsync();
             using var textReader = new StreamReader(stream);
             using var jsonReader = new JsonTextReader(textReader);
+            var deserializingSpan = SentrySdk.GetSpan()
+                ?.StartChild("json.deserialize", "Deserializing response: " + documentUrl);
             try
             {
-                return JsonSerializer.Deserialize<T?>(jsonReader);
+                var responseOfT = JsonSerializer.Deserialize<T?>(jsonReader);
+                deserializingSpan?.Finish(SpanStatus.Ok);
+                return responseOfT;
             }
             catch (JsonReaderException e)
             {
                 _logger.LogError(new EventId(0, documentUrl), e, "Failed to deserialize.");
+                deserializingSpan?.Finish(e);
                 return default!;
             }
         }
