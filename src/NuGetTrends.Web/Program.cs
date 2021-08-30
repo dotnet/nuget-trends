@@ -58,11 +58,7 @@ namespace NuGetTrends.Web
                     webBuilder
                         .UseConfiguration(Configuration)
                         .UseSerilog()
-                        .UseSentry(s =>
-                        {
-                            s.AddInAppExclude("Npgsql");
-                            s.AddInAppExclude("Serilog");
-                        })
+                        .UseSentry(o => o.AddExceptionFilterForType<OperationCanceledException>())
                         .UseStartup<Startup>();
                 });
     }
