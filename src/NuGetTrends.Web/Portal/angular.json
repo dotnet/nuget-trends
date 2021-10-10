@@ -139,7 +139,7 @@
           "options": {
             "tsConfig": [
               "tsconfig.app.json",
-              "tsconfig.spec.json",
+              "tsconfig.spec.json"
             ],
             "exclude": [
               "src/polyfills.ts",
