@@ -133,19 +133,6 @@
               "src/app/**/index.ts"
             ]
           }
-        },
-        "lint": {
-          "builder": "@angular-devkit/build-angular:tslint",
-          "options": {
-            "tsConfig": [
-              "tsconfig.app.json",
-              "tsconfig.spec.json"
-            ],
-            "exclude": [
-              "src/polyfills.ts",
-              "**/node_modules/**"
-            ]
-          }
         }
       }
     }
