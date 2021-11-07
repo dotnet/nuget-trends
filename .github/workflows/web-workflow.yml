@@ -92,9 +92,10 @@ jobs:
         run: yarn install
         working-directory: src/NuGetTrends.Web/Portal
 
-      - name: 'SPA lint'
-        run: yarn run lint
-        working-directory: src/NuGetTrends.Web/Portal
+      # TODO: Enable again when we migrate to ESLint
+      # - name: 'SPA lint'
+      #   run: yarn run lint
+      #   working-directory: src/NuGetTrends.Web/Portal
 
       - name: 'SPA test'
         run: yarn run test-cc
