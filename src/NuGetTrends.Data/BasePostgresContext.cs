@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata;
 using Npgsql;
 using Npgsql.NameTranslation;
 using System.Text.RegularExpressions;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 namespace NuGetTrends.Data
 {
@@ -55,20 +56,22 @@ namespace NuGetTrends.Data
             switch (entity)
             {
                 case IMutableEntityType table:
-                    table.SetTableName(ConvertGeneralToSnake(mapper, table.GetTableName()));
+                    table.SetTableName(ConvertGeneralToSnake(mapper, table.GetTableName()!));
                     break;
                 case IMutableProperty property:
 #pragma warning disable 618
                     // https://github.com/dotnet/efcore/issues/23301#issuecomment-727003676
                     // If you have a model for 3.1 and you haven't changed it to use TPT, then you should be okay calling the implementation above in 5.0.
-                    property.SetColumnName(ConvertGeneralToSnake(mapper, property.GetColumnName()));
+                    // TODO: Need to figure out how to get it given the info in scope
+                    var storedObjectId = StoreObjectIdentifier.Create(/* ???? */);
+                    property.SetColumnName(ConvertGeneralToSnake(mapper, property.GetColumnName(storedObjectId)!));
 #pragma warning restore 618
                     break;
                 case IMutableKey primaryKey:
-                    primaryKey.SetName(ConvertKeyToSnake(mapper, primaryKey.GetName()));
+                    primaryKey.SetName(ConvertKeyToSnake(mapper, primaryKey.GetName()!));
                     break;
                 case IMutableForeignKey foreignKey:
-                    foreignKey.SetConstraintName(ConvertKeyToSnake(mapper, foreignKey.GetConstraintName()));
+                    foreignKey.SetConstraintName(ConvertKeyToSnake(mapper, foreignKey.GetConstraintName()!));
                     break;
                 case IMutableIndex indexKey:
                     indexKey.SetDatabaseName(ConvertKeyToSnake(mapper, indexKey.GetDatabaseName()));
