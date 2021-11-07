@@ -38,7 +38,9 @@
               "src/colors.scss",
               "src/styles.scss"
             ],
-            "scripts": [],
+            "scripts": [
+              "tmp/release.js"
+            ],
             "allowedCommonJsDependencies": [
               "chart.js"
             ],
