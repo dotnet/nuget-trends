@@ -7,7 +7,6 @@
     "build": "npm run generate-release && ng build",
     "generate-release": "mkdir -p tmp; echo window.SENTRY_RELEASE={id:\\'`git rev-parse --short HEAD`\\'} > tmp/release.js",
     "test-no-watch": "ng test --watch=false",
-    "lint": "ng lint",
     "test-cc": "ng test --watch=false --code-coverage",
     "postinstall": "ngcc"
   },
