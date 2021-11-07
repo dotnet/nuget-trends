@@ -21,6 +21,10 @@ on:
       - '**/web-workflow.yml'
   workflow_dispatch:
 jobs:
+  env:
+    DOTNET_CLI_TELEMETRY_OPTOUT: 1
+    DOTNET_NOLOGO: 1
+    DOTNET_MULTILEVEL_LOOKUP: 1
   build:
     runs-on: ubuntu-latest
     steps:
@@ -107,10 +111,11 @@ jobs:
       - name: Upload SPA coverage report to Codecov
         uses: codecov/codecov-action@v1
 
-      - name: Install .NET SDK
+      - name: Setup .NET SDK (v6.0)
         uses: actions/setup-dotnet@v1
         with:
-          dotnet-version: '5.0.302'
+          dotnet-version: '6.0.x'
+          include-prerelease: true
 
       - name: Web Build
         run: dotnet build -c Release
