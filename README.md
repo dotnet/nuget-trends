@@ -72,7 +72,7 @@ To run it localy:
 The app can be browsed at:
 - `http://localhost:5000`
 - `https://localhost:5001`
-- `http://localhost:4200` (default ng serve port)
+- `http://localhost:4200` (default `ng serve` port)
 
 > Note: You might need to see how to [install/trust the ASP.NET Core HTTPS development certificates](https://docs.microsoft.com/en-us/aspnet/core/security/enforcing-ssl?view=aspnetcore-5.0&tabs=visual-studio#trust-the-aspnet-core-https-development-certificate-on-windows-and-macos) (not required but nice to have)
 
@@ -101,7 +101,6 @@ This project is supported by the [.NET Foundation](https://dotnetfoundation.org)
 ## Acknowledgments
 
 * [Sentry.io](https://sentry.io) for supporting open source projects like this free of charge.
-* [Logz.io](https://logz.io) for offering a free tier.
 * [JetBrains](https://www.jetbrains.com/?from=NuGetTrends) for providing free licenses for core contributors.
 
 ## Links
