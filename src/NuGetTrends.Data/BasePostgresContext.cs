@@ -59,13 +59,9 @@ namespace NuGetTrends.Data
                     table.SetTableName(ConvertGeneralToSnake(mapper, table.GetTableName()!));
                     break;
                 case IMutableProperty property:
-#pragma warning disable 618
-                    // https://github.com/dotnet/efcore/issues/23301#issuecomment-727003676
-                    // If you have a model for 3.1 and you haven't changed it to use TPT, then you should be okay calling the implementation above in 5.0.
-                    // TODO: Need to figure out how to get it given the info in scope
-                    var storedObjectId = StoreObjectIdentifier.Create(/* ???? */);
-                    property.SetColumnName(ConvertGeneralToSnake(mapper, property.GetColumnName(storedObjectId)!));
-#pragma warning restore 618
+                    var columnName = property.GetColumnName(
+                        StoreObjectIdentifier.Table(property.DeclaringEntityType.GetTableName()!));
+                    property.SetColumnName(ConvertGeneralToSnake(mapper, columnName!));
                     break;
                 case IMutableKey primaryKey:
                     primaryKey.SetName(ConvertKeyToSnake(mapper, primaryKey.GetName()!));
@@ -85,8 +81,8 @@ namespace NuGetTrends.Data
             ConvertGeneralToSnake(mapper, KeysRegex.Replace(keyName, match => match.Value.ToLower()));
 
         private string ConvertGeneralToSnake(INpgsqlNameTranslator mapper, string entityName) =>
-            mapper.TranslateMemberName(ModifyNameBeforeConvertion(mapper, entityName));
+            mapper.TranslateMemberName(ModifyNameBeforeConversion(mapper, entityName));
 
-        protected virtual string ModifyNameBeforeConvertion(INpgsqlNameTranslator mapper, string entityName) => entityName;
+        private string ModifyNameBeforeConversion(INpgsqlNameTranslator mapper, string entityName) => entityName;
     }
 }
