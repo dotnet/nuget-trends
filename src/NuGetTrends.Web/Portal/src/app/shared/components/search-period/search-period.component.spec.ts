@@ -108,10 +108,10 @@ describe('SearchPeriodComponent', () => {
     packageInteractionService.searchPeriodChanged$.subscribe(
       (_) => timesPeriodHasChanged++);
 
-    // should start with initial value 12
+    // should start with initial value as defined in InitialSearchPeriod
     expect(packageInteractionService.searchPeriod).toBe(InitialSearchPeriod.value);
 
-    const expectedChangedPeriod = 12;
+    const expectedChangedPeriod = InitialSearchPeriod.value;
 
     component.periodControl.setValue(expectedChangedPeriod);
     const selectControl: any = fixture.nativeElement.querySelector('select');

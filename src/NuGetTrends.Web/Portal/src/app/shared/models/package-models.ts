@@ -74,9 +74,11 @@ const DefaultSearchPeriods: Array<SearchPeriod> = [
   {value: 3, text: '3 months'},
   {value: 6, text: '6 months'},
   {value: 12, text: '1 year'},
-  {value: 24, text: '2 years'}
+  {value: 24, text: '2 years'},
+  {value: 72, text: '6 years'},
+  {value: 120, text: '10 years'}
 ];
 
-const InitialSearchPeriod: SearchPeriod = DefaultSearchPeriods[2];
+const InitialSearchPeriod: SearchPeriod = DefaultSearchPeriods[3];
 
 export { DefaultSearchPeriods, InitialSearchPeriod };

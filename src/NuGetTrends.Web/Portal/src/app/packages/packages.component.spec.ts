@@ -154,7 +154,7 @@ describe('PackagesComponent', () => {
       spyOn(packageInteractionService, 'plotPackage').and.callThrough();
 
       // trigger the change of the period via the service
-      const newPeriod = 24;
+      const newPeriod = 12;
       packageInteractionService.changeSearchPeriod(newPeriod);
       tick();
       fixture.detectChanges();
@@ -175,7 +175,7 @@ describe('PackagesComponent', () => {
       fixture.detectChanges();
 
       // trigger the change of the period via the service
-      const newPeriod = 24;
+      const newPeriod = 12;
       packageInteractionService.changeSearchPeriod(newPeriod);
       tick();
       fixture.detectChanges();
@@ -203,7 +203,7 @@ describe('PackagesComponent', () => {
       spyOn(mockedToastr, 'error').and.callThrough();
 
       // trigger the change of the period via the service
-      const newPeriod = 24;
+      const newPeriod = 12;
       packageInteractionService.changeSearchPeriod(newPeriod);
       tick();
       fixture.detectChanges();
