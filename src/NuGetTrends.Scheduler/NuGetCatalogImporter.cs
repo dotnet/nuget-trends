@@ -64,6 +64,7 @@ namespace NuGetTrends.Scheduler
             catch (Exception e)
             {
                 transaction.Finish(e);
+                await SentrySdk.CaptureException(e);
                 throw;
             }
             finally
