@@ -112,6 +112,11 @@ jobs:
       - name: Upload SPA coverage report to Codecov
         uses: codecov/codecov-action@v1
 
+      - name: Setup .NET SDK (v6.0)
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '6.0.x'
+
       - name: Web Build
         run: dotnet build -c Release
         working-directory: src/NuGetTrends.Web/
