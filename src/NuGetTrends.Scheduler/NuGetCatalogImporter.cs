@@ -64,7 +64,12 @@ namespace NuGetTrends.Scheduler
             catch (Exception e)
             {
                 transaction.Finish(e);
+                SentrySdk.CaptureException(e);
                 throw;
+            }
+            finally
+            {
+                await SentrySdk.FlushAsync(TimeSpan.FromSeconds(2));
             }
         }
     }
