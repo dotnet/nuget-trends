@@ -21,12 +21,12 @@ on:
       - '**/web-workflow.yml'
   workflow_dispatch:
 jobs:
-  env:
-    DOTNET_CLI_TELEMETRY_OPTOUT: 1
-    DOTNET_NOLOGO: 1
-    DOTNET_MULTILEVEL_LOOKUP: 1
   build:
     runs-on: ubuntu-latest
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+      DOTNET_NOLOGO: 1
+      DOTNET_MULTILEVEL_LOOKUP: 1
     steps:
       - name: Check out code
         uses: actions/checkout@v2
