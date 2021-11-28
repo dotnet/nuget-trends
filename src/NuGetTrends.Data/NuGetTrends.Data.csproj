@@ -9,9 +9,7 @@
   </ItemGroup>
 
   <ItemGroup>
-<!--    Before bumping, need to fix: error CS1929: 'IMutableProperty' does not contain a definition for 'GetColumnName' and the best extension method overload 'RelationalPropertyExtensions.GetColumnName(IProperty)' requires a receiver of type 'IProperty'-->
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="6.0.0-rc.2" />
-<!--    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="5.0.10" />-->
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="6.0.0" />
   </ItemGroup>
 
 </Project>
