@@ -66,6 +66,10 @@ namespace NuGetTrends.Scheduler
                 transaction.Finish(e);
                 throw;
             }
+            finally
+            {
+                await SentrySdk.FlushAsync(TimeSpan.FromSeconds(2));
+            }
         }
     }
 }
