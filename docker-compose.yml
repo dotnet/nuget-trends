@@ -22,7 +22,7 @@ services:
       - pgdata:/var/lib/postgresql/data
   pgadmin:
     environment:
-      PGADMIN_DEFAULT_EMAIL: test@user.com
+      PGADMIN_DEFAULT_EMAIL: test@user
       PGADMIN_DEFAULT_PASSWORD: PUg2rt6Pp8Arx7Z9FbgJLFvxEL7pZ2
     links:
       - postgres
