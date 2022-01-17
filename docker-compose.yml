@@ -28,7 +28,12 @@ services:
       - postgres
     image: dpage/pgadmin4
     ports:
-      - "8080:80"
+      - "5433:80"
+    volumes:
+      - pgadmindata:/var/lib/pgadmin
+    depends_on:
+      - postgres
     restart: "no"
 volumes:
   pgdata:
+  pgadmindata:
