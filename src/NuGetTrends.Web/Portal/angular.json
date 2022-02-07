@@ -38,9 +38,6 @@
               "src/colors.scss",
               "src/styles.scss"
             ],
-            "scripts": [
-              "tmp/release.js"
-            ],
             "allowedCommonJsDependencies": [
               "chart.js"
             ],
@@ -80,6 +77,9 @@
                   "maximumWarning": "6kb",
                   "maximumError": "10kb"
                 }
+              ],
+              "scripts": [
+                "tmp/release.js"
               ]
             },
             "development": {
