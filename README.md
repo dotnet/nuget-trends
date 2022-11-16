@@ -38,7 +38,7 @@ Please refer to [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Acknowledgments
 
-* [Sentry.io](https://sentry.io) for supporting open source projects like this free of charge.
+* [Sentry.io](https://sentry.io) for supporting [open source projects like this](https://sentry.io/for/open-source/), free of charge.
 * [JetBrains](https://www.jetbrains.com/?from=NuGetTrends) for providing free licenses for core contributors.
 
 <h2>.NET Foundation

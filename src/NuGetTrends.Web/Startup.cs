@@ -11,6 +11,7 @@ using Microsoft.Extensions.Hosting;
 using NuGetTrends.Data;
 using Swashbuckle.AspNetCore.SwaggerUI;
 using Microsoft.OpenApi.Models;
+using NuGet.Protocol.Plugins;
 using Sentry.AspNetCore;
 using Sentry.Tunnel;
 using Shortr;
@@ -60,7 +61,8 @@ namespace NuGetTrends.Web
 
             services.AddDbContext<NuGetTrendsContext>(options =>
             {
-                options.UseNpgsql(_configuration.GetConnectionString("NuGetTrends"));
+                var connString = GetConnectionString(_configuration);
+                options.UseNpgsql(connString);
                 if (_hostingEnvironment.IsDevelopment())
                 {
                     options.EnableSensitiveDataLogging();
@@ -81,7 +83,7 @@ namespace NuGetTrends.Web
                 services.Replace(ServiceDescriptor.Singleton<IShortrStore, NpgsqlShortrStore>());
                 services.AddSingleton(c => new NpgsqlShortrOptions
                 {
-                    ConnectionString = c.GetRequiredService<IConfiguration>().GetConnectionString("NuGetTrends")
+                    ConnectionString = GetConnectionString(c.GetRequiredService<IConfiguration>())
                 });
             }
         }
@@ -129,6 +131,17 @@ namespace NuGetTrends.Web
             });
 
             app.UseShortr();
+        }
+
+        private string GetConnectionString(IConfiguration _configuration)
+        {
+            var connString = _configuration.GetConnectionString("NuGetTrends");
+            if (string.IsNullOrWhiteSpace(connString))
+            {
+                throw new InvalidOperationException("No connection string available for NuGetTrends");
+            }
+
+            return connString;
         }
     }
 }

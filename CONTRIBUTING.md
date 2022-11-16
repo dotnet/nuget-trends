@@ -65,6 +65,19 @@ The backup can be grabbed here: [https://contrib.nugettrends.com/nuget-trends-co
 You can pull the repo and run `docker-compose up` at the root of the project to get the required services.
 That will give you an empty _postgres_ database though.
 
+For example, [with `pg_restore`](https://command-not-found.com/pg_restore).
+
+```sh
+# the db password hard coded in docker-compose.yml and appsettings.json config files:
+export PGPASSWORD=PUg2rt6Pp8Arx7Z9FbgJLFvxEL7pZ2
+
+# create an empty db
+createdb nugettrends -U postgres -h localhost -p 5432
+
+# restore backup
+pg_restore -U postgres -d nugettrends -h localhost -p 5432 nuget-trends-contrib.dump
+```
+
 ### Note to .NET SDK version and global.json
 
 We lock the .NET SDK version via `global.json` to have a reference version and avoid surprises during CI.
