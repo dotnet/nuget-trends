@@ -110,12 +110,12 @@ jobs:
         run: sed -i 's/SF:/SF:src\/NuGetTrends.Web\/Portal\//g' src/NuGetTrends.Web/Portal/coverage/lcov.info
 
       - name: Upload SPA coverage report to Codecov
-        uses: codecov/codecov-action@v1
+        uses: codecov/codecov-action@v3
 
-      - name: Setup .NET SDK (v6.0)
-        uses: actions/setup-dotnet@v1
+      - name: Setup .NET SDK (v7.0)
+        uses: actions/setup-dotnet@v3
         with:
-          dotnet-version: '6.0.x'
+          dotnet-version: '7.x'
 
       - name: Web Build
         run: dotnet build -c Release
