@@ -9,7 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.SpaServices.Extensions" Version="6.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.SpaServices.Extensions" Version="7.0.0" />
     <PackageReference Include="Shortr.AspNetCore" Version="1.0.0-beta01" />
     <PackageReference Include="Shortr.Npgsql" Version="1.0.0-beta01" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="5.6.1" />
