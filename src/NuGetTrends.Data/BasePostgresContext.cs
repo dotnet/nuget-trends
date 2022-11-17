@@ -70,7 +70,12 @@ namespace NuGetTrends.Data
                     foreignKey.SetConstraintName(ConvertKeyToSnake(mapper, foreignKey.GetConstraintName()!));
                     break;
                 case IMutableIndex indexKey:
-                    indexKey.SetDatabaseName(ConvertKeyToSnake(mapper, indexKey.GetDatabaseName()));
+                    var dbName = indexKey.GetDatabaseName();
+                    if (string.IsNullOrWhiteSpace(dbName))
+                    {
+                        throw new InvalidOperationException("Can't adjust casing, missing DB name");
+                    }
+                    indexKey.SetDatabaseName(ConvertKeyToSnake(mapper, dbName));
                     break;
                 default:
                     throw new NotImplementedException("Unexpected type was provided to snake case converter");
