@@ -61,7 +61,7 @@ namespace NuGetTrends.Web
 
             services.AddDbContext<NuGetTrendsContext>(options =>
             {
-                var connString = GetConnectionString(_configuration);
+                var connString = _configuration.GetNuGetTrendsConnectionString();
                 options.UseNpgsql(connString);
                 if (_hostingEnvironment.IsDevelopment())
                 {
@@ -83,7 +83,7 @@ namespace NuGetTrends.Web
                 services.Replace(ServiceDescriptor.Singleton<IShortrStore, NpgsqlShortrStore>());
                 services.AddSingleton(c => new NpgsqlShortrOptions
                 {
-                    ConnectionString = GetConnectionString(c.GetRequiredService<IConfiguration>())
+                    ConnectionString = _configuration.GetNuGetTrendsConnectionString()
                 });
             }
         }
@@ -131,17 +131,6 @@ namespace NuGetTrends.Web
             });
 
             app.UseShortr();
-        }
-
-        private string GetConnectionString(IConfiguration _configuration)
-        {
-            var connString = _configuration.GetConnectionString("NuGetTrends");
-            if (string.IsNullOrWhiteSpace(connString))
-            {
-                throw new InvalidOperationException("No connection string available for NuGetTrends");
-            }
-
-            return connString;
         }
     }
 }
