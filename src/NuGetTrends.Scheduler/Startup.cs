@@ -72,6 +72,7 @@ namespace NuGetTrends.Scheduler
             // Install: Hangfire.PostgreSql
             // Configure: config.UsePostgreSqlStorage(Configuration.GetConnectionString("HangfireConnection")
             services.AddHangfire(config => config.UseStorage(new MemoryStorage()));
+            services.AddHangfireServer();
 
             services.AddHttpClient("nuget"); // TODO: typed client? will be shared across all jobs
 
@@ -97,9 +98,6 @@ namespace NuGetTrends.Scheduler
                         new PublicAccessDashboardAuthorizationFilter()
                     }
                 });
-
-            var hangfireOptions = app.ApplicationServices.GetRequiredService<IOptions<BackgroundJobServerOptions>>().Value;
-            app.UseHangfireServer(hangfireOptions);
 
             app.ScheduleJobs();
         }

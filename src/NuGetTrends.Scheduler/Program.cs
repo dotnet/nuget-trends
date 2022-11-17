@@ -54,12 +54,12 @@ namespace NuGetTrends.Scheduler
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
+                .UseSerilog()
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder
                         .UseKestrel()
                         .UseConfiguration(Configuration)
-                        .UseSerilog()
                         .UseSentry(o =>
                         {
                             o.AddExceptionFilterForType<OperationCanceledException>();

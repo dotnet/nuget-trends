@@ -11,9 +11,6 @@ using Microsoft.Extensions.Hosting;
 using NuGetTrends.Data;
 using Swashbuckle.AspNetCore.SwaggerUI;
 using Microsoft.OpenApi.Models;
-using NuGet.Protocol.Plugins;
-using Sentry.AspNetCore;
-using Sentry.Tunnel;
 using Shortr;
 using Shortr.Npgsql;
 

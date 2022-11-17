@@ -53,11 +53,11 @@ namespace NuGetTrends.Web
 
         private static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
+                .UseSerilog()
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder
                         .UseConfiguration(Configuration)
-                        .UseSerilog()
                         .UseSentry(o => o.AddExceptionFilterForType<OperationCanceledException>())
                         .UseStartup<Startup>();
                 });
