@@ -11,8 +11,6 @@ using Microsoft.Extensions.Hosting;
 using NuGetTrends.Data;
 using Swashbuckle.AspNetCore.SwaggerUI;
 using Microsoft.OpenApi.Models;
-using Sentry.AspNetCore;
-using Sentry.Tunnel;
 using Shortr;
 using Shortr.Npgsql;
 
@@ -60,7 +58,8 @@ namespace NuGetTrends.Web
 
             services.AddDbContext<NuGetTrendsContext>(options =>
             {
-                options.UseNpgsql(_configuration.GetConnectionString("NuGetTrends"));
+                var connString = _configuration.GetNuGetTrendsConnectionString();
+                options.UseNpgsql(connString);
                 if (_hostingEnvironment.IsDevelopment())
                 {
                     options.EnableSensitiveDataLogging();
@@ -81,7 +80,7 @@ namespace NuGetTrends.Web
                 services.Replace(ServiceDescriptor.Singleton<IShortrStore, NpgsqlShortrStore>());
                 services.AddSingleton(c => new NpgsqlShortrOptions
                 {
-                    ConnectionString = c.GetRequiredService<IConfiguration>().GetConnectionString("NuGetTrends")
+                    ConnectionString = _configuration.GetNuGetTrendsConnectionString()
                 });
             }
         }
