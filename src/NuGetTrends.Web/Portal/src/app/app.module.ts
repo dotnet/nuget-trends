@@ -31,7 +31,7 @@ Sentry.init({
       blockAllMedia: true,
     }),
     new BrowserTracing({
-      routingInstrumentation: Sentry.routingInstrumentation,
+      routingInstrumentation: Sentry.instrumentAngularRouting,
     }),
   ],
 });
