@@ -1,5 +1,5 @@
 import { AfterViewInit, Component, ElementRef, ErrorHandler, ViewChild, ViewEncapsulation } from '@angular/core';
-import { FormControl } from '@angular/forms';
+import { UntypedFormControl } from '@angular/forms';
 import { Router } from '@angular/router';
 import { MatAutocomplete, MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
 import { catchError, debounceTime, distinctUntilChanged, filter, map, mapTo, startWith, switchMap, tap } from 'rxjs/operators';
@@ -20,7 +20,7 @@ export class SearchInputComponent implements AfterViewInit {
   @ViewChild(MatAutocomplete) autoComplete!: MatAutocomplete;
   @ViewChild('searchBox') searchBox!: ElementRef;
 
-  queryField: FormControl = new FormControl('');
+  queryField: UntypedFormControl = new UntypedFormControl('');
   results$!: Observable<IPackageSearchResult[]>;
   isSearching = false;
   showResults = true;

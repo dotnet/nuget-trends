@@ -1,6 +1,6 @@
 import { Component, OnDestroy } from '@angular/core';
 import { Router, ActivatedRoute, Params } from '@angular/router';
-import { FormControl } from '@angular/forms';
+import { UntypedFormControl } from '@angular/forms';
 
 import { SearchPeriod, DefaultSearchPeriods, InitialSearchPeriod } from '../../models/package-models';
 import { PackageInteractionService } from '../../../core';
@@ -11,7 +11,7 @@ import { PackageInteractionService } from '../../../core';
   styleUrls: ['./search-period.component.scss']
 })
 export class SearchPeriodComponent implements OnDestroy {
-  periodControl!: FormControl;
+  periodControl!: UntypedFormControl;
   periodValues: Array<SearchPeriod>;
 
   private urlPeriodName = 'months';
@@ -70,7 +70,7 @@ export class SearchPeriodComponent implements OnDestroy {
     const queryParams: Params = {...this.activatedRoute.snapshot.queryParams};
     queryParams[this.urlPeriodName] = valueToUse;
 
-    this.periodControl = new FormControl(valueToUse);
+    this.periodControl = new UntypedFormControl(valueToUse);
     this.packageInteractionService.searchPeriod = valueToUse;
 
     this.route.navigate([], {

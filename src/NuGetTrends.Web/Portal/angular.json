@@ -139,5 +139,7 @@
       }
     }
   },
-  "defaultProject": "nuget-trends"
+  "cli": {
+    "analytics": false
+  }
 }
