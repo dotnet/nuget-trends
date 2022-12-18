@@ -111,7 +111,7 @@ export class SearchInputComponent implements AfterViewInit {
       Sentry.addBreadcrumb({
         category: 'search.result',
         message,
-        level: Sentry.Severity.Info,
+        level: "info",
       });
       this.toastr.info(message);
     }
