@@ -1,10 +1,10 @@
 /* Font Awesome */
 $fa-font-path: "~font-awesome/fonts";
-@import "~font-awesome/scss/font-awesome.scss";
+// @import "~font-awesome/scss/font-awesome.scss";
 
 /* Bulma Color Overrides*/
 @import './colors';
-@import '~bulma/bulma.sass';
+// @import '~bulma/bulma.sass';
 
 /* To have a sticky footer. https://philipwalton.github.io/solved-by-flexbox/demos/sticky-footer/*/
 .site {
