@@ -1820,13 +1820,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@kurkle/color@npm:^0.3.0":
-  version: 0.3.1
-  resolution: "@kurkle/color@npm:0.3.1"
-  checksum: e6be5c081bf5acfd4a1803dcd5a0733caf450e73148d5f02dc536b1ff0c60c959c23472a26c9c3c6c78ada04fb6a53c9202db9b2de8ea56f6eeec381f9cc3a1a
-  languageName: node
-  linkType: hard
-
 "@leichtgewicht/ip-codec@npm:^2.0.1":
   version: 2.0.4
   resolution: "@leichtgewicht/ip-codec@npm:2.0.4"
@@ -2768,7 +2761,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@sentry/angular@npm:^7.25.0":
+"@sentry/angular@npm:^7.27.0":
   version: 7.27.0
   resolution: "@sentry/angular@npm:7.27.0"
   dependencies:
@@ -2809,7 +2802,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@sentry/replay@npm:7.27.0, @sentry/replay@npm:^7.25.0":
+"@sentry/replay@npm:7.27.0, @sentry/replay@npm:^7.27.0":
   version: 7.27.0
   resolution: "@sentry/replay@npm:7.27.0"
   dependencies:
@@ -2822,7 +2815,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@sentry/tracing@npm:^7.25.0":
+"@sentry/tracing@npm:^7.27.0":
   version: 7.27.0
   resolution: "@sentry/tracing@npm:7.27.0"
   dependencies:
@@ -3938,12 +3931,32 @@ __metadata:
   languageName: node
   linkType: hard
 
-"chart.js@npm:^4.1.1":
-  version: 4.1.1
-  resolution: "chart.js@npm:4.1.1"
+"chart.js@npm:2.9.4":
+  version: 2.9.4
+  resolution: "chart.js@npm:2.9.4"
   dependencies:
-    "@kurkle/color": ^0.3.0
-  checksum: e195abc7b1271a0d4f616b90ac56465b639bffef8e965d26bf1fd65050011bf359fdc25e43dac1576420c1173dc1430c576fd0f953ae8b62bf257ec571424882
+    chartjs-color: ^2.1.0
+    moment: ^2.10.2
+  checksum: cbdc7abe2fa65e4838848e68b035ae6048ebcc512b9057d7cdb6d361e728400d39e3fde75e0b4da815ab43f7890c31787d8f80d4e6ab75a3e80fc75b47cd173c
+  languageName: node
+  linkType: hard
+
+"chartjs-color-string@npm:^0.6.0":
+  version: 0.6.0
+  resolution: "chartjs-color-string@npm:0.6.0"
+  dependencies:
+    color-name: ^1.0.0
+  checksum: 2355bc8e9514b779d0dc057c5ee6707e8166f270531c27287a399d6bfeb0d891b00a6f6c20e764453a062de0de8b298b11d3850fc94c323df66efb4720ece4c7
+  languageName: node
+  linkType: hard
+
+"chartjs-color@npm:^2.1.0":
+  version: 2.4.1
+  resolution: "chartjs-color@npm:2.4.1"
+  dependencies:
+    chartjs-color-string: ^0.6.0
+    color-convert: ^1.9.3
+  checksum: 254d7b2f103980417703331c49fba18877ac797fd9056d79f0d566dc4fd8d41f91b7f63d4b19602462b91110bee2fe0c9fd57266ce871e498ac1c25742fffb11
   languageName: node
   linkType: hard
 
@@ -4083,7 +4096,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"color-convert@npm:^1.9.0":
+"color-convert@npm:^1.9.0, color-convert@npm:^1.9.3":
   version: 1.9.3
   resolution: "color-convert@npm:1.9.3"
   dependencies:
@@ -4108,7 +4121,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"color-name@npm:~1.1.4":
+"color-name@npm:^1.0.0, color-name@npm:~1.1.4":
   version: 1.1.4
   resolution: "color-name@npm:1.1.4"
   checksum: b0445859521eb4021cd0fb0cc1a75cecf67fceecae89b63f62b201cca8d345baf8b952c966862a9d9a2632987d4f6581f0ec8d957dfacece86f0a7919316f610
@@ -7276,16 +7289,16 @@ __metadata:
     "@angular/platform-browser": ^15.0.4
     "@angular/platform-browser-dynamic": ^15.0.4
     "@angular/router": ^15.0.4
-    "@sentry/angular": ^7.25.0
-    "@sentry/replay": ^7.25.0
-    "@sentry/tracing": ^7.25.0
+    "@sentry/angular": ^7.27.0
+    "@sentry/replay": ^7.27.0
+    "@sentry/tracing": ^7.27.0
     "@types/chart.js": 2.9.32
     "@types/jasmine": ~3.6.9
     "@types/jasminewd2": ^2.0.8
     "@types/node": ^14.14.41
     bulma: ^0.9.4
     bulma-start: ^0.0.5
-    chart.js: ^4.1.1
+    chart.js: 2.9.4
     codelyzer: ^6.0.1
     font-awesome: ^4.7.0
     jasmine-core: ^3.7.1
@@ -7298,7 +7311,7 @@ __metadata:
     karma-junit-reporter: ^2.0.1
     ngx-toastr: ^16.0.1
     puppeteer: ^9.1.1
-    rxjs: ^7.8.0
+    rxjs: ^6.6.7
     ts-node: 9.1.1
     tslib: ^2.4.1
     tslint: ~6.1.0
@@ -8181,7 +8194,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"rxjs@npm:6.6.7, rxjs@npm:^6.5.3":
+"rxjs@npm:6.6.7, rxjs@npm:^6.5.3, rxjs@npm:^6.6.7":
   version: 6.6.7
   resolution: "rxjs@npm:6.6.7"
   dependencies:
@@ -8190,7 +8203,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"rxjs@npm:^7.5.5, rxjs@npm:^7.8.0":
+"rxjs@npm:^7.5.5":
   version: 7.8.0
   resolution: "rxjs@npm:7.8.0"
   dependencies:
