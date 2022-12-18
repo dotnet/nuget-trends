@@ -82,11 +82,14 @@ jobs:
             ${{ runner.os }}-yarn-
             ${{ runner.os }}-
 
-      - name: Install SPA build tools
-        run: |
-          npm install -g @angular/cli@15.0.0
-          npm install -g yarn
-          ng --version
+      - name: Install Angular CLI
+        run: npm install -g @angular/cli@15.0.0
+
+      - name: Install Yarn
+        run: npm install -g yarn
+
+      - name: Test/print Angular CLI versoin
+        run: ng --version
 
       - name: 'Install SPA packages'
         run: yarn install
