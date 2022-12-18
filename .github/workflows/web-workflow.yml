@@ -89,7 +89,7 @@ jobs:
         run: npm install -g yarn
 
       - name: Test/print Angular CLI versoin
-        run: ng --version
+        run: ng version
 
       - name: 'Install SPA packages'
         run: yarn install
