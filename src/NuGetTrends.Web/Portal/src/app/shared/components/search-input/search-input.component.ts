@@ -3,7 +3,7 @@ import { UntypedFormControl } from '@angular/forms';
 import { Router } from '@angular/router';
 import { MatLegacyAutocomplete as MatAutocomplete, MatLegacyAutocompleteSelectedEvent as MatAutocompleteSelectedEvent } from '@angular/material/legacy-autocomplete';
 import { catchError, debounceTime, distinctUntilChanged, filter, map, mapTo, startWith, switchMap, tap } from 'rxjs/operators';
-import { EMPTY, Observable, Subject, merge } from 'rxjs';
+import { EMPTY, Observable, Subject, merge, firstValueFrom } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import * as Sentry from '@sentry/angular';
 
@@ -123,7 +123,7 @@ export class SearchInputComponent implements AfterViewInit {
    */
   private async getNuGetPackageHistory(packageId: string, period: number): Promise<void> {
     try {
-      const downloadHistory = await this.packagesService.getPackageDownloadHistory(packageId, period).toPromise();
+      const downloadHistory = await firstValueFrom(this.packagesService.getPackageDownloadHistory(packageId, period));
 
       if (this.router.url.includes('/packages')) {
         this.feedPackageHistoryResults(downloadHistory);
