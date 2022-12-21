@@ -5,7 +5,8 @@ import { DatePipe } from '@angular/common';
 import { HttpClientModule } from '@angular/common/http';
 import { Router } from '@angular/router';
 import * as Sentry from '@sentry/angular';
-import { Integrations } from '@sentry/tracing';
+import { Replay } from "@sentry/replay";
+import { BrowserTracing } from '@sentry/tracing';
 
 import { AppComponent } from './app.component';
 import { AppRoutingModule } from './app-routes.module';
@@ -18,13 +19,21 @@ import { CoreModule } from './core/core.module';
 Sentry.init({
   dsn: environment.SENTRY_DSN,
   environment: environment.name,
+  tunnel: environment.SENTRY_TUNNEL,
+  tracesSampleRate: 1.0,
+  replaysSessionSampleRate: 1.0,
+  replaysOnErrorSampleRate: 1.0,
+
   integrations: [
-    new Integrations.BrowserTracing({
-      routingInstrumentation: Sentry.routingInstrumentation,
+    new Replay({
+      // No PII here so lets get the texts
+      maskAllText: false,
+      blockAllMedia: true,
+    }),
+    new BrowserTracing({
+      routingInstrumentation: Sentry.instrumentAngularRouting,
     }),
   ],
-  tracesSampleRate: 1.0,
-  tunnel: environment.SENTRY_TUNNEL,
 });
 
 @NgModule({

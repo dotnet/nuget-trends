@@ -1,9 +1,9 @@
 import { AfterViewInit, Component, ElementRef, ErrorHandler, ViewChild, ViewEncapsulation } from '@angular/core';
-import { FormControl } from '@angular/forms';
+import { UntypedFormControl } from '@angular/forms';
 import { Router } from '@angular/router';
-import { MatAutocomplete, MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
+import { MatLegacyAutocomplete as MatAutocomplete, MatLegacyAutocompleteSelectedEvent as MatAutocompleteSelectedEvent } from '@angular/material/legacy-autocomplete';
 import { catchError, debounceTime, distinctUntilChanged, filter, map, mapTo, startWith, switchMap, tap } from 'rxjs/operators';
-import { EMPTY, Observable, Subject, merge } from 'rxjs';
+import { EMPTY, Observable, Subject, merge, firstValueFrom } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import * as Sentry from '@sentry/angular';
 
@@ -20,7 +20,7 @@ export class SearchInputComponent implements AfterViewInit {
   @ViewChild(MatAutocomplete) autoComplete!: MatAutocomplete;
   @ViewChild('searchBox') searchBox!: ElementRef;
 
-  queryField: FormControl = new FormControl('');
+  queryField: UntypedFormControl = new UntypedFormControl('');
   results$!: Observable<IPackageSearchResult[]>;
   isSearching = false;
   showResults = true;
@@ -111,7 +111,7 @@ export class SearchInputComponent implements AfterViewInit {
       Sentry.addBreadcrumb({
         category: 'search.result',
         message,
-        level: Sentry.Severity.Info,
+        level: "info",
       });
       this.toastr.info(message);
     }
@@ -123,7 +123,7 @@ export class SearchInputComponent implements AfterViewInit {
    */
   private async getNuGetPackageHistory(packageId: string, period: number): Promise<void> {
     try {
-      const downloadHistory = await this.packagesService.getPackageDownloadHistory(packageId, period).toPromise();
+      const downloadHistory = await firstValueFrom(this.packagesService.getPackageDownloadHistory(packageId, period));
 
       if (this.router.url.includes('/packages')) {
         this.feedPackageHistoryResults(downloadHistory);

@@ -1,7 +1,7 @@
 import { Component, ErrorHandler, OnDestroy, OnInit } from '@angular/core';
 import { Chart, ChartData, ChartDataSets, ChartOptions } from 'chart.js';
 import { DatePipe } from '@angular/common';
-import { Subscription } from 'rxjs';
+import { firstValueFrom, Subscription } from 'rxjs';
 import { ActivatedRoute, Params, Router } from '@angular/router';
 import { AppAnimations } from '../shared';
 import { ToastrService } from 'ngx-toastr';
@@ -73,7 +73,7 @@ export class PackagesComponent implements OnInit, OnDestroy {
 
     packageIds.forEach(async (packageId: string) => {
       try {
-        const downloadHistory = await this.packagesService.getPackageDownloadHistory(packageId, period).toPromise();
+        const downloadHistory = await firstValueFrom(this.packagesService.getPackageDownloadHistory(packageId, period));
         this.packageInteractionService.updatePackage(downloadHistory);
       } catch (error) {
         this.errorHandler.handleError(error);
@@ -213,8 +213,8 @@ export class PackagesComponent implements OnInit, OnDestroy {
 
     packageIds.forEach(async (packageId: string) => {
       try {
-        const downloadHistory = await this.packagesService.getPackageDownloadHistory(
-          packageId, this.packageInteractionService.searchPeriod).toPromise();
+        const downloadHistory = await firstValueFrom(this.packagesService.getPackageDownloadHistory(
+          packageId, this.packageInteractionService.searchPeriod));
 
         this.packageInteractionService.addPackage(downloadHistory);
       } catch (error) {
