@@ -28,10 +28,12 @@ Sentry.init({
     new Replay({
       // No PII here so lets get the texts
       maskAllText: false,
-      blockAllMedia: true,
+      blockAllMedia: false,
     }),
     new BrowserTracing({
       routingInstrumentation: Sentry.instrumentAngularRouting,
+      idleTimeout: 30000,
+      heartbeatInterval:10000,
     }),
   ],
 });
