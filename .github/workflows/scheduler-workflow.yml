@@ -1,7 +1,7 @@
 name: Scheduler
 env:
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
-  SENTRY_LOG_LEVEL: "debug"
+  # SENTRY_LOG_LEVEL: "debug"
 on:
   push:
     tags:
