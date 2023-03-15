@@ -59,13 +59,10 @@ jobs:
           echo ${{ steps.docker-prep.outputs.tags }}
           echo ${{ steps.docker-prep.outputs.created }}
 
-      - name: Setup .NET SDK (v7.0)
-        uses: actions/setup-dotnet@v3
-        with:
-          dotnet-version: '7.x'
-
       - name: Build
         run: dotnet build -c Release
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         working-directory: src/NuGetTrends.Scheduler/
 
       - name: Publish
