@@ -50,8 +50,8 @@ jobs:
         with:
           image: ${{ env.IMAGE_NAME }}
           tags: ${{ env.IMAGE_TAGS }}
-          containerfiles: |
-            ./src/NuGetTrends.Scheduler/Dockerfile
+          context: ./src/NuGetTrends.Scheduler
+          containerfiles: ./src/NuGetTrends.Scheduler/Dockerfile
           # oci: true
 
       # Push the image to GHCR (Image Registry)
