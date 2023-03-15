@@ -4,12 +4,14 @@ import { IPackageDownloadHistory, IPackageColor, TagColor } from '../../models/p
 import { PackageInteractionService } from '../../../core';
 import { environment } from '../../../../environments/environment.prod';
 import { ToastrService } from 'ngx-toastr';
+import * as Sentry from "@sentry/angular-ivy";
 
 @Component({
   selector: 'app-package-list',
   templateUrl: './package-list.component.html',
   styleUrls: ['./package-list.component.scss']
 })
+@Sentry.TraceClassDecorator()
 export class PackageListComponent implements OnDestroy {
   packageList: Array<IPackageColor>;
 

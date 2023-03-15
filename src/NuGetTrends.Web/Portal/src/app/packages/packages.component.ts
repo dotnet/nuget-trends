@@ -5,6 +5,7 @@ import { firstValueFrom, Subscription } from 'rxjs';
 import { ActivatedRoute, Params, Router } from '@angular/router';
 import { AppAnimations } from '../shared';
 import { ToastrService } from 'ngx-toastr';
+import * as Sentry from "@sentry/angular-ivy";
 
 import { PackagesService, PackageInteractionService } from '../core';
 import { IPackageDownloadHistory, IDownloadStats } from '../shared/models/package-models';
@@ -15,6 +16,7 @@ import { IPackageDownloadHistory, IDownloadStats } from '../shared/models/packag
   styleUrls: ['./packages.component.scss'],
   animations: [AppAnimations.slideInOutAnimation]
 })
+@Sentry.TraceClassDecorator()
 export class PackagesComponent implements OnInit, OnDestroy {
 
   private trendChart!: Chart;

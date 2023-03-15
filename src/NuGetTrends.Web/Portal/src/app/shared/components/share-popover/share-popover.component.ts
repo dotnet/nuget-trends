@@ -1,5 +1,6 @@
 import { Component, Input, ElementRef, HostListener, EventEmitter, Output, ErrorHandler } from '@angular/core';
 import { ToastrService } from 'ngx-toastr';
+import * as Sentry from '@sentry/angular-ivy';
 
 import { SocialShareService } from 'src/app/core/services/social-share.service';
 
@@ -8,6 +9,7 @@ import { SocialShareService } from 'src/app/core/services/social-share.service';
   templateUrl: './share-popover.component.html',
   styleUrls: ['./share-popover.component.scss']
 })
+@Sentry.TraceClassDecorator()
 export class SharePopoverComponent {
   @Input() buttonText = '';
   @Output() shared = new EventEmitter();

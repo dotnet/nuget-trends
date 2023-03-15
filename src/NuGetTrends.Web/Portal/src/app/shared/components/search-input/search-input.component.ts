@@ -5,7 +5,7 @@ import { MatLegacyAutocomplete as MatAutocomplete, MatLegacyAutocompleteSelected
 import { catchError, debounceTime, distinctUntilChanged, filter, map, mapTo, startWith, switchMap, tap } from 'rxjs/operators';
 import { EMPTY, Observable, Subject, merge, firstValueFrom } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
-import * as Sentry from '@sentry/angular';
+import * as Sentry from '@sentry/angular-ivy';
 
 import { IPackageDownloadHistory, IPackageSearchResult, SearchType } from '../../models/package-models';
 import { PackagesService, PackageInteractionService } from '../../../core';
@@ -16,6 +16,7 @@ import { PackagesService, PackageInteractionService } from '../../../core';
   styleUrls: ['./search-input.component.scss'],
   encapsulation: ViewEncapsulation.None,
 })
+@Sentry.TraceClassDecorator()
 export class SearchInputComponent implements AfterViewInit {
   @ViewChild(MatAutocomplete) autoComplete!: MatAutocomplete;
   @ViewChild('searchBox') searchBox!: ElementRef;

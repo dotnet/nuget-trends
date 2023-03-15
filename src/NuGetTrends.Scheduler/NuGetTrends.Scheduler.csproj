@@ -4,6 +4,10 @@
     <TargetFramework>net7.0</TargetFramework>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <SentryProject>scheduler</SentryProject>
+  </PropertyGroup>
+
   <ItemGroup>
     <None Include="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -11,18 +15,18 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="MessagePack" Version="2.4.35" />
+    <PackageReference Include="MessagePack" Version="2.5.103" />
     <PackageReference Include="NuGet.Client" Version="4.3.0-beta1-2418" />
     <PackageReference Include="RabbitMQ.Client" Version="6.4.0" />
-    <PackageReference Include="Hangfire.AspNetCore" Version="1.7.31" />
+    <PackageReference Include="Hangfire.AspNetCore" Version="1.7.33" />
     <PackageReference Include="Hangfire.MemoryStorage" Version="1.7.0" />
-    <PackageReference Include="Sentry.AspNetCore" Version="3.25.0" />
-    <PackageReference Include="Sentry.Serilog" Version="3.25.0" />
-    <PackageReference Include="Serilog.AspNetCore" Version="6.0.1" />
+    <PackageReference Include="Sentry.AspNetCore" Version="3.29.1" />
+    <PackageReference Include="Sentry.Serilog" Version="3.29.1" />
+    <PackageReference Include="Serilog.AspNetCore" Version="6.1.0" />
     <PackageReference Include="Serilog.Settings.Configuration" Version="3.4.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="4.1.0" />
     <PackageReference Include="Serilog.Enrichers.Environment" Version="2.2.1-dev-00787" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="7.0.0">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="7.0.4">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>

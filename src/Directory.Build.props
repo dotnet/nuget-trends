@@ -7,6 +7,14 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <SentryOrg>nugettrends</SentryOrg>
+    <SentryUploadSymbols>true</SentryUploadSymbols>
+    <!-- With sources in the PDB Sentry can already show source context -->
+    <!-- <SentryUploadSources>true</SentryUploadSources> -->
+    <EmbedAllSources>true</EmbedAllSources>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1 " PrivateAssets="All" />
     <PackageReference Include="UnoptimizedAssemblyDetector" Version="0.1.1" PrivateAssets="All" />

@@ -2,6 +2,7 @@ name: Web
 env:
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
   IS_BUILD_SERVER: true # Needed by spa testing
+  # SENTRY_LOG_LEVEL: "debug"
 on:
   push:
     tags:
@@ -105,7 +106,7 @@ jobs:
         working-directory: src/NuGetTrends.Web/Portal
 
       - name: 'SPA prod build'
-        # Angular 12 runs a prod build by default
+        # Angular runs a prod build by default
         run: yarn run build
         working-directory: src/NuGetTrends.Web/Portal
 
@@ -115,13 +116,10 @@ jobs:
       - name: Upload SPA coverage report to Codecov
         uses: codecov/codecov-action@v3
 
-      - name: Setup .NET SDK (v7.0)
-        uses: actions/setup-dotnet@v3
-        with:
-          dotnet-version: '7.x'
-
       - name: Web Build
         run: dotnet build -c Release
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         working-directory: src/NuGetTrends.Web/
 
       - name: Web Publish

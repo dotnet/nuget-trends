@@ -4,7 +4,7 @@ import { NgModule, ErrorHandler } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { HttpClientModule } from '@angular/common/http';
 import { Router } from '@angular/router';
-import * as Sentry from '@sentry/angular';
+import * as Sentry from '@sentry/angular-ivy';
 import { Replay } from "@sentry/replay";
 import { BrowserTracing } from '@sentry/tracing';
 
@@ -20,7 +20,7 @@ Sentry.init({
   dsn: environment.SENTRY_DSN,
   environment: environment.name,
   tunnel: environment.SENTRY_TUNNEL,
-  tracesSampleRate: 1.0,
+  enableTracing: true,
   replaysSessionSampleRate: 1.0,
   replaysOnErrorSampleRate: 1.0,
 
@@ -43,6 +43,7 @@ Sentry.init({
     AppComponent
   ],
   imports: [
+    Sentry.TraceModule,
     AppRoutingModule,
     BrowserModule,
     BrowserAnimationsModule,
