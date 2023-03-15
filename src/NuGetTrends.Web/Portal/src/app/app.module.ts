@@ -43,6 +43,7 @@ Sentry.init({
     AppComponent
   ],
   imports: [
+    Sentry.TraceModule,
     AppRoutingModule,
     BrowserModule,
     BrowserAnimationsModule,

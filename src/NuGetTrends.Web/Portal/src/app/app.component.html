@@ -10,7 +10,7 @@
         <div class="columns">
           <div class="column is-8 is-offset-2">
             <div class="control has-icons-left has-icons-right">
-              <app-search-input></app-search-input>
+              <app-search-input [trace]="'search-input'"></app-search-input>
             </div>
           </div>
         </div>
@@ -23,5 +23,5 @@
   </section>
   <router-outlet></router-outlet>
 </div>
-<app-footer></app-footer>
-<app-loading></app-loading>
+<app-footer [trace]="'footer'"></app-footer>
+<app-loading [trace]="'loading'"></app-loading>
