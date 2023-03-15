@@ -56,7 +56,7 @@ jobs:
 
       # Push the image to GHCR (Image Registry)
       - name: Push To GHCR
-        uses: ./
+        uses: ./src/NuGetTrends.Scheduler
         id: push
         with:
           image: ${{ steps.build_image.outputs.image }}
