@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
-    <SentryOrg>nuget-trends</SentryOrg>
+    <SentryOrg>nugettrends</SentryOrg>
     <SentryUploadSymbols>true</SentryUploadSymbols>
     <!-- With sources in the PDB Sentry can already show source context -->
     <!-- <SentryUploadSources>true</SentryUploadSources> -->
