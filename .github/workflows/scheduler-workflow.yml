@@ -2,9 +2,10 @@ name: Scheduler
 env:
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
   # SENTRY_LOG_LEVEL: "debug"
-  IMAGE_NAME: nugettrends.scheduler
   IMAGE_TAGS: ${{ github.sha }}
   IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
   REGISTRY_USER: ${{ github.actor }}
   REGISTRY_PASSWORD: ${{ github.token }}
 on:
@@ -43,19 +44,40 @@ jobs:
         run: dotnet publish -c Release -o publish --no-build
         working-directory: src/NuGetTrends.Scheduler/
 
-      # Build image using Buildah action
-      - name: Build Image
-        id: build_image
-        uses: redhat-actions/buildah-build@v2
+      - name: Log in to the Container registry
+        uses: docker/login-action@v2
         with:
-          image: ${{ env.IMAGE_NAME }}
-          tags: ${{ env.IMAGE_TAGS }}
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
           context: ./src/NuGetTrends.Scheduler
-          containerfiles: ./src/NuGetTrends.Scheduler/Dockerfile
-          # oci: true
-          registry: ${{ env.IMAGE_REGISTRY }}
-          username: ${{ env.REGISTRY_USER }}
-          password: ${{ env.REGISTRY_PASSWORD }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      # # Build image using Buildah action
+      # - name: Build Image
+      #   id: build_image
+      #   uses: redhat-actions/buildah-build@v2
+      #   with:
+      #     image: ${{ env.IMAGE_NAME }}
+      #     tags: ${{ env.IMAGE_TAGS }}
+      #     context: ./src/NuGetTrends.Scheduler
+      #     containerfiles: ./src/NuGetTrends.Scheduler/Dockerfile
+      #     # oci: true
+      #     registry: ${{ env.IMAGE_REGISTRY }}
+      #     username: ${{ env.REGISTRY_USER }}
+      #     password: ${{ env.REGISTRY_PASSWORD }}
 
       # # Push the image to GHCR (Image Registry)
       # - name: Push To GHCR
@@ -69,6 +91,4 @@ jobs:
       #     password: ${{ env.REGISTRY_PASSWORD }}
       #     extra-args: |
       #       --disable-content-trust
-      - name: Echo outputs
-        run: |
-          echo "${{ toJSON(steps.push.outputs) }}"
+
