@@ -3,6 +3,8 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
   IS_BUILD_SERVER: true # Needed by spa testing
   # SENTRY_LOG_LEVEL: "debug"
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 on:
   push:
     tags:
@@ -31,38 +33,6 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v2
-
-      - name: Prepare Docker
-        id: docker-prep
-        run: |
-          DOCKER_IMAGE=nugettrends/nugettrends.web
-          VERSION=noop
-          ENVIRONMENT=test
-          if [[ $GITHUB_REF == refs/tags/* ]]; then
-            VERSION=${GITHUB_REF#refs/tags/}
-            ENVIRONMENT=prod
-          elif [[ $GITHUB_REF == refs/heads/main ]]; then
-            VERSION=$(echo ${GITHUB_REF#refs/heads/} | sed -r 's#/+#-#g')
-          fi
-          TAGS="${DOCKER_IMAGE}:${VERSION}"
-          if [[ $VERSION =~ ^v[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
-            MINOR=${VERSION%.*}
-            MAJOR=${MINOR%.*}
-            TAGS="$TAGS,${DOCKER_IMAGE}:${MINOR},${DOCKER_IMAGE}:${MAJOR},${DOCKER_IMAGE}:latest"
-          elif [ "${{ github.event_name }}" = "push" ]; then
-            TAGS="$TAGS,${DOCKER_IMAGE}:sha-${GITHUB_SHA::8}"
-          fi
-          echo ::set-output name=environment::${ENVIRONMENT}
-          echo ::set-output name=version::${VERSION}
-          echo ::set-output name=tags::${TAGS}
-          echo ::set-output name=created::$(date -u +'%Y-%m-%dT%H:%M:%SZ')
-
-      - name: Docker values debug
-        run: |
-          echo ${{ steps.docker-prep.outputs.environment }}
-          echo ${{ steps.docker-prep.outputs.version }}
-          echo ${{ steps.docker-prep.outputs.tags }}
-          echo ${{ steps.docker-prep.outputs.created }}
 
       - name: Install Node 
         uses: actions/setup-node@v1
@@ -126,30 +96,23 @@ jobs:
         run: dotnet publish -c Release -o publish --no-build
         working-directory: src/NuGetTrends.Web/
 
-      - uses: docker/setup-qemu-action@v1
-      - uses: docker/setup-buildx-action@v1
-      - name: Login to DockerHub
-        if: ${{ github.event_name != 'pull_request' }}
-        uses: docker/login-action@v1
+      - name: Log in to the Container registry
+        uses: docker/login-action@v2
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push
-        uses: docker/build-push-action@v2
-        id: docker_build
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
         with:
           context: ./src/NuGetTrends.Web
-          file: ./src/NuGetTrends.Web/Dockerfile
-          build-args: |
-            ENVIRONMENT=${{ steps.docker-prep.outputs.environment }}
-            VERSION=${{ steps.docker-prep.outputs.version }}
-          platforms: linux/amd64
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.docker-prep.outputs.tags }}
-          labels: |
-            org.opencontainers.image.created=${{ steps.docker-prep.outputs.created }}
-            org.opencontainers.image.source=${{ github.repositoryUrl }}
-            org.opencontainers.image.version=${{ steps.docker-prep.outputs.version }}
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.licenses=${{ github.event.repository.license.name }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
