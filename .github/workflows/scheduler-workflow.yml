@@ -64,31 +64,3 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-
-      # # Build image using Buildah action
-      # - name: Build Image
-      #   id: build_image
-      #   uses: redhat-actions/buildah-build@v2
-      #   with:
-      #     image: ${{ env.IMAGE_NAME }}
-      #     tags: ${{ env.IMAGE_TAGS }}
-      #     context: ./src/NuGetTrends.Scheduler
-      #     containerfiles: ./src/NuGetTrends.Scheduler/Dockerfile
-      #     # oci: true
-      #     registry: ${{ env.IMAGE_REGISTRY }}
-      #     username: ${{ env.REGISTRY_USER }}
-      #     password: ${{ env.REGISTRY_PASSWORD }}
-
-      # # Push the image to GHCR (Image Registry)
-      # - name: Push To GHCR
-      #   uses: ./src/NuGetTrends.Scheduler
-      #   id: push
-      #   with:
-      #     image: ${{ steps.build_image.outputs.image }}
-      #     tags: ${{ steps.build_image.outputs.tags }}
-      #     registry: ${{ env.IMAGE_REGISTRY }}
-      #     username: ${{ env.REGISTRY_USER }}
-      #     password: ${{ env.REGISTRY_PASSWORD }}
-      #     extra-args: |
-      #       --disable-content-trust
-
