@@ -4,7 +4,7 @@ env:
   IS_BUILD_SERVER: true # Needed by spa testing
   # SENTRY_LOG_LEVEL: "debug"
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: ${{ github.repository }}/web
 on:
   push:
     tags:

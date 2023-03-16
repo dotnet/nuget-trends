@@ -3,7 +3,7 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
   # SENTRY_LOG_LEVEL: "debug"
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: ${{ github.repository }}/scheduler
 on:
   push:
     tags:
