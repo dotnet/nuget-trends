@@ -3107,84 +3107,85 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@sentry/angular-ivy@npm:^7.43.0":
-  version: 7.43.0
-  resolution: "@sentry/angular-ivy@npm:7.43.0"
+"@sentry-internal/tracing@npm:7.56.0":
+  version: 7.56.0
+  resolution: "@sentry-internal/tracing@npm:7.56.0"
   dependencies:
-    "@sentry/browser": 7.43.0
-    "@sentry/types": 7.43.0
-    "@sentry/utils": 7.43.0
+    "@sentry/core": 7.56.0
+    "@sentry/types": 7.56.0
+    "@sentry/utils": 7.56.0
+    tslib: ^1.9.3
+  checksum: 34c90624c07eacf032bbef553f9c893d882db05bcfa9092f51df807f407c1927cf31c6cc215939f54be8b65f0c8effaf0038427b9fc0e2c4b80567415e4e060d
+  languageName: node
+  linkType: hard
+
+"@sentry/angular-ivy@npm:^7.56.0":
+  version: 7.56.0
+  resolution: "@sentry/angular-ivy@npm:7.56.0"
+  dependencies:
+    "@sentry/browser": 7.56.0
+    "@sentry/types": 7.56.0
+    "@sentry/utils": 7.56.0
     tslib: ^2.3.0
   peerDependencies:
-    "@angular/common": ">= 12.x <= 15.x"
-    "@angular/core": ">= 12.x <= 15.x"
-    "@angular/router": ">= 12.x <= 15.x"
+    "@angular/common": ">= 12.x <= 16.x"
+    "@angular/core": ">= 12.x <= 16.x"
+    "@angular/router": ">= 12.x <= 16.x"
     rxjs: ^6.5.5 || ^7.x
-  checksum: d9d7adef713027bf44f531c973e75be4d419de40eebc8702109b43e15ddfde4a6319a4cbfd3b671f362704a4634fcad7f7af0127f42899511aa631d5832485cb
+  checksum: 882c0b2980635562853c46bad4acb5237459023abd0a9385067d0c5a03ecc91a912bad0bc43288f941f9271d39d32d6935a1ebf50e31539d031398cf8e19ae90
   languageName: node
   linkType: hard
 
-"@sentry/browser@npm:7.43.0":
-  version: 7.43.0
-  resolution: "@sentry/browser@npm:7.43.0"
+"@sentry/browser@npm:7.56.0":
+  version: 7.56.0
+  resolution: "@sentry/browser@npm:7.56.0"
   dependencies:
-    "@sentry/core": 7.43.0
-    "@sentry/replay": 7.43.0
-    "@sentry/types": 7.43.0
-    "@sentry/utils": 7.43.0
+    "@sentry-internal/tracing": 7.56.0
+    "@sentry/core": 7.56.0
+    "@sentry/replay": 7.56.0
+    "@sentry/types": 7.56.0
+    "@sentry/utils": 7.56.0
     tslib: ^1.9.3
-  checksum: 64adc9ac1fd763bb1fd45ead455f16554ebd25c4b2e6a0b18b9c305ae2febcbb0db22adfc6b731ef5d9ec7be6adf7799ad5bf17b4e0cb4c1efb97b17154de80a
+  checksum: 5a3dd579652c230afe626d8f6639d78633ce509169806efde5784073d30419095c35eacb49b11657b6795df0c0f356776bcf761dd58edecbe6580ddd6c95002a
   languageName: node
   linkType: hard
 
-"@sentry/core@npm:7.43.0":
-  version: 7.43.0
-  resolution: "@sentry/core@npm:7.43.0"
+"@sentry/core@npm:7.56.0":
+  version: 7.56.0
+  resolution: "@sentry/core@npm:7.56.0"
   dependencies:
-    "@sentry/types": 7.43.0
-    "@sentry/utils": 7.43.0
+    "@sentry/types": 7.56.0
+    "@sentry/utils": 7.56.0
     tslib: ^1.9.3
-  checksum: 54e6b8c0ae6830211ff94d99a6d5f31fa461a9de6c4baf1507945ba7225d61bac7d48b0c021e8a8cb109ce30c83165dcbef6aba9f6a205d69703eb99b95077d0
+  checksum: 8ed39aa048a1e2b5259af0fe246c199e6276980d23703f0ab3564aeef7c077813f7196a0e8a115527b6bc8a5217495de42266489c0e1ce51f5f7defa8cb0773d
   languageName: node
   linkType: hard
 
-"@sentry/replay@npm:7.43.0":
-  version: 7.43.0
-  resolution: "@sentry/replay@npm:7.43.0"
+"@sentry/replay@npm:7.56.0":
+  version: 7.56.0
+  resolution: "@sentry/replay@npm:7.56.0"
   dependencies:
-    "@sentry/core": 7.43.0
-    "@sentry/types": 7.43.0
-    "@sentry/utils": 7.43.0
-  checksum: 45dad206a1f600a6a4381c1d6c7809bf915ca6abbb181c9df892897dc163d7a40935fbaf4568c213d91d1da506bf4e11dbc2ee520b4772c7b7e9296554c31614
+    "@sentry/core": 7.56.0
+    "@sentry/types": 7.56.0
+    "@sentry/utils": 7.56.0
+  checksum: 35c513c1f822cc572cf653201b3c60849481d566eff703896f70d347f230c8274ab895e6397768e2ce2ab87c37cb55d70b09ea06fcefd8dda3122baa10204bff
   languageName: node
   linkType: hard
 
-"@sentry/tracing@npm:^7.43.0":
-  version: 7.43.0
-  resolution: "@sentry/tracing@npm:7.43.0"
+"@sentry/types@npm:7.56.0":
+  version: 7.56.0
+  resolution: "@sentry/types@npm:7.56.0"
+  checksum: 404255165d09c03c122ef13c90cc732c7ccc42ce7950d12011469461d2bfcbbc7df6160ddefc4b676ea26f32fa01025d63678edf0ffbeb144e41102663b37fa6
+  languageName: node
+  linkType: hard
+
+"@sentry/utils@npm:7.56.0":
+  version: 7.56.0
+  resolution: "@sentry/utils@npm:7.56.0"
   dependencies:
-    "@sentry/core": 7.43.0
-    "@sentry/types": 7.43.0
-    "@sentry/utils": 7.43.0
+    "@sentry/types": 7.56.0
     tslib: ^1.9.3
-  checksum: 6dcbd7b1b44f4e9b68a1702bacc57554e45c9b73c20fad21b3d33d16cba9f83eaa612b8faa46e7ab9ed10c508dc896ffa0f5e14fd175aeb9466ad7ae7a75a7d0
-  languageName: node
-  linkType: hard
-
-"@sentry/types@npm:7.43.0":
-  version: 7.43.0
-  resolution: "@sentry/types@npm:7.43.0"
-  checksum: fc28b9996f85fde7d9e092f067a5f1e5a9882f9b212014adcf58fa134fc14149f3118240d93c8ae52f33c74cfc889a4f4d1b52bb9f57c2dda295f8c18f242df3
-  languageName: node
-  linkType: hard
-
-"@sentry/utils@npm:7.43.0":
-  version: 7.43.0
-  resolution: "@sentry/utils@npm:7.43.0"
-  dependencies:
-    "@sentry/types": 7.43.0
-    tslib: ^1.9.3
-  checksum: 1b99986c7120710c8fcece9debecff32d4daa48395b044bada57095913116f91fb7eda8b4dc7b52824cb9329e9aaf627a8c521b32df337f9f2ed5ae354c425d8
+  checksum: 00745e656828e8221056f5cac5a085a240cb4a9433ccb0d9492827ccd19ec80f84d511f944ca20b90182c806a15f8f655371aa9fef9acc00d49ef48945b4a3d8
   languageName: node
   linkType: hard
 
@@ -7598,8 +7599,7 @@ __metadata:
     "@angular/platform-browser": ^15.1.5
     "@angular/platform-browser-dynamic": ^15.1.5
     "@angular/router": ^15.1.5
-    "@sentry/angular-ivy": ^7.43.0
-    "@sentry/tracing": ^7.43.0
+    "@sentry/angular-ivy": ^7.56.0
     "@types/chart.js": 2.9.32
     "@types/jasmine": ~4.3.0
     "@types/jasminewd2": ^2.0.8
