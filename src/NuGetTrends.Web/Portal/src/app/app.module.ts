@@ -28,6 +28,9 @@ Sentry.init({
       // No PII here so lets get the texts
       maskAllText: false,
       blockAllMedia: false,
+      networkDetailAllowUrls: environment.NETWORK_DETAIL_ALLOW_URLS,
+      networkRequestHeaders: ["referrer", "sentry-trace", "baggage"],
+      networkResponseHeaders: ["Server"],
     }),
     new Sentry.BrowserTracing({
       routingInstrumentation: Sentry.instrumentAngularRouting,
