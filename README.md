@@ -5,7 +5,7 @@
   <br />
 </p>
 
-# NuGet Trends [![Gitter chat](https://img.shields.io/gitter/room/NuGetTrends/Lobby.svg)](https://gitter.im/NuGetTrends/Lobby) [![Twitter Follow](https://img.shields.io/twitter/follow/NuGetTrends?label=NuGetTrends&style=social)](https://twitter.com/intent/follow?screen_name=NuGetTrends)
+# NuGet Trends [![Twitter Follow](https://img.shields.io/twitter/follow/NuGetTrends?label=NuGetTrends&style=social)](https://twitter.com/intent/follow?screen_name=NuGetTrends)
 
 [![Nuget Trends Web](https://github.com/dotnet/nuget-trends/workflows/Web/badge.svg)](https://github.com/dotnet/nuget-trends/actions?query=workflow%3AWeb)
 [![Codecov](https://img.shields.io/codecov/c/github/dotnet/nuget-trends?label=SPA%20-%20Coverage)](https://codecov.io/gh/dotnet/nuget-trends)
