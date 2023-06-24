@@ -6,7 +6,6 @@ import { HttpClientModule } from '@angular/common/http';
 import { Router } from '@angular/router';
 import * as Sentry from '@sentry/angular-ivy';
 import { Replay } from "@sentry/replay";
-import { BrowserTracing } from '@sentry/tracing';
 
 import { AppComponent } from './app.component';
 import { AppRoutingModule } from './app-routes.module';
@@ -29,8 +28,11 @@ Sentry.init({
       // No PII here so lets get the texts
       maskAllText: false,
       blockAllMedia: false,
+      networkDetailAllowUrls: environment.NETWORK_DETAIL_ALLOW_URLS,
+      networkRequestHeaders: ["referrer", "sentry-trace", "baggage"],
+      networkResponseHeaders: ["Server"],
     }),
-    new BrowserTracing({
+    new Sentry.BrowserTracing({
       routingInstrumentation: Sentry.instrumentAngularRouting,
       idleTimeout: 30000,
       heartbeatInterval:10000,

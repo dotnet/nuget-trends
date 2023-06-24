@@ -96,13 +96,9 @@ namespace NuGetTrends.Web
             app.UseRouting();
             app.UseSentryTracing();
 
-            // Proxy Sentry events from the frontend to sentry.io
-            app.UseSentryTunneling("/t");
-
             if (_hostingEnvironment.IsDevelopment())
             {
                 app.UseCors("AllowAll");
-                app.UseMiddleware<ExceptionInResponseMiddleware>();
                 app.UseSwaggerUI(c =>
                 {
                     c.SwaggerEndpoint("/swagger/v1/swagger.json", "NuGet Trends");
@@ -110,6 +106,9 @@ namespace NuGetTrends.Web
                     c.DocExpansion(DocExpansion.None);
                 });
             }
+
+            // Proxy Sentry events from the frontend to sentry.io
+            app.UseSentryTunneling("/t");
 
             app.UseSwagger();
             app.UseEndpoints(endpoints =>

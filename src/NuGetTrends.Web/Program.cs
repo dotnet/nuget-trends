@@ -58,7 +58,14 @@ namespace NuGetTrends.Web
                 {
                     webBuilder
                         .UseConfiguration(Configuration)
-                        .UseSentry(o => o.AddExceptionFilterForType<OperationCanceledException>())
+                        .UseSentry(o =>
+                        {
+                            o.TracesSampler = context => context.CustomSamplingContext.TryGetValue("__HttpPath", out var path)
+                                                         && path is "/t"
+                                ? 0 // tunneling JS events
+                                : 1.0;
+                            o.AddExceptionFilterForType<OperationCanceledException>();
+                        })
                         .UseStartup<Startup>();
                 });
     }
