@@ -6,6 +6,7 @@ import { HttpClientModule } from '@angular/common/http';
 import { Router } from '@angular/router';
 import * as Sentry from '@sentry/angular-ivy';
 import { Replay } from "@sentry/replay";
+import { HttpClient, CaptureConsole, ReportingObserver } from "@sentry/integrations";
 
 import { AppComponent } from './app.component';
 import { AppRoutingModule } from './app-routes.module';
@@ -44,6 +45,9 @@ Sentry.init({
       }
     }),
     new Sentry.BrowserProfilingIntegration(),
+    new HttpClient(),
+    new CaptureConsole(),
+    new ReportingObserver(),
   ],
 });
 
