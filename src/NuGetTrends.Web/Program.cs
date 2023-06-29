@@ -60,6 +60,7 @@ namespace NuGetTrends.Web
                         .UseConfiguration(Configuration)
                         .UseSentry(o =>
                         {
+                            o.CaptureFailedRequests = true;
                             o.TracesSampler = context => context.CustomSamplingContext.TryGetValue("__HttpPath", out var path)
                                                          && path is "/t"
                                 ? 0 // tunneling JS events

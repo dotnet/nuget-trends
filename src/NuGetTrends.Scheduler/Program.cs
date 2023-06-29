@@ -62,6 +62,7 @@ namespace NuGetTrends.Scheduler
                         .UseConfiguration(Configuration)
                         .UseSentry(o =>
                         {
+                            o.CaptureFailedRequests = true;
                             o.AddExceptionFilterForType<OperationCanceledException>();
                             o.AddLogEntryFilter((category, level, eventId, exception)
                             => eventId.ToString() ==
