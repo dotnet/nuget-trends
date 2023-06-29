@@ -22,7 +22,8 @@ Sentry.init({
   enableTracing: true,
   replaysSessionSampleRate: 1.0,
   replaysOnErrorSampleRate: 1.0,
-
+  // @ts-ignore - TODO: Remove on next bump, not in types yet
+  profilesSampleRate: 1.0,
   integrations: [
     new Replay({
       // No PII here so lets get the texts
@@ -36,7 +37,13 @@ Sentry.init({
       routingInstrumentation: Sentry.instrumentAngularRouting,
       idleTimeout: 30000,
       heartbeatInterval:10000,
+      _experiments: {
+        enableInteractions: true,
+        // If you want automatic route transactions in react or similar
+        onStartRouteTransaction: Sentry.onProfilingStartRouteTransaction,
+      }
     }),
+    new Sentry.BrowserProfilingIntegration(),
   ],
 });
 
