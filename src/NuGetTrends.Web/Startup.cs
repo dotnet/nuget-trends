@@ -13,6 +13,7 @@ using Swashbuckle.AspNetCore.SwaggerUI;
 using Microsoft.OpenApi.Models;
 using Shortr;
 using Shortr.Npgsql;
+using System.Threading.Tasks;
 
 namespace NuGetTrends.Web
 {
@@ -87,6 +88,14 @@ namespace NuGetTrends.Web
 
         public void Configure(IApplicationBuilder app)
         {
+            app.Use(async (context, next) => {
+                context.Response.OnStarting(() => {
+                    context.Response.Headers.Add("Document-Policy", "js-profiling");
+                    return Task.CompletedTask;
+                });
+                await next();
+            });
+
             app.UseStaticFiles();
             if (!_hostingEnvironment.IsDevelopment())
             {
