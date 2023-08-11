@@ -3107,97 +3107,97 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@sentry-internal/tracing@npm:7.57.0":
-  version: 7.57.0
-  resolution: "@sentry-internal/tracing@npm:7.57.0"
+"@sentry-internal/tracing@npm:7.64.0-alpha.0":
+  version: 7.64.0-alpha.0
+  resolution: "@sentry-internal/tracing@npm:7.64.0-alpha.0"
   dependencies:
-    "@sentry/core": 7.57.0
-    "@sentry/types": 7.57.0
-    "@sentry/utils": 7.57.0
+    "@sentry/core": 7.64.0-alpha.0
+    "@sentry/types": 7.64.0-alpha.0
+    "@sentry/utils": 7.64.0-alpha.0
     tslib: ^2.4.1 || ^1.9.3
-  checksum: febb6ab6d8ef86e21d24d967a2183c3163d3bf016eadfe249a292af72b4636461b0d93d13d790d2c3bafd7c2c8209b2133b8371a2c974a732788f9524d998cb3
+  checksum: 8b62f95ee1fdbe3ad2d549550899f0c03ff04015dac840915c10f55c8bef129bdc78dafe1e1908b67a9625476a1f6286629c2b3e37b605d9e8a7165b7a1d901d
   languageName: node
   linkType: hard
 
-"@sentry/angular-ivy@npm:^7.57.0":
-  version: 7.57.0
-  resolution: "@sentry/angular-ivy@npm:7.57.0"
+"@sentry/angular-ivy@npm:^7.64.0-alpha.0":
+  version: 7.64.0-alpha.0
+  resolution: "@sentry/angular-ivy@npm:7.64.0-alpha.0"
   dependencies:
-    "@sentry/browser": 7.57.0
-    "@sentry/types": 7.57.0
-    "@sentry/utils": 7.57.0
+    "@sentry/browser": 7.64.0-alpha.0
+    "@sentry/types": 7.64.0-alpha.0
+    "@sentry/utils": 7.64.0-alpha.0
     tslib: ^2.4.1
   peerDependencies:
     "@angular/common": ">= 12.x <= 16.x"
     "@angular/core": ">= 12.x <= 16.x"
     "@angular/router": ">= 12.x <= 16.x"
     rxjs: ^6.5.5 || ^7.x
-  checksum: 361888233d858f8182e59c51da404fa023e35557d96b9c6fb9c1f3c2c5ad215164a8dac9a2c5a3d8a64f0690d6bc185df7cec80a9e034c2cb7b355767d3cbd7d
+  checksum: 8cdea5bec5f95ba05da8f8b565b9f672d89fa9166e4b23db18c986c5608759511030d1c3362563ab37ab86f43e3d3f0c3ca7ad04d61733945e2265c5bb1a38b2
   languageName: node
   linkType: hard
 
-"@sentry/browser@npm:7.57.0":
-  version: 7.57.0
-  resolution: "@sentry/browser@npm:7.57.0"
+"@sentry/browser@npm:7.64.0-alpha.0":
+  version: 7.64.0-alpha.0
+  resolution: "@sentry/browser@npm:7.64.0-alpha.0"
   dependencies:
-    "@sentry-internal/tracing": 7.57.0
-    "@sentry/core": 7.57.0
-    "@sentry/replay": 7.57.0
-    "@sentry/types": 7.57.0
-    "@sentry/utils": 7.57.0
+    "@sentry-internal/tracing": 7.64.0-alpha.0
+    "@sentry/core": 7.64.0-alpha.0
+    "@sentry/replay": 7.64.0-alpha.0
+    "@sentry/types": 7.64.0-alpha.0
+    "@sentry/utils": 7.64.0-alpha.0
     tslib: ^2.4.1 || ^1.9.3
-  checksum: 836b0f5d2f0522c87275fdcc98ca4ed36daba469ccb83cf7dcf408cadefc8f014944d129448a0febac34259dda7d4215bfbe11a662dadf2dc5d7da22a255a5ab
+  checksum: b07604f9eb3b46beb956bd313df69c1120b2d713bf635deffecb1e6d991e6911e3df4060090dc52a4534736b3d30df58765148c7be3d2d6a4bf9d2063383db77
   languageName: node
   linkType: hard
 
-"@sentry/core@npm:7.57.0":
-  version: 7.57.0
-  resolution: "@sentry/core@npm:7.57.0"
+"@sentry/core@npm:7.64.0-alpha.0":
+  version: 7.64.0-alpha.0
+  resolution: "@sentry/core@npm:7.64.0-alpha.0"
   dependencies:
-    "@sentry/types": 7.57.0
-    "@sentry/utils": 7.57.0
+    "@sentry/types": 7.64.0-alpha.0
+    "@sentry/utils": 7.64.0-alpha.0
     tslib: ^2.4.1 || ^1.9.3
-  checksum: 93f6c0934610b75c0ca49417f56bae63400e68fae4050dc099e4957ea3a660d79e12b614bf2df33841c3fbd6cf1341627fff4f313fd8a3ae215b1e909e5a987e
+  checksum: cbab0923f03e198a631f6c0402183dfd45f4e6e6cdd10b387702880e3251b82c097c53c7076cdeba09c93d1e8418ef60cc1512aeb25936a2a2196196ea4104db
   languageName: node
   linkType: hard
 
-"@sentry/integrations@npm:^7.57.0":
-  version: 7.57.0
-  resolution: "@sentry/integrations@npm:7.57.0"
+"@sentry/integrations@npm:^7.64.0-alpha.0":
+  version: 7.64.0-alpha.0
+  resolution: "@sentry/integrations@npm:7.64.0-alpha.0"
   dependencies:
-    "@sentry/types": 7.57.0
-    "@sentry/utils": 7.57.0
+    "@sentry/types": 7.64.0-alpha.0
+    "@sentry/utils": 7.64.0-alpha.0
     localforage: ^1.8.1
     tslib: ^2.4.1 || ^1.9.3
-  checksum: 4a68ae9a5ccaa09bf547f377a330e10d7992b5ff3ea6167cd8e0ae8b7b366b1d34477bb34e04c421faa5ec89af5627cafcc612f25d8ff0408b9691b35be76bfd
+  checksum: 52ca3e233ceffd61e611ffb13c065e61aa03dfe53ccd47001d7410aa4ae347abac290770f559317c0e547388716d14738b6f3f760e6bb6675c70f442c7450c92
   languageName: node
   linkType: hard
 
-"@sentry/replay@npm:7.57.0":
-  version: 7.57.0
-  resolution: "@sentry/replay@npm:7.57.0"
+"@sentry/replay@npm:7.64.0-alpha.0":
+  version: 7.64.0-alpha.0
+  resolution: "@sentry/replay@npm:7.64.0-alpha.0"
   dependencies:
-    "@sentry/core": 7.57.0
-    "@sentry/types": 7.57.0
-    "@sentry/utils": 7.57.0
-  checksum: b75b9dadbe0ef44eabaf7e16f76943841caf7e3c3e910314b139ed3a709a38d63e2dcb93e6983e46ab30c4dfa071cf0bb89b1ef08ccaa6295db72654d0bd6452
+    "@sentry/core": 7.64.0-alpha.0
+    "@sentry/types": 7.64.0-alpha.0
+    "@sentry/utils": 7.64.0-alpha.0
+  checksum: bb9b3ee81b3494c0165786441bd33ee9d0d179d4241d402a9bc51bc6284d947fddc4c34aaebf3eb21c87c6e3b39329c4a48b9a3e8da6ba41d11486a90df654ee
   languageName: node
   linkType: hard
 
-"@sentry/types@npm:7.57.0":
-  version: 7.57.0
-  resolution: "@sentry/types@npm:7.57.0"
-  checksum: 2836f35af0579fd1666d5871809143f3e138af63b102a3137ec0a72be5c24b7e59747e48e160cbdf0700f067a36d70915dbf14617ebf4c9a3990e9d37ceb74ae
+"@sentry/types@npm:7.64.0-alpha.0":
+  version: 7.64.0-alpha.0
+  resolution: "@sentry/types@npm:7.64.0-alpha.0"
+  checksum: 23daa3e9b7b1e533b8a826b639d2d0e8873ab71cf1ecb66ca62e3c7ba2d63579cfd2b9f246d0771c1f1918820cc7bc6ac2cb67df06e32aeed3a54c32d001d2c1
   languageName: node
   linkType: hard
 
-"@sentry/utils@npm:7.57.0":
-  version: 7.57.0
-  resolution: "@sentry/utils@npm:7.57.0"
+"@sentry/utils@npm:7.64.0-alpha.0":
+  version: 7.64.0-alpha.0
+  resolution: "@sentry/utils@npm:7.64.0-alpha.0"
   dependencies:
-    "@sentry/types": 7.57.0
+    "@sentry/types": 7.64.0-alpha.0
     tslib: ^2.4.1 || ^1.9.3
-  checksum: 02031a74e83f49d9f1e8711f7242c740fd604e3dd0453ac1c666431c283609eeeb4113049049a6832ee7dac350503872e14c6454fda74874c48ba6e3b6e79863
+  checksum: 7f122342318801f3edce2d748628ea6a881bb4b2fc53154c43830df80ecbb43fdf4267bb7f8dae998d300fe691e6cef73e5af47f289a752249b00b9cedc0ff55
   languageName: node
   linkType: hard
 
@@ -7636,8 +7636,8 @@ __metadata:
     "@angular/platform-browser": ^15.1.5
     "@angular/platform-browser-dynamic": ^15.1.5
     "@angular/router": ^15.1.5
-    "@sentry/angular-ivy": ^7.57.0
-    "@sentry/integrations": ^7.57.0
+    "@sentry/angular-ivy": ^7.64.0-alpha.0
+    "@sentry/integrations": ^7.64.0-alpha.0
     "@types/chart.js": 2.9.32
     "@types/jasmine": ~4.3.0
     "@types/jasminewd2": ^2.0.8
