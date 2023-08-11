@@ -20,8 +20,8 @@
     <PackageReference Include="RabbitMQ.Client" Version="6.5.0" />
     <PackageReference Include="Hangfire.AspNetCore" Version="1.8.2" />
     <PackageReference Include="Hangfire.MemoryStorage" Version="1.7.0" />
-    <PackageReference Include="Sentry.AspNetCore" Version="3.33.1" />
-    <PackageReference Include="Sentry.Serilog" Version="3.33.1" />
+    <PackageReference Include="Sentry.AspNetCore" Version="3.35.0" />
+    <PackageReference Include="Sentry.Serilog" Version="3.35.0" />
     <PackageReference Include="Serilog.AspNetCore" Version="7.0.0" />
     <PackageReference Include="Serilog.Settings.Configuration" Version="7.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="4.1.0" />

@@ -17,8 +17,8 @@
     <PackageReference Include="Shortr.AspNetCore" Version="1.0.0-beta01" />
     <PackageReference Include="Shortr.Npgsql" Version="1.0.0-beta01" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
-    <PackageReference Include="Sentry.AspNetCore" Version="3.33.1" />
-    <PackageReference Include="Sentry.Serilog" Version="3.33.1" />
+    <PackageReference Include="Sentry.AspNetCore" Version="3.35.0" />
+    <PackageReference Include="Sentry.Serilog" Version="3.35.0" />
     <PackageReference Include="Serilog.AspNetCore" Version="7.0.0" />
     <PackageReference Include="Serilog.Settings.Configuration" Version="7.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="4.1.0" />
