@@ -7,6 +7,7 @@ import { Router } from '@angular/router';
 import * as Sentry from '@sentry/angular-ivy';
 import { Replay } from "@sentry/replay";
 import { HttpClient, CaptureConsole, ReportingObserver } from "@sentry/integrations";
+import { Feedback } from '@sentry-internal/feedback';
 
 import { AppComponent } from './app.component';
 import { AppRoutingModule } from './app-routes.module';
@@ -48,6 +49,7 @@ Sentry.init({
     new HttpClient(),
     new CaptureConsole(),
     new ReportingObserver(),
+    new Feedback()
   ],
 });
 
