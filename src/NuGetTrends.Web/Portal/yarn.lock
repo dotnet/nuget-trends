@@ -3107,15 +3107,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@sentry-internal/feedback@npm:0.0.1-alpha.7":
-  version: 0.0.1-alpha.7
-  resolution: "@sentry-internal/feedback@npm:0.0.1-alpha.7"
+"@sentry-internal/feedback@npm:0.0.1-alpha.9":
+  version: 0.0.1-alpha.9
+  resolution: "@sentry-internal/feedback@npm:0.0.1-alpha.9"
   dependencies:
     "@sentry/browser": 7.77.0
     "@sentry/core": 7.77.0
     "@sentry/types": 7.77.0
     "@sentry/utils": 7.77.0
-  checksum: 1dc30c0003f527e27c4ae1c9def5dbf57020d526404bc88b7233495e755b1dc9f556a58601db7c6932b37bc2f70f42a43d0aaf1161bc7e881fd26ac3045d494c
+  checksum: 1241ed07e2c03942e0200f602d4bab3c04e2d10009f66f4630869915fe6875b34ed63c32c983680b68f07199e6710e61719c8609e4cd0f4673ef52057c753c30
   languageName: node
   linkType: hard
 
@@ -7645,7 +7645,7 @@ __metadata:
     "@angular/platform-browser": ^15.1.5
     "@angular/platform-browser-dynamic": ^15.1.5
     "@angular/router": ^15.1.5
-    "@sentry-internal/feedback": 0.0.1-alpha.7
+    "@sentry-internal/feedback": 0.0.1-alpha.9
     "@sentry/angular-ivy": ^7.77.0
     "@sentry/integrations": ^7.77.0
     "@types/chart.js": 2.9.32
