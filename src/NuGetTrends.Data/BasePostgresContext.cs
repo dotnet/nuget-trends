@@ -60,7 +60,7 @@ namespace NuGetTrends.Data
                     break;
                 case IMutableProperty property:
                     var columnName = property.GetColumnName(
-                        StoreObjectIdentifier.Table(property.DeclaringEntityType.GetTableName()!));
+                        StoreObjectIdentifier.Table(property.DeclaringType.GetTableName()!));
                     property.SetColumnName(ConvertGeneralToSnake(mapper, columnName!));
                     break;
                 case IMutableKey primaryKey:

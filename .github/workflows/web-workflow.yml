@@ -30,7 +30,12 @@ jobs:
       DOTNET_MULTILEVEL_LOOKUP: 1
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x'
 
       - name: Prepare Docker
         id: docker-prep
@@ -64,7 +69,7 @@ jobs:
           echo ${{ steps.docker-prep.outputs.tags }}
           echo ${{ steps.docker-prep.outputs.created }}
 
-      - name: Install Node 
+      - name: Install Node
         uses: actions/setup-node@v1
         with:
           node-version: '18.12.1'

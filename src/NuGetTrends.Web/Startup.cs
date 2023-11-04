@@ -14,6 +14,7 @@ using Microsoft.OpenApi.Models;
 using Shortr;
 using Shortr.Npgsql;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 
 namespace NuGetTrends.Web
 {
@@ -90,7 +91,9 @@ namespace NuGetTrends.Web
         {
             app.Use(async (context, next) => {
                 context.Response.OnStarting(() => {
-                    context.Response.Headers.Add("Document-Policy", "js-profiling");
+                    // Sentry Browser Profiling
+                    // https://docs.sentry.io/platforms/javascript/profiling/
+                    context.Response.Headers.Append("Document-Policy", "js-profiling");
                     return Task.CompletedTask;
                 });
                 await next();
@@ -117,6 +120,8 @@ namespace NuGetTrends.Web
             }
 
             // Proxy Sentry events from the frontend to sentry.io
+            // https://docs.sentry.io/platforms/javascript/troubleshooting/#using-the-tunnel-option
+            // https://docs.sentry.io/platforms/dotnet/guides/aspnetcore/#tunnel
             app.UseSentryTunneling("/t");
 
             app.UseSwagger();
