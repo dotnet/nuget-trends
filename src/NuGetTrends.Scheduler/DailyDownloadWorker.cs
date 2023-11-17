@@ -207,7 +207,7 @@ namespace NuGetTrends.Scheduler
             }
         }
 
-        private async Task UpdateDownloadCount(IList<string> packageIds, ISpan parentSpan)
+        private async Task UpdateDownloadCount(IList<string> packageIds, ISpanTracer parentSpan)
         {
             var packageInfoQueue = parentSpan.StartChild("package.info.queue", "Start task to fetch package detail");
             var tasks = new List<Task<IPackageSearchMetadata?>>(packageIds.Count);
