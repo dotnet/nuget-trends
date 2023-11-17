@@ -54,7 +54,6 @@ Sentry.init({
       themeLight: {
         submitBackground: '#215C84',
         submitBackgroundHover: '#A2BACB',
-        submitForeground: '#18181b',
         submitBorder: '#153b54',
         inputBackground: '#ffffff',
         inputForeground: '#374151',
