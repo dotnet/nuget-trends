@@ -4,16 +4,15 @@
 using System.Collections.Generic;
 using Newtonsoft.Json;
 
-namespace NuGet.Protocol.Catalog.Models
+namespace NuGet.Protocol.Catalog.Models;
+
+public class PackageDependencyGroup
 {
-    public class PackageDependencyGroup
-    {
-        public int Id { get; set; }
+    public int Id { get; set; }
 
-        [JsonProperty("targetFramework")]
-        public string? TargetFramework { get; set; }
+    [JsonProperty("targetFramework")]
+    public string? TargetFramework { get; set; }
 
-        [JsonProperty("dependencies")]
-        public List<PackageDependency> Dependencies { get; set; } = new List<PackageDependency>(0);
-    }
+    [JsonProperty("dependencies")]
+    public List<PackageDependency> Dependencies { get; set; } = new List<PackageDependency>(0);
 }

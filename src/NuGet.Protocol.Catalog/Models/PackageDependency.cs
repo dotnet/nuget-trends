@@ -3,16 +3,15 @@
 
 using Newtonsoft.Json;
 
-namespace NuGet.Protocol.Catalog.Models
+namespace NuGet.Protocol.Catalog.Models;
+
+public class PackageDependency
 {
-    public class PackageDependency
-    {
-        public int Id { get; set; }
+    public int Id { get; set; }
 
-        [JsonProperty("id")]
-        public string? DependencyId { get; set; }
+    [JsonProperty("id")]
+    public string? DependencyId { get; set; }
 
-        [JsonProperty("range")]
-        public string? Range { get; set; }
-    }
+    [JsonProperty("range")]
+    public string? Range { get; set; }
 }

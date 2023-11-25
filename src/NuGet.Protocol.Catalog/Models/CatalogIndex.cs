@@ -5,17 +5,16 @@ using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 
-namespace NuGet.Protocol.Catalog.Models
+namespace NuGet.Protocol.Catalog.Models;
+
+public class CatalogIndex
 {
-    public class CatalogIndex
-    {
-        [JsonProperty("commitTimeStamp")]
-        public DateTimeOffset CommitTimestamp { get; set; }
+    [JsonProperty("commitTimeStamp")]
+    public DateTimeOffset CommitTimestamp { get; set; }
 
-        [JsonProperty("count")]
-        public int Count { get; set; }
+    [JsonProperty("count")]
+    public int Count { get; set; }
 
-        [JsonProperty("items")]
-        public List<CatalogPageItem> Items { get; set; } = new List<CatalogPageItem>(0);
-    }
+    [JsonProperty("items")]
+    public List<CatalogPageItem> Items { get; set; } = new List<CatalogPageItem>(0);
 }

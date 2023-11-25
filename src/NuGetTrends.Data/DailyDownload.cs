@@ -1,11 +1,10 @@
 using System;
 
-namespace NuGetTrends.Data
+namespace NuGetTrends.Data;
+
+public class DailyDownload
 {
-    public class DailyDownload
-    {
-        public string? PackageId { get; set; }
-        public DateTime Date { get; set; }
-        public long? DownloadCount { get; set; }
-    }
+    public string? PackageId { get; set; }
+    public DateTime Date { get; set; }
+    public long? DownloadCount { get; set; }
 }
