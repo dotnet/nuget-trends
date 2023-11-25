@@ -1,8 +1,3 @@
-using System;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using NuGet.Configuration;
 using NuGet.Protocol.Core.Types;
 using ILogger = NuGet.Common.ILogger;

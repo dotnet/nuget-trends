@@ -1,10 +1,8 @@
-using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Npgsql;
 using Npgsql.NameTranslation;
 using System.Text.RegularExpressions;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 namespace NuGetTrends.Data;
 

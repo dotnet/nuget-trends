@@ -1,10 +1,6 @@
-using System;
 using System.Linq.Expressions;
-using System.Threading.Tasks;
 using Hangfire;
 using Hangfire.Common;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace NuGetTrends.Scheduler;
 

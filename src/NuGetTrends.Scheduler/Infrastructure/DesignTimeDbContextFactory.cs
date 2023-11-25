@@ -1,7 +1,5 @@
-using System.IO;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
-using Microsoft.Extensions.Configuration;
 using NuGetTrends.Data;
 
 namespace NuGetTrends.Scheduler.Infrastructure;

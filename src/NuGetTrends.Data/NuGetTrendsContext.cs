@@ -1,4 +1,3 @@
-using System;
 using Microsoft.EntityFrameworkCore;
 using NuGet.Protocol.Catalog.Models;
 

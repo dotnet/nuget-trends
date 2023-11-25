@@ -1,14 +1,6 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using MessagePack;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Npgsql;
 using NuGet.Protocol.Core.Types;
@@ -207,7 +199,7 @@ public class DailyDownloadWorker : IHostedService
         }
     }
 
-    private async Task UpdateDownloadCount(IList<string> packageIds, ISpanTracer parentSpan)
+    private async Task UpdateDownloadCount(IList<string> packageIds, ISpan parentSpan)
     {
         var packageInfoQueue = parentSpan.StartChild("package.info.queue", "Start task to fetch package detail");
         var tasks = new List<Task<IPackageSearchMetadata?>>(packageIds.Count);

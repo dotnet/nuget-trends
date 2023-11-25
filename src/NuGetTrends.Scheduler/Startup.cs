@@ -1,12 +1,7 @@
 using Hangfire;
 using Hangfire.Dashboard;
 using Hangfire.MemoryStorage;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using NuGetTrends.Data;
 using RabbitMQ.Client;

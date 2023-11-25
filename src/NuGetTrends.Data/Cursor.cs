@@ -1,5 +1,3 @@
-using System;
-
 namespace NuGetTrends.Data;
 
 public class Cursor
