@@ -3,17 +3,16 @@
 
 using Newtonsoft.Json;
 
-namespace NuGet.Protocol.Catalog.Serialization
-{
-    internal static class CatalogJsonSerialization
-    {
-        public static JsonSerializer Serializer => JsonSerializer.Create(Settings);
+namespace NuGet.Protocol.Catalog.Serialization;
 
-        private static JsonSerializerSettings Settings => new JsonSerializerSettings
-        {
-            DateTimeZoneHandling = DateTimeZoneHandling.Utc,
-            DateParseHandling = DateParseHandling.DateTimeOffset,
-            NullValueHandling = NullValueHandling.Ignore,
-        };
-    }
+internal static class CatalogJsonSerialization
+{
+    public static JsonSerializer Serializer => JsonSerializer.Create(Settings);
+
+    private static JsonSerializerSettings Settings => new()
+    {
+        DateTimeZoneHandling = DateTimeZoneHandling.Utc,
+        DateParseHandling = DateParseHandling.DateTimeOffset,
+        NullValueHandling = NullValueHandling.Ignore,
+    };
 }

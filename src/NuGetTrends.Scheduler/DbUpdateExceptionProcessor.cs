@@ -3,73 +3,68 @@ using Npgsql;
 using Sentry;
 using Sentry.Extensibility;
 
-namespace NuGetTrends.Scheduler
+namespace NuGetTrends.Scheduler;
+
+public class DbUpdateExceptionProcessor(IHub hub) : SentryEventExceptionProcessor<DbUpdateException>
 {
-    public class DbUpdateExceptionProcessor : SentryEventExceptionProcessor<DbUpdateException>
+    protected override void ProcessException(
+        DbUpdateException exception,
+        SentryEvent sentryEvent)
     {
-        private readonly IHub _hub;
-
-        public DbUpdateExceptionProcessor(IHub hub) => _hub = hub;
-
-        protected override void ProcessException(
-            DbUpdateException exception,
-            SentryEvent sentryEvent)
+        if (exception.InnerException is PostgresException postgres)
         {
-            if (exception.InnerException is PostgresException postgres)
+            hub.ConfigureScope(s =>
             {
-                _hub.ConfigureScope(s =>
+                if (postgres.ConstraintName is { } constraintName)
                 {
-                    if (postgres.ConstraintName is { } constraintName)
-                    {
-                        s.SetTag(nameof(postgres.ConstraintName), constraintName);
-                    }
-                    if (postgres.TableName is { } tableName)
-                    {
-                        s.SetTag(nameof(postgres.TableName), tableName);
-                    }
-                    if (postgres.ColumnName is { } columnName)
-                    {
-                        s.SetTag(nameof(postgres.ColumnName), columnName);
-                    }
-                    if (postgres.DataTypeName is { } dataTypeName)
-                    {
-                        s.SetTag(nameof(postgres.DataTypeName), dataTypeName);
-                    }
-                    if (postgres.Hint is { } hint)
-                    {
-                        s.SetTag(nameof(postgres.Hint), hint);
-                    }
-                    if (postgres.Routine is { } routine)
-                    {
-                        s.SetTag(nameof(postgres.Routine), routine);
-                    }
-                    if (postgres.SchemaName is { } schemaName)
-                    {
-                        s.SetTag(nameof(postgres.SchemaName), schemaName);
-                    }
-                    if (postgres.SqlState is { } sqlState)
-                    {
-                        s.SetTag(nameof(postgres.SqlState), sqlState);
-                    }
+                    s.SetTag(nameof(postgres.ConstraintName), constraintName);
+                }
+                if (postgres.TableName is { } tableName)
+                {
+                    s.SetTag(nameof(postgres.TableName), tableName);
+                }
+                if (postgres.ColumnName is { } columnName)
+                {
+                    s.SetTag(nameof(postgres.ColumnName), columnName);
+                }
+                if (postgres.DataTypeName is { } dataTypeName)
+                {
+                    s.SetTag(nameof(postgres.DataTypeName), dataTypeName);
+                }
+                if (postgres.Hint is { } hint)
+                {
+                    s.SetTag(nameof(postgres.Hint), hint);
+                }
+                if (postgres.Routine is { } routine)
+                {
+                    s.SetTag(nameof(postgres.Routine), routine);
+                }
+                if (postgres.SchemaName is { } schemaName)
+                {
+                    s.SetTag(nameof(postgres.SchemaName), schemaName);
+                }
+                if (postgres.SqlState is { } sqlState)
+                {
+                    s.SetTag(nameof(postgres.SqlState), sqlState);
+                }
 
-                    if (postgres.InternalQuery is { } internalQuery)
+                if (postgres.InternalQuery is { } internalQuery)
+                {
+                    s.SetTag(nameof(postgres.InternalQuery), internalQuery);
+                }
+                if (postgres.Detail is { } detail)
+                {
+                    // Detail redacted as it may contain sensitive data. Specify 'Include Error Detail' in the connection string to include this information.
+                    if (detail.StartsWith("Detail redacted"))
                     {
-                        s.SetTag(nameof(postgres.InternalQuery), internalQuery);
+                        s.SetTag(nameof(postgres.Detail), "redacted");
                     }
-                    if (postgres.Detail is { } detail)
+                    else
                     {
-                            // Detail redacted as it may contain sensitive data. Specify 'Include Error Detail' in the connection string to include this information.
-                        if (detail.StartsWith("Detail redacted"))
-                        {
-                            s.SetTag(nameof(postgres.Detail), "redacted");
-                        }
-                        else
-                        {
-                            s.SetTag(nameof(postgres.Detail), detail);
-                        }
+                        s.SetTag(nameof(postgres.Detail), detail);
                     }
-                });
-            }
+                }
+            });
         }
     }
 }
