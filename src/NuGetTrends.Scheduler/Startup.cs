@@ -9,19 +9,10 @@ using Sentry.Extensibility;
 
 namespace NuGetTrends.Scheduler;
 
-public class Startup
+public class Startup(
+    IConfiguration configuration,
+    IWebHostEnvironment hostingEnvironment)
 {
-    private readonly IWebHostEnvironment _hostingEnvironment;
-    private readonly IConfiguration _configuration;
-
-    public Startup(
-        IConfiguration configuration,
-        IWebHostEnvironment hostingEnvironment)
-    {
-        _configuration = configuration;
-        _hostingEnvironment = hostingEnvironment;
-    }
-
     public void ConfigureServices(IServiceCollection services)
     {
         services.AddHostedService<DailyDownloadWorker>();
@@ -29,9 +20,9 @@ public class Startup
         services.AddSingleton<INuGetSearchService, NuGetSearchService>();
         services.AddTransient<ISentryEventExceptionProcessor, DbUpdateExceptionProcessor>();
 
-        services.Configure<DailyDownloadWorkerOptions>(_configuration.GetSection("DailyDownloadWorker"));
-        services.Configure<RabbitMqOptions>(_configuration.GetSection("RabbitMq"));
-        services.Configure<BackgroundJobServerOptions>(_configuration.GetSection("Hangfire"));
+        services.Configure<DailyDownloadWorkerOptions>(configuration.GetSection("DailyDownloadWorker"));
+        services.Configure<RabbitMqOptions>(configuration.GetSection("RabbitMq"));
+        services.Configure<BackgroundJobServerOptions>(configuration.GetSection("Hangfire"));
 
         services.AddSingleton<IConnectionFactory>(c =>
         {
@@ -55,9 +46,9 @@ public class Startup
             .AddDbContext<NuGetTrendsContext>(options =>
             {
                 options
-                    .UseNpgsql(_configuration.GetNuGetTrendsConnectionString());
+                    .UseNpgsql(configuration.GetNuGetTrendsConnectionString());
 
-                if (_hostingEnvironment.IsDevelopment())
+                if (hostingEnvironment.IsDevelopment())
                 {
                     options.EnableSensitiveDataLogging();
                 }
@@ -78,7 +69,7 @@ public class Startup
 
     public void Configure(IApplicationBuilder app)
     {
-        if (_hostingEnvironment.IsDevelopment())
+        if (hostingEnvironment.IsDevelopment())
         {
             app.UseDeveloperExceptionPage();
         }

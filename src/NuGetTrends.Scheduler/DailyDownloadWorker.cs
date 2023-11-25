@@ -19,8 +19,8 @@ public class DailyDownloadWorker : IHostedService
     private readonly IServiceProvider _services;
     private readonly INuGetSearchService _nuGetSearchService;
     private readonly ILogger<DailyDownloadWorker> _logger;
-    private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
-    private readonly ConcurrentBag<(IModel,IConnection)> _connections = new ConcurrentBag<(IModel, IConnection)>();
+    private readonly CancellationTokenSource _cancellationTokenSource = new();
+    private readonly ConcurrentBag<(IModel,IConnection)> _connections = new();
 
     private readonly List<Task> _workers;
 
@@ -215,14 +215,14 @@ public class DailyDownloadWorker : IHostedService
             await whenAll;
             waitSpan.Finish(SpanStatus.Ok);
         }
-        catch when (whenAll.Exception is {} exs && exs.InnerExceptions.Count > 1)
+        catch when (whenAll.Exception is { InnerExceptions.Count: > 1 } exs)
         {
             waitSpan.Finish(exs);
             throw exs; // re-throw the AggregateException to capture all errors with Sentry
         }
 
         using var scope = _services.CreateScope();
-        using var context = scope.ServiceProvider.GetRequiredService<NuGetTrendsContext>();
+        await using var context = scope.ServiceProvider.GetRequiredService<NuGetTrendsContext>();
         for (var i = 0; i < tasks.Count; i++)
         {
             var expectedPackageId = packageIds[i];
@@ -282,8 +282,7 @@ public class DailyDownloadWorker : IHostedService
                 await context.SaveChangesAsync(_cancellationTokenSource.Token);
             }
             catch (DbUpdateException e)
-                when (e.InnerException is PostgresException pge
-                      && (pge.ConstraintName == "PK_daily_downloads"))
+                when (e.InnerException is PostgresException { ConstraintName: "PK_daily_downloads" })
             {
                 // Re-entrancy
                 _logger.LogWarning(e, "Skipping record already tracked.");

@@ -7,17 +7,13 @@ namespace NuGetTrends.Web;
 
 [Route("api/package")]
 [ApiController]
-public class PackageController : ControllerBase
+public class PackageController(NuGetTrendsContext context) : ControllerBase
 {
-    private readonly NuGetTrendsContext _context;
-
-    public PackageController(NuGetTrendsContext context) => _context = context;
-
     [HttpGet("search")]
     public async Task<ActionResult<IEnumerable<object>>> Search(
         [FromQuery] string q, CancellationToken cancellationToken)
     {
-        return await _context.PackageDownloads
+        return await context.PackageDownloads
             .Where(p => p.LatestDownloadCount != null
                         && p.PackageIdLowered.Contains(q.Trim().ToLower(CultureInfo.InvariantCulture)))
             .OrderByDescending(p => p.LatestDownloadCount)
@@ -39,13 +35,13 @@ public class PackageController : ControllerBase
         CancellationToken cancellationToken,
         [FromQuery] int months = 3)
     {
-        if (! await _context.PackageDownloads.
-                AnyAsync(p => p.PackageIdLowered == id.ToLower(CultureInfo.InvariantCulture), cancellationToken))
+        if (! await context.PackageDownloads.
+                AnyAsync(p => p.PackageIdLowered.Equals(id, StringComparison.InvariantCultureIgnoreCase), cancellationToken))
         {
             return NotFound();
         }
 
-        var downloads = await _context.GetDailyDownloads(id, months);
+        var downloads = await context.GetDailyDownloads(id, months);
         var data = new
         {
             Id = id,

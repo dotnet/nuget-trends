@@ -6,17 +6,13 @@ using NuGet.Protocol.Catalog.Models;
 
 namespace NuGet.Protocol.Catalog.Serialization;
 
-internal abstract class BaseCatalogLeafConverter : JsonConverter
+internal abstract class BaseCatalogLeafConverter(IReadOnlyDictionary<CatalogLeafType, string> fromType) : JsonConverter
 {
-    private readonly IReadOnlyDictionary<CatalogLeafType, string> _fromType;
-
-    protected BaseCatalogLeafConverter(IReadOnlyDictionary<CatalogLeafType, string> fromType) => _fromType = fromType;
-
     public override bool CanConvert(Type objectType) => objectType == typeof(CatalogLeafType);
 
     public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
     {
-        if (value is {} && _fromType.TryGetValue((CatalogLeafType)value, out var output))
+        if (value is not null && fromType.TryGetValue((CatalogLeafType)value, out var output))
         {
             writer.WriteValue(output);
         }

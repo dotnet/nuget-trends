@@ -10,34 +10,21 @@ namespace NuGetTrends.Scheduler;
 
 [DisableConcurrentExecution(timeoutInSeconds: 60 * 60)]
 // ReSharper disable once ClassNeverInstantiated.Global - DI
-public class DailyDownloadPackageIdPublisher
+public class DailyDownloadPackageIdPublisher(
+    IConnectionFactory connectionFactory,
+    NuGetTrendsContext context,
+    IHub hub,
+    ILogger<DailyDownloadPackageIdPublisher> logger)
 {
-    private readonly IConnectionFactory _connectionFactory;
-    private readonly NuGetTrendsContext _context;
-    private readonly IHub _hub;
-    private readonly ILogger<DailyDownloadPackageIdPublisher> _logger;
-
-    public DailyDownloadPackageIdPublisher(
-        IConnectionFactory connectionFactory,
-        NuGetTrendsContext context,
-        IHub hub,
-        ILogger<DailyDownloadPackageIdPublisher> logger)
-    {
-        _connectionFactory = connectionFactory;
-        _context = context;
-        _hub = hub;
-        _logger = logger;
-    }
-
     public async Task Import(IJobCancellationToken token)
     {
-        using var _ = _hub.PushScope();
-        var transaction = _hub.StartTransaction("daily-download-pkg-id-publisher", "queue.write",
+        using var _ = hub.PushScope();
+        var transaction = hub.StartTransaction("daily-download-pkg-id-publisher", "queue.write",
             "queues package ids to fetch download numbers");
         try
         {
             var connectionSpan = transaction.StartChild("queue.connect", "Connect to RabbitMQ");
-            using var connection = _connectionFactory.CreateConnection();
+            using var connection = connectionFactory.CreateConnection();
             using var channel = connection.CreateModel();
             const string queueName = "daily-download";
 
@@ -48,7 +35,7 @@ public class DailyDownloadPackageIdPublisher
                 autoDelete: false,
                 arguments: null);
 
-            _logger.LogDebug("Queue creation OK with {QueueName}, {ConsumerCount}, {MessageCount}",
+            logger.LogDebug("Queue creation OK with {QueueName}, {ConsumerCount}, {MessageCount}",
                 queueDeclareOk.QueueName, queueDeclareOk.ConsumerCount, queueDeclareOk.MessageCount);
 
             var properties = channel.CreateBasicProperties();
@@ -61,7 +48,7 @@ public class DailyDownloadPackageIdPublisher
             {
                 var queueIdsSpan = transaction.StartChild("queue.ids");
                 var dbConnectSpan = queueIdsSpan.StartChild("db.connect", "Connect to Postgres");
-                await using var conn = _context.Database.GetDbConnection();
+                await using var conn = context.Database.GetDbConnection();
                 await conn.OpenAsync();
                 dbConnectSpan.Finish();
 
@@ -104,7 +91,7 @@ public class DailyDownloadPackageIdPublisher
             }
             finally
             {
-                _logger.LogInformation("Finished publishing messages. Messages queued: {count}", messageCount);
+                logger.LogInformation("Finished publishing messages. Messages queued: {count}", messageCount);
             }
             transaction.Finish(SpanStatus.Ok);
         }

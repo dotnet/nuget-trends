@@ -12,12 +12,8 @@ public class PackageDownload
     public string? IconUrl { get; set; }
 }
 
-public class NuGetTrendsContext : BasePostgresContext
+public class NuGetTrendsContext(DbContextOptions<NuGetTrendsContext> options) : BasePostgresContext(options)
 {
-    public NuGetTrendsContext(DbContextOptions<NuGetTrendsContext> options)
-        : base(options)
-    { }
-
     public DbSet<PackageDetailsCatalogLeaf> PackageDetailsCatalogLeafs { get; set; } = null!;
     public DbSet<Cursor> Cursors { get; set; } = null!;
     public DbSet<DailyDownload> DailyDownloads { get; set; } = null!;

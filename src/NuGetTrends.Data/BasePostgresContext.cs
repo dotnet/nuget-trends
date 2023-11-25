@@ -7,13 +7,9 @@ using System.Text.RegularExpressions;
 namespace NuGetTrends.Data;
 
 // https://github.com/npgsql/Npgsql.EntityFrameworkCore.PostgreSQL/issues/21
-public abstract class BasePostgresContext : DbContext
+public abstract class BasePostgresContext(DbContextOptions options) : DbContext(options)
 {
-    private static readonly Regex KeysRegex = new Regex("^(PK|FK|IX)_", RegexOptions.Compiled);
-
-    protected BasePostgresContext(DbContextOptions options)
-        : base(options)
-    { }
+    private static readonly Regex KeysRegex = new("^(PK|FK|IX)_", RegexOptions.Compiled);
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

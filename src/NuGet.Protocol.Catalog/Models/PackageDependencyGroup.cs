@@ -13,5 +13,5 @@ public class PackageDependencyGroup
     public string? TargetFramework { get; set; }
 
     [JsonProperty("dependencies")]
-    public List<PackageDependency> Dependencies { get; set; } = new List<PackageDependency>(0);
+    public List<PackageDependency> Dependencies { get; set; } = new(0);
 }

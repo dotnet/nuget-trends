@@ -5,19 +5,15 @@ using Sentry.Extensibility;
 
 namespace NuGetTrends.Scheduler;
 
-public class DbUpdateExceptionProcessor : SentryEventExceptionProcessor<DbUpdateException>
+public class DbUpdateExceptionProcessor(IHub hub) : SentryEventExceptionProcessor<DbUpdateException>
 {
-    private readonly IHub _hub;
-
-    public DbUpdateExceptionProcessor(IHub hub) => _hub = hub;
-
     protected override void ProcessException(
         DbUpdateException exception,
         SentryEvent sentryEvent)
     {
         if (exception.InnerException is PostgresException postgres)
         {
-            _hub.ConfigureScope(s =>
+            hub.ConfigureScope(s =>
             {
                 if (postgres.ConstraintName is { } constraintName)
                 {

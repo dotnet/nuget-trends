@@ -19,7 +19,7 @@ public class PackageDetailsCatalogLeaf : CatalogLeaf
     public DateTimeOffset LastEdited { get; set; }
 
     [JsonProperty("dependencyGroups")]
-    public List<PackageDependencyGroup> DependencyGroups { get; set; } = new List<PackageDependencyGroup>(0);
+    public List<PackageDependencyGroup> DependencyGroups { get; set; } = new(0);
 
     [JsonProperty("description")]
     public string? Description { get; set; }
@@ -64,7 +64,7 @@ public class PackageDetailsCatalogLeaf : CatalogLeaf
     public string? Summary { get; set; }
 
     [JsonProperty("tags")]
-    public List<string>? Tags { get; set; } = new List<string>(0);
+    public List<string>? Tags { get; set; } = new(0);
 
     [JsonProperty("title")]
     public string? Title { get; set; }

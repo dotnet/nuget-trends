@@ -9,17 +9,11 @@ using Sentry;
 
 namespace NuGet.Protocol.Catalog;
 
-public class CatalogClient : ICatalogClient
+public class CatalogClient(HttpClient httpClient, ILogger<CatalogClient> logger) : ICatalogClient
 {
     private static readonly JsonSerializer JsonSerializer = CatalogJsonSerialization.Serializer;
-    private readonly HttpClient _httpClient;
-    private readonly ILogger<CatalogClient> _logger;
-
-    public CatalogClient(HttpClient httpClient, ILogger<CatalogClient> logger)
-    {
-        _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
+    private readonly HttpClient _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+    private readonly ILogger<CatalogClient> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     public Task<CatalogIndex> GetIndexAsync(string indexUrl, CancellationToken token)
     {

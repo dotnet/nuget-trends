@@ -5,40 +5,25 @@ using Sentry;
 namespace NuGetTrends.Scheduler;
 
 [DisableConcurrentExecution(timeoutInSeconds: 48 * 60 * 60)]
-public class NuGetCatalogImporter
+public class NuGetCatalogImporter(
+    IHttpClientFactory httpClientFactory,
+    CatalogCursorStore cursorStore,
+    CatalogLeafProcessor catalogLeafProcessor,
+    IHub hub,
+    ILoggerFactory loggerFactory)
 {
-    private readonly IHttpClientFactory _httpClientFactory;
-    private readonly CatalogCursorStore _cursorStore;
-    private readonly CatalogLeafProcessor _catalogLeafProcessor;
-    private readonly IHub _hub;
-    private readonly ILoggerFactory _loggerFactory;
-
-    public NuGetCatalogImporter(
-        IHttpClientFactory httpClientFactory,
-        CatalogCursorStore cursorStore,
-        CatalogLeafProcessor catalogLeafProcessor,
-        IHub hub,
-        ILoggerFactory loggerFactory)
-    {
-        _httpClientFactory = httpClientFactory;
-        _cursorStore = cursorStore;
-        _catalogLeafProcessor = catalogLeafProcessor;
-        _hub = hub;
-        _loggerFactory = loggerFactory;
-    }
-
     public async Task Import(IJobCancellationToken token)
     {
-        using var _ = _hub.PushScope();
-        var transaction = _hub.StartTransaction("import-catalog", "catalog.import");
-        _hub.ConfigureScope(s => s.Transaction = transaction);
-        var logger = _loggerFactory.CreateLogger<NuGetCatalogImporter>();
+        using var _ = hub.PushScope();
+        var transaction = hub.StartTransaction("import-catalog", "catalog.import");
+        hub.ConfigureScope(s => s.Transaction = transaction);
+        var logger = loggerFactory.CreateLogger<NuGetCatalogImporter>();
         logger.LogInformation("Starting importing catalog.");
         try
         {
 
-            var httpClient = _httpClientFactory.CreateClient("nuget");
-            var catalogClient = new CatalogClient(httpClient, _loggerFactory.CreateLogger<CatalogClient>());
+            var httpClient = httpClientFactory.CreateClient("nuget");
+            var catalogClient = new CatalogClient(httpClient, loggerFactory.CreateLogger<CatalogClient>());
             var settings = new CatalogProcessorSettings
             {
                 DefaultMinCommitTimestamp = DateTimeOffset.MinValue, // Read everything
@@ -46,11 +31,11 @@ public class NuGetCatalogImporter
             };
 
             var catalogProcessor = new CatalogProcessor(
-                _cursorStore,
+                cursorStore,
                 catalogClient,
-                _catalogLeafProcessor,
+                catalogLeafProcessor,
                 settings,
-                _loggerFactory.CreateLogger<CatalogProcessor>());
+                loggerFactory.CreateLogger<CatalogProcessor>());
 
             await catalogProcessor.ProcessAsync(token.ShutdownToken);
 

@@ -4,20 +4,16 @@ using ILogger = NuGet.Common.ILogger;
 
 namespace NuGetTrends.Scheduler;
 
-public class NuGetSearchService : INuGetSearchService
+public class NuGetSearchService(ILogger<NuGetSearchService> logger) : INuGetSearchService
 {
-    private readonly ILogger<NuGetSearchService> _logger;
-
     private static readonly ILogger NugetLogger = new NuGet.Common.NullLogger();
-    private static readonly SearchFilter SearchFilter = new SearchFilter(true);
+    private static readonly SearchFilter SearchFilter = new(true);
 
     private volatile PackageSearchResource? _packageSearchResource;
 
-    private readonly SourceRepository _sourceRepository = new SourceRepository(
+    private readonly SourceRepository _sourceRepository = new(
         new PackageSource("https://api.nuget.org/v3/index.json"),
         Repository.Provider.GetCoreV3());
-
-    public NuGetSearchService(ILogger<NuGetSearchService> logger) => _logger = logger;
 
     /// <summary>
     /// Gets the package info
@@ -41,7 +37,7 @@ public class NuGetSearchService : INuGetSearchService
 
             if (package == null)
             {
-                _logger.LogDebug("Package {packageId} not found.", packageId);
+                logger.LogDebug("Package {packageId} not found.", packageId);
             }
 
             return package;

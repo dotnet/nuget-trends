@@ -14,7 +14,7 @@ public class CatalogPage
     public int Count { get; set; }
 
     [JsonProperty("items")]
-    public List<CatalogLeafItem> Items { get; set; } = new List<CatalogLeafItem>(0);
+    public List<CatalogLeafItem> Items { get; set; } = new(0);
 
     [JsonProperty("parent")]
     public string? Parent { get; set; }

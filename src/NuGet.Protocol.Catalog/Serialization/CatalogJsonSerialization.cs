@@ -9,7 +9,7 @@ internal static class CatalogJsonSerialization
 {
     public static JsonSerializer Serializer => JsonSerializer.Create(Settings);
 
-    private static JsonSerializerSettings Settings => new JsonSerializerSettings
+    private static JsonSerializerSettings Settings => new()
     {
         DateTimeZoneHandling = DateTimeZoneHandling.Utc,
         DateParseHandling = DateParseHandling.DateTimeOffset,

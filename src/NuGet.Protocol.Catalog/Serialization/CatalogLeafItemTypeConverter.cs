@@ -6,9 +6,9 @@ using NuGet.Protocol.Catalog.Models;
 
 namespace NuGet.Protocol.Catalog.Serialization;
 
-internal class CatalogLeafItemTypeConverter : BaseCatalogLeafConverter
+internal class CatalogLeafItemTypeConverter() : BaseCatalogLeafConverter(FromType)
 {
-    private static readonly Dictionary<CatalogLeafType, string> FromType = new Dictionary<CatalogLeafType, string>
+    private static readonly Dictionary<CatalogLeafType, string> FromType = new()
     {
         { CatalogLeafType.PackageDelete, "nuget:PackageDelete" },
         { CatalogLeafType.PackageDetails, "nuget:PackageDetails" },
@@ -16,10 +16,6 @@ internal class CatalogLeafItemTypeConverter : BaseCatalogLeafConverter
 
     private static readonly Dictionary<string, CatalogLeafType> FromString = FromType
         .ToDictionary(x => x.Value, x => x.Key);
-
-    public CatalogLeafItemTypeConverter() : base(FromType)
-    {
-    }
 
     public override object ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
     {

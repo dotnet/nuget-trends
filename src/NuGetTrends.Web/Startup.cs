@@ -9,17 +9,8 @@ using Shortr.Npgsql;
 
 namespace NuGetTrends.Web;
 
-public class Startup
+public class Startup(IConfiguration configuration, IWebHostEnvironment hostingEnvironment)
 {
-    private readonly IWebHostEnvironment _hostingEnvironment;
-    private readonly IConfiguration _configuration;
-
-    public Startup(IConfiguration configuration, IWebHostEnvironment hostingEnvironment)
-    {
-        _configuration = configuration;
-        _hostingEnvironment = hostingEnvironment;
-    }
-
     public void ConfigureServices(IServiceCollection services)
     {
         services.AddSentryTunneling(); // Add Sentry Tunneling to avoid ad-blockers.
@@ -27,12 +18,12 @@ public class Startup
         services.AddHttpClient();
 
         // In production, the Angular files will be served from this directory
-        services.AddSpaStaticFiles(configuration =>
+        services.AddSpaStaticFiles(c =>
         {
-            configuration.RootPath = "Portal/dist";
+            c.RootPath = "Portal/dist";
         });
 
-        if (_hostingEnvironment.IsDevelopment())
+        if (hostingEnvironment.IsDevelopment())
         {
             // keep cors during development so we can still run the spa on Angular default port (4200)
             services.AddCors(options =>
@@ -51,9 +42,9 @@ public class Startup
 
         services.AddDbContext<NuGetTrendsContext>(options =>
         {
-            var connString = _configuration.GetNuGetTrendsConnectionString();
+            var connString = configuration.GetNuGetTrendsConnectionString();
             options.UseNpgsql(connString);
-            if (_hostingEnvironment.IsDevelopment())
+            if (hostingEnvironment.IsDevelopment())
             {
                 options.EnableSensitiveDataLogging();
             }
@@ -68,12 +59,12 @@ public class Startup
         });
 
         services.AddShortr();
-        if (!_hostingEnvironment.IsDevelopment())
+        if (!hostingEnvironment.IsDevelopment())
         {
             services.Replace(ServiceDescriptor.Singleton<IShortrStore, NpgsqlShortrStore>());
-            services.AddSingleton(c => new NpgsqlShortrOptions
+            services.AddSingleton(_ => new NpgsqlShortrOptions
             {
-                ConnectionString = _configuration.GetNuGetTrendsConnectionString()
+                ConnectionString = configuration.GetNuGetTrendsConnectionString()
             });
         }
     }
@@ -91,7 +82,7 @@ public class Startup
         });
 
         app.UseStaticFiles();
-        if (!_hostingEnvironment.IsDevelopment())
+        if (!hostingEnvironment.IsDevelopment())
         {
             app.UseSpaStaticFiles();
         }
@@ -99,7 +90,7 @@ public class Startup
         app.UseRouting();
         app.UseSentryTracing();
 
-        if (_hostingEnvironment.IsDevelopment())
+        if (hostingEnvironment.IsDevelopment())
         {
             app.UseCors("AllowAll");
             app.UseSwaggerUI(c =>
@@ -124,7 +115,7 @@ public class Startup
         app.UseSpa(spa =>
         {
             spa.Options.SourcePath = "Portal";
-            if (_hostingEnvironment.IsDevelopment())
+            if (hostingEnvironment.IsDevelopment())
             {
                 // use the external angular CLI server instead
                 spa.UseProxyToSpaDevelopmentServer("http://localhost:4200");

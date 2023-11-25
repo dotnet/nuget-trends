@@ -9,15 +9,6 @@ namespace NuGet.Protocol.Catalog;
 /// </summary>
 public class CatalogProcessorSettings
 {
-    public CatalogProcessorSettings()
-    {
-        ServiceIndexUrl = "https://api.nuget.org/v3/index.json";
-        DefaultMinCommitTimestamp = null;
-        MinCommitTimestamp = DateTimeOffset.MinValue;
-        MaxCommitTimestamp = DateTimeOffset.MaxValue;
-        ExcludeRedundantLeaves = true;
-    }
-
     internal CatalogProcessorSettings Clone()
     {
         return new CatalogProcessorSettings
@@ -33,26 +24,26 @@ public class CatalogProcessorSettings
     /// <summary>
     /// The service index to discover the catalog index URL.
     /// </summary>
-    public string ServiceIndexUrl { get; set; }
+    public string ServiceIndexUrl { get; set; } = "https://api.nuget.org/v3/index.json";
 
     /// <summary>
     /// The minimum commit timestamp to use when no cursor value has been saved.
     /// </summary>
-    public DateTimeOffset? DefaultMinCommitTimestamp { get; set; }
+    public DateTimeOffset? DefaultMinCommitTimestamp { get; set; } = null;
 
     /// <summary>
     /// The absolute minimum (exclusive) commit timestamp to process in the catalog.
     /// </summary>
-    public DateTimeOffset MinCommitTimestamp { get; set; }
+    public DateTimeOffset MinCommitTimestamp { get; set; } = DateTimeOffset.MinValue;
 
     /// <summary>
     /// The absolute maximum (inclusive) commit timestamp to process in the catalog.
     /// </summary>
-    public DateTimeOffset MaxCommitTimestamp { get; set; }
+    public DateTimeOffset MaxCommitTimestamp { get; set; } = DateTimeOffset.MaxValue;
 
     /// <summary>
     /// If multiple catalog leaves are found in a page concerning the same package ID and version, only the latest
     /// is processed.
     /// </summary>
-    public bool ExcludeRedundantLeaves { get; set; }
+    public bool ExcludeRedundantLeaves { get; set; } = true;
 }
