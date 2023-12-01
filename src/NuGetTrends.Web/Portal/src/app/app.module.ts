@@ -7,7 +7,7 @@ import { Router } from '@angular/router';
 import * as Sentry from '@sentry/angular-ivy';
 import { Replay } from "@sentry/replay";
 import { HttpClient, CaptureConsole, ReportingObserver } from "@sentry/integrations";
-// import { Feedback } from '@sentry-internal/feedback';
+import { Feedback } from '@sentry-internal/feedback';
 
 import { AppComponent } from './app.component';
 import { AppRoutingModule } from './app-routes.module';
@@ -49,16 +49,16 @@ Sentry.init({
     new HttpClient(),
     new CaptureConsole(),
     new ReportingObserver(),
-    // new Feedback({
-    //   colorScheme: "light", // no dark theme yet
-    //   themeLight: {
-    //     submitBackground: '#215C84',
-    //     submitBackgroundHover: '#A2BACB',
-    //     submitBorder: '#153b54',
-    //     inputBackground: '#ffffff',
-    //     inputForeground: '#374151',
-    //   },
-    // }),
+    new Feedback({
+      colorScheme: "light", // no dark theme yet
+      themeLight: {
+        submitBackground: '#215C84',
+        submitBackgroundHover: '#A2BACB',
+        submitBorder: '#153b54',
+        inputBackground: '#ffffff',
+        inputForeground: '#374151',
+      },
+    }),
   ],
 });
 
