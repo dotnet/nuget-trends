@@ -3216,6 +3216,34 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@spotlightjs/overlay@npm:0.0.21":
+  version: 0.0.21
+  resolution: "@spotlightjs/overlay@npm:0.0.21"
+  checksum: cc244700f65b911f68491310de8955cd1aae1cb1370f7999dd7bed74353ab06442253aa44e2af3ae836500d94d524110a90055d5bae11d2eb68ebd4a8922e3c4
+  languageName: node
+  linkType: hard
+
+"@spotlightjs/sidecar@npm:0.0.15":
+  version: 0.0.15
+  resolution: "@spotlightjs/sidecar@npm:0.0.15"
+  bin:
+    spotlight-sidecar: server.js
+  checksum: a4bfe5c48510e502c8db0b1532490049f2b0948cd2ba727474c477c86f22ede541c8c71c1e744f5f3b4b8b65d59429a1ac1486e195625f62c537407587855739
+  languageName: node
+  linkType: hard
+
+"@spotlightjs/spotlight@npm:^0.0.4":
+  version: 0.0.4
+  resolution: "@spotlightjs/spotlight@npm:0.0.4"
+  dependencies:
+    "@spotlightjs/overlay": 0.0.21
+    "@spotlightjs/sidecar": 0.0.15
+  bin:
+    spotlight-sidecar: bin/run.js
+  checksum: 1688836f91871e876463e4b0fa7ddfdf5ba1bb051e006e7abc5e6b10c30c78c2947ea66df4ba9787d0e31ffb58ad5763f08d8e3f95213a4a7873f6673a9c98a4
+  languageName: node
+  linkType: hard
+
 "@tootallnate/once@npm:2":
   version: 2.0.0
   resolution: "@tootallnate/once@npm:2.0.0"
@@ -7647,6 +7675,7 @@ __metadata:
     "@sentry-internal/feedback": ^0.0.1-alpha.17
     "@sentry/angular-ivy": ^7.84.0
     "@sentry/integrations": ^7.84.0
+    "@spotlightjs/spotlight": ^0.0.4
     "@types/chart.js": 2.9.32
     "@types/jasmine": ~4.3.0
     "@types/jasminewd2": ^2.0.8

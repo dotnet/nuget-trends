@@ -8,6 +8,7 @@ import * as Sentry from '@sentry/angular-ivy';
 import { Replay } from "@sentry/replay";
 import { HttpClient, CaptureConsole, ReportingObserver } from "@sentry/integrations";
 import { Feedback } from '@sentry-internal/feedback';
+// import * as Spotlight from '@spotlightjs/spotlight';
 
 import { AppComponent } from './app.component';
 import { AppRoutingModule } from './app-routes.module';
@@ -16,6 +17,12 @@ import { PackagesModule } from './packages/packages.module';
 import { SharedModule } from './shared/shared.module';
 import { HomeModule } from './home/home.module';
 import { CoreModule } from './core/core.module';
+
+if (process.env.NODE_ENV === "development") {
+  import('@spotlightjs/spotlight').then((Spotlight) =>
+    Spotlight.init({ injectImmediately: true })
+  );
+}
 
 Sentry.init({
   dsn: environment.SENTRY_DSN,
