@@ -16,6 +16,7 @@ import { PackagesModule } from './packages/packages.module';
 import { SharedModule } from './shared/shared.module';
 import { HomeModule } from './home/home.module';
 import { CoreModule } from './core/core.module';
+import { getCanvasManager } from '@sentry-internal/rrweb';
 
 Sentry.init({
   dsn: environment.SENTRY_DSN,
@@ -34,6 +35,13 @@ Sentry.init({
       networkDetailAllowUrls: environment.NETWORK_DETAIL_ALLOW_URLS,
       networkRequestHeaders: ["referrer", "sentry-trace", "baggage"],
       networkResponseHeaders: ["Server"],
+      _experiments: {
+        canvas: {
+          fps: 4,
+          quality: 0.6,
+          manager: getCanvasManager,
+        }
+      }
     }),
     new Sentry.BrowserTracing({
       routingInstrumentation: Sentry.instrumentAngularRouting,
