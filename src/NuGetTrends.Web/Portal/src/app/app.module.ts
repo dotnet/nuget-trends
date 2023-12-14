@@ -7,8 +7,7 @@ import { Router } from '@angular/router';
 import * as Sentry from '@sentry/angular-ivy';
 import { Replay } from "@sentry/replay";
 import { HttpClient, CaptureConsole, ReportingObserver } from "@sentry/integrations";
-import { Feedback } from '@sentry-internal/feedback';
-// import * as Spotlight from '@spotlightjs/spotlight';
+import { getCanvasManager } from '@sentry-internal/rrweb';
 
 import { AppComponent } from './app.component';
 import { AppRoutingModule } from './app-routes.module';
@@ -41,6 +40,13 @@ Sentry.init({
       networkDetailAllowUrls: environment.NETWORK_DETAIL_ALLOW_URLS,
       networkRequestHeaders: ["referrer", "sentry-trace", "baggage"],
       networkResponseHeaders: ["Server"],
+       _experiments: {
+        canvas: {
+          fps: 4,
+          quality: 0.6,
+          manager: getCanvasManager,
+        },
+      },
     }),
     new Sentry.BrowserTracing({
       routingInstrumentation: Sentry.instrumentAngularRouting,
@@ -56,7 +62,7 @@ Sentry.init({
     new HttpClient(),
     new CaptureConsole(),
     new ReportingObserver(),
-    new Feedback({
+    new Sentry.Feedback({
       colorScheme: "light", // no dark theme yet
       themeLight: {
         submitBackground: '#215C84',

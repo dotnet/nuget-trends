@@ -36,7 +36,7 @@ public class PackageController(NuGetTrendsContext context) : ControllerBase
         [FromQuery] int months = 3)
     {
         if (! await context.PackageDownloads.
-                AnyAsync(p => p.PackageIdLowered.Equals(id, StringComparison.InvariantCultureIgnoreCase), cancellationToken))
+                AnyAsync(p => p.PackageIdLowered == id.ToLower(CultureInfo.InvariantCulture), cancellationToken))
         {
             return NotFound();
         }

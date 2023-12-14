@@ -6,8 +6,9 @@ namespace NuGetTrends.Web;
 
 public static class Program
 {
+    private const string Production = nameof(Production);
     private static readonly string Environment
-        = SystemEnvironment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
+        = SystemEnvironment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? Production;
 
     public static IConfiguration Configuration { get; private set; } = new ConfigurationBuilder()
         .SetBasePath(Directory.GetCurrentDirectory())
@@ -18,7 +19,7 @@ public static class Program
 
     public static int Main(string[] args)
     {
-        if (Environment != "Production")
+        if (Environment != Production)
         {
             Serilog.Debugging.SelfLog.Enable(Console.Error);
         }
@@ -61,6 +62,10 @@ public static class Program
                             ? 0 // tunneling JS events
                             : 1.0;
                         o.AddExceptionFilterForType<OperationCanceledException>();
+                        if (Environment != Production)
+                        {
+                            o.EnableSpotlight = true;
+                        }
                     })
                     .UseStartup<Startup>();
             });
