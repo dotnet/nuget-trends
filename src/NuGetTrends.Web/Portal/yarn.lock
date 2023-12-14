@@ -3258,31 +3258,31 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@spotlightjs/overlay@npm:1.0.0":
-  version: 1.0.0
-  resolution: "@spotlightjs/overlay@npm:1.0.0"
-  checksum: 76543e32b00529ea57a479863b1ade507778e84e7932cf57ff82373a27f57b93eeb33705df52dcd10a25770835fb98774c80f195b5e95de7bc47b7789e2b6556
+"@spotlightjs/overlay@npm:1.2.0":
+  version: 1.2.0
+  resolution: "@spotlightjs/overlay@npm:1.2.0"
+  checksum: 2b9f7bc87d12023aa8671d266ebe027b53b6351af8f7a9b5bb5594a0e81f880c4a9d75e1f511957326bed1918dc608a077c3b9aa728a4c965f0ca6ce4950482f
   languageName: node
   linkType: hard
 
-"@spotlightjs/sidecar@npm:1.0.0":
-  version: 1.0.0
-  resolution: "@spotlightjs/sidecar@npm:1.0.0"
+"@spotlightjs/sidecar@npm:1.3.1":
+  version: 1.3.1
+  resolution: "@spotlightjs/sidecar@npm:1.3.1"
   bin:
     spotlight-sidecar: server.js
-  checksum: 2c2debfe3c6b481b77dace4fb1fd01b14cd6fc88443e40bc2c1764f7ea52e6f06282148df907fa84345b4199950762bb7baf308696e4ee0479456662ac5bc783
+  checksum: 038350acc0bf8e1e3a8697f376cfc6309d3cd3f5408afe88835336d8202afa895dbb7f817d4dc549a99fdee3fc4fc475743967170e8a8e17ae685ff7121e5763
   languageName: node
   linkType: hard
 
-"@spotlightjs/spotlight@npm:^1.0.0":
-  version: 1.0.0
-  resolution: "@spotlightjs/spotlight@npm:1.0.0"
+"@spotlightjs/spotlight@npm:^1.2.3":
+  version: 1.2.3
+  resolution: "@spotlightjs/spotlight@npm:1.2.3"
   dependencies:
-    "@spotlightjs/overlay": "npm:1.0.0"
-    "@spotlightjs/sidecar": "npm:1.0.0"
+    "@spotlightjs/overlay": "npm:1.2.0"
+    "@spotlightjs/sidecar": "npm:1.3.1"
   bin:
     spotlight-sidecar: bin/run.js
-  checksum: 09c047256030fc6e95c96e81b6f30b771b3c7996ce7e740a40d7471b88677da63a03db51c6d55acf8cc3840eaf037781354b4aa4e565e01d619d916805b1c2ff
+  checksum: 0a9f61d87b54702f10a582b1da2cc81f2ab0ea512f0be79a401e6b96b881aaa598cbe6548b076c54dbbf8a94e95c7a464e31aab7895729c11bf1e525e48a160e
   languageName: node
   linkType: hard
 
@@ -7752,7 +7752,7 @@ __metadata:
     "@sentry-internal/rrweb": "npm:2.6.0"
     "@sentry/angular-ivy": "npm:^7.87.0"
     "@sentry/integrations": "npm:^7.87.0"
-    "@spotlightjs/spotlight": "npm:^1.0.0"
+    "@spotlightjs/spotlight": "npm:^1.2.3"
     "@types/chart.js": "npm:2.9.32"
     "@types/jasmine": "npm:~4.3.0"
     "@types/jasminewd2": "npm:^2.0.8"
