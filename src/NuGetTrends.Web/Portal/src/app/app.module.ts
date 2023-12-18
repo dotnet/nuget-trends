@@ -7,7 +7,6 @@ import { Router } from '@angular/router';
 import * as Sentry from '@sentry/angular-ivy';
 import { Replay } from "@sentry/replay";
 import { HttpClient, CaptureConsole, ReportingObserver } from "@sentry/integrations";
-import { Feedback } from '@sentry-internal/feedback';
 import { getCanvasManager } from '@sentry-internal/rrweb';
 
 import { AppComponent } from './app.component';
@@ -17,6 +16,14 @@ import { PackagesModule } from './packages/packages.module';
 import { SharedModule } from './shared/shared.module';
 import { HomeModule } from './home/home.module';
 import { CoreModule } from './core/core.module';
+
+if (process.env.NODE_ENV === "development") {
+  import('@spotlightjs/spotlight').then((Spotlight) =>
+    Spotlight.init({
+      anchor: 'centerRight',
+      injectImmediately: true })
+  );
+}
 
 Sentry.init({
   dsn: environment.SENTRY_DSN,
@@ -57,7 +64,7 @@ Sentry.init({
     new HttpClient(),
     new CaptureConsole(),
     new ReportingObserver(),
-    new Feedback({
+    new Sentry.Feedback({
       colorScheme: "light", // no dark theme yet
       themeLight: {
         submitBackground: '#215C84',
