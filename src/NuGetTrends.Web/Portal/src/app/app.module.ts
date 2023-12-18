@@ -19,7 +19,9 @@ import { CoreModule } from './core/core.module';
 
 if (process.env.NODE_ENV === "development") {
   import('@spotlightjs/spotlight').then((Spotlight) =>
-    Spotlight.init({ injectImmediately: true })
+    Spotlight.init({
+      anchor: 'centerRight',
+      injectImmediately: true })
   );
 }
 
