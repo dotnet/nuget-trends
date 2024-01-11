@@ -2,7 +2,7 @@
 # Manual changes might be lost - proceed with caution!
 
 __metadata:
-  version: 8
+  version: 6
   cacheKey: 10
 
 "@ampproject/remapping@npm:2.2.0":
@@ -5927,12 +5927,12 @@ __metadata:
   linkType: hard
 
 "follow-redirects@npm:^1.0.0":
-  version: 1.15.3
-  resolution: "follow-redirects@npm:1.15.3"
+  version: 1.15.4
+  resolution: "follow-redirects@npm:1.15.4"
   peerDependenciesMeta:
     debug:
       optional: true
-  checksum: 60d98693f4976892f8c654b16ef6d1803887a951898857ab0cdc009570b1c06314ad499505b7a040ac5b98144939f8597766e5e6a6859c0945d157b473aa6f5f
+  checksum: 8/e178d1deff8b23d5d24ec3f7a94cde6e47d74d0dc649c35fc9857041267c12ec5d44650a0c5597ef83056ada9ea6ca0c30e7c4f97dbf07d035086be9e6a5b7b6
   languageName: node
   linkType: hard
 
@@ -6034,9 +6034,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"fsevents@patch:fsevents@npm%3A~2.3.2#optional!builtin<compat/fsevents>":
+"fsevents@patch:fsevents@npm%3A~2.3.2#~builtin<compat/fsevents>":
   version: 2.3.3
-  resolution: "fsevents@patch:fsevents@npm%3A2.3.3#optional!builtin<compat/fsevents>::version=2.3.3&hash=df0bf1"
+  resolution: "fsevents@patch:fsevents@npm%3A2.3.3#~builtin<compat/fsevents>::version=2.3.3&hash=df0bf1"
   dependencies:
     node-gyp: "npm:latest"
   conditions: os=darwin
@@ -8108,49 +8108,49 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "nuget-trends@workspace:."
   dependencies:
-    "@angular-devkit/build-angular": "npm:^15.1.5"
-    "@angular/animations": "npm:^15.1.5"
-    "@angular/cdk": "npm:15.1.5"
-    "@angular/cli": "npm:^15.1.5"
-    "@angular/common": "npm:^15.1.5"
-    "@angular/compiler": "npm:^15.1.5"
-    "@angular/compiler-cli": "npm:^15.1.5"
-    "@angular/core": "npm:^15.1.5"
-    "@angular/forms": "npm:^15.1.5"
-    "@angular/language-service": "npm:^15.1.5"
-    "@angular/material": "npm:15.1.5"
-    "@angular/platform-browser": "npm:^15.1.5"
-    "@angular/platform-browser-dynamic": "npm:^15.1.5"
-    "@angular/router": "npm:^15.1.5"
-    "@sentry-internal/rrweb": "npm:2.6.0"
-    "@sentry/angular-ivy": "npm:^7.88.0"
-    "@sentry/integrations": "npm:^7.88.0"
-    "@spotlightjs/spotlight": "npm:^1.2.3"
-    "@types/chart.js": "npm:2.9.32"
-    "@types/jasmine": "npm:~4.3.0"
-    "@types/jasminewd2": "npm:^2.0.8"
-    "@types/node": "npm:^14.14.41"
-    bulma: "npm:^0.9.4"
-    bulma-start: "npm:^0.0.5"
-    chart.js: "npm:2.9.4"
-    codelyzer: "npm:^6.0.1"
-    font-awesome: "npm:^4.7.0"
-    jasmine-core: "npm:~4.5.0"
-    jasmine-spec-reporter: "npm:~5.0.0"
-    karma: "npm:~6.4.0"
-    karma-chrome-launcher: "npm:~3.1.0"
-    karma-coverage: "npm:~2.2.0"
-    karma-jasmine: "npm:~5.1.0"
-    karma-jasmine-html-reporter: "npm:~2.0.0"
-    karma-junit-reporter: "npm:^2.0.1"
-    ngx-toastr: "npm:^16.0.1"
-    puppeteer: "npm:^19.4.1"
-    rxjs: "npm:~7.5.0"
-    ts-node: "npm:9.1.1"
-    tslib: "npm:^2.3.0"
-    tslint: "npm:~6.1.0"
-    typescript: "npm:4.8.4"
-    zone.js: "npm:~0.12.0"
+    "@angular-devkit/build-angular": ^15.1.5
+    "@angular/animations": ^15.1.5
+    "@angular/cdk": 15.1.5
+    "@angular/cli": ^15.1.5
+    "@angular/common": ^15.1.5
+    "@angular/compiler": ^15.1.5
+    "@angular/compiler-cli": ^15.1.5
+    "@angular/core": ^15.1.5
+    "@angular/forms": ^15.1.5
+    "@angular/language-service": ^15.1.5
+    "@angular/material": 15.1.5
+    "@angular/platform-browser": ^15.1.5
+    "@angular/platform-browser-dynamic": ^15.1.5
+    "@angular/router": ^15.1.5
+    "@sentry-internal/rrweb": 2.6.0
+    "@sentry/angular-ivy": ^7.88.0
+    "@sentry/integrations": ^7.88.0
+    "@spotlightjs/spotlight": ^1.2.3
+    "@types/chart.js": 2.9.32
+    "@types/jasmine": ~4.3.0
+    "@types/jasminewd2": ^2.0.8
+    "@types/node": ^14.14.41
+    bulma: ^0.9.4
+    bulma-start: ^0.0.5
+    chart.js: 2.9.4
+    codelyzer: ^6.0.1
+    font-awesome: ^4.7.0
+    jasmine-core: ~4.5.0
+    jasmine-spec-reporter: ~5.0.0
+    karma: ~6.4.0
+    karma-chrome-launcher: ~3.1.0
+    karma-coverage: ~2.2.0
+    karma-jasmine: ~5.1.0
+    karma-jasmine-html-reporter: ~2.0.0
+    karma-junit-reporter: ^2.0.1
+    ngx-toastr: ^16.0.1
+    puppeteer: ^19.4.1
+    rxjs: ~7.5.0
+    ts-node: 9.1.1
+    tslib: ^2.3.0
+    tslint: ~6.1.0
+    typescript: 4.8.4
+    zone.js: ~0.12.0
   languageName: unknown
   linkType: soft
 
@@ -9020,29 +9020,29 @@ __metadata:
   languageName: node
   linkType: hard
 
-"resolve@patch:resolve@npm%3A1.22.1#optional!builtin<compat/resolve>":
+"resolve@patch:resolve@npm%3A1.22.1#~builtin<compat/resolve>":
   version: 1.22.1
-  resolution: "resolve@patch:resolve@npm%3A1.22.1#optional!builtin<compat/resolve>::version=1.22.1&hash=c3c19d"
+  resolution: "resolve@patch:resolve@npm%3A1.22.1#~builtin<compat/resolve>::version=1.22.1&hash=c3c19d"
   dependencies:
     is-core-module: "npm:^2.9.0"
     path-parse: "npm:^1.0.7"
     supports-preserve-symlinks-flag: "npm:^1.0.0"
   bin:
     resolve: bin/resolve
-  checksum: 551dd500765cce767c583747f5f21ceb51d437f539b01aee96d6ec39eb2c68a8ff5d646b083d690fe428a81329856bc1bbdb094379b8df4b3f10e7e1f6aa3839
+  checksum: 8/5656f4d0bedcf8eb52685c1abdf8fbe73a1603bb1160a24d716e27a57f6cecbe2432ff9c89c2bd57542c3a7b9d14b1882b73bfe2e9d7849c9a4c0b8b39f02b8b
   languageName: node
   linkType: hard
 
-"resolve@patch:resolve@npm%3A^1.14.2#optional!builtin<compat/resolve>, resolve@patch:resolve@npm%3A^1.3.2#optional!builtin<compat/resolve>":
+"resolve@patch:resolve@npm%3A^1.14.2#~builtin<compat/resolve>, resolve@patch:resolve@npm%3A^1.3.2#~builtin<compat/resolve>":
   version: 1.22.8
-  resolution: "resolve@patch:resolve@npm%3A1.22.8#optional!builtin<compat/resolve>::version=1.22.8&hash=c3c19d"
+  resolution: "resolve@patch:resolve@npm%3A1.22.8#~builtin<compat/resolve>::version=1.22.8&hash=c3c19d"
   dependencies:
     is-core-module: "npm:^2.13.0"
     path-parse: "npm:^1.0.7"
     supports-preserve-symlinks-flag: "npm:^1.0.0"
   bin:
     resolve: bin/resolve
-  checksum: f345cd37f56a2c0275e3fe062517c650bb673815d885e7507566df589375d165bbbf4bdb6aa95600a9bc55f4744b81f452b5a63f95b9f10a72787dba3c90890a
+  checksum: 8/5479b7d431cacd5185f8db64bfcb7286ae5e31eb299f4c4f404ad8aa6098b77599563ac4257cb2c37a42f59dfc06a1bec2bcf283bb448f319e37f0feb9a09847
   languageName: node
   linkType: hard
 
@@ -10129,13 +10129,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@patch:typescript@npm%3A4.8.4#optional!builtin<compat/typescript>":
+"typescript@patch:typescript@4.8.4#~builtin<compat/typescript>":
   version: 4.8.4
-  resolution: "typescript@patch:typescript@npm%3A4.8.4#optional!builtin<compat/typescript>::version=4.8.4&hash=1a91c8"
+  resolution: "typescript@patch:typescript@npm%3A4.8.4#~builtin<compat/typescript>::version=4.8.4&hash=1a91c8"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
-  checksum: 5d81fd8cf5152091a0c0b84ebc868de8433583072a340c4899e0fc7ad6a80314b880a1466868c9a6a1f640c3d1f2fe7f41f8c541b99d78c8b414263dfa27eba3
+  checksum: 8/c981e82b77a5acdcc4e69af9c56cdecf5b934a87a08e7b52120596701e389a878b8e3f860e73ffb287bf649cc47a8c741262ce058148f71de4cdd88bb9c75153
   languageName: node
   linkType: hard
 
