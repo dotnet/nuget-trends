@@ -3,25 +3,25 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>
-    <PackageVersion Include="Hangfire.AspNetCore" Version="1.8.2" />
-    <PackageVersion Include="Hangfire.MemoryStorage" Version="1.7.0" />
-    <PackageVersion Include="MessagePack" Version="2.5.108" />
-    <PackageVersion Include="Microsoft.AspNetCore.SpaServices.Extensions" Version="8.0.0" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.0" />
+    <PackageVersion Include="Hangfire.AspNetCore" Version="1.8.7" />
+    <PackageVersion Include="Hangfire.MemoryStorage" Version="1.8.0" />
+    <PackageVersion Include="MessagePack" Version="2.5.140" />
+    <PackageVersion Include="Microsoft.AspNetCore.SpaServices.Extensions" Version="8.0.1" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.1" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="8.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.1" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.0-rc.2" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.0" />
     <PackageVersion Include="NuGet.Client" Version="4.3.0-beta1-2418" />
-    <PackageVersion Include="NuGet.Protocol" Version="6.6.1" />
-    <PackageVersion Include="RabbitMQ.Client" Version="6.5.0" />
-    <PackageVersion Include="Sentry" Version="$(SentryVersion)" />
+    <PackageVersion Include="NuGet.Protocol" Version="6.8.0" />
+    <PackageVersion Include="RabbitMQ.Client" Version="6.8.1" />
+    <PackageVersion Include="Sentry" Version="4.0.0-beta.4" />
     <PackageVersion Include="Sentry.AspNetCore" Version="$(SentryVersion)" />
     <PackageVersion Include="Sentry.Serilog" Version="$(SentryVersion)" />
-    <PackageVersion Include="Serilog.AspNetCore" Version="7.0.0" />
-    <PackageVersion Include="Serilog.Enrichers.Environment" Version="2.2.1-dev-00787" />
-    <PackageVersion Include="Serilog.Settings.Configuration" Version="7.0.0" />
-    <PackageVersion Include="Serilog.Sinks.Console" Version="4.1.0" />
+    <PackageVersion Include="Serilog.AspNetCore" Version="8.0.0" />
+    <PackageVersion Include="Serilog.Enrichers.Environment" Version="3.0.0-dev-00806" />
+    <PackageVersion Include="Serilog.Settings.Configuration" Version="8.0.0" />
+    <PackageVersion Include="Serilog.Sinks.Console" Version="5.0.1" />
     <PackageVersion Include="Shortr.AspNetCore" Version="1.0.0-beta01" />
     <PackageVersion Include="Shortr.Npgsql" Version="1.0.0-beta01" />
     <PackageVersion Include="Swashbuckle.AspNetCore" Version="6.5.0" />

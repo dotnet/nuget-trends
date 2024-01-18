@@ -92,7 +92,7 @@ public static class ModelExtensions
     /// </summary>
     /// <param name="leaf">The catalog leaf.</param>
     /// <returns>The package version.</returns>
-    private static NuGetVersion ParsePackageVersion(this ICatalogLeafItem leaf) => NuGetVersion.Parse(leaf.PackageVersion);
+    private static NuGetVersion ParsePackageVersion(this ICatalogLeafItem leaf) => NuGetVersion.Parse(leaf.PackageVersion!);
 
     /// <summary>
     /// Parse the target framework as a <see cref="NuGetFramework" />.
