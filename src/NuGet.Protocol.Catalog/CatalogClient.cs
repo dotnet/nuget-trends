@@ -72,7 +72,7 @@ public class CatalogClient(HttpClient httpClient, ILogger<CatalogClient> logger)
 
             if (leaf is null)
             {
-                throw new InvalidOperationException("Leaf URL: {leafUrl} didn't return a valid leaf object.");
+                throw new InvalidOperationException($"Leaf URL '{leafUrl}' didn't return a valid leaf object.");
             }
 
             if (leaf.Type != type)

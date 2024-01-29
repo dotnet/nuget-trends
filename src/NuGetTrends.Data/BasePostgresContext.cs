@@ -72,7 +72,7 @@ public abstract class BasePostgresContext(DbContextOptions options) : DbContext(
                 indexKey.SetDatabaseName(ConvertKeyToSnake(mapper, dbName));
                 break;
             default:
-                throw new NotImplementedException("Unexpected type was provided to snake case converter");
+                throw new NotImplementedException($"Unexpected type '{entity.GetType().FullName}' was provided to snake case converter.");
         }
     }
 
