@@ -5,9 +5,6 @@ import { DatePipe } from '@angular/common';
 import { HttpClientModule } from '@angular/common/http';
 import { Router } from '@angular/router';
 import * as Sentry from '@sentry/angular-ivy';
-import { Replay } from "@sentry/replay";
-import { HttpClient, CaptureConsole, ReportingObserver } from "@sentry/integrations";
-import { getCanvasManager } from '@sentry-internal/rrweb';
 
 import { AppComponent } from './app.component';
 import { AppRoutingModule } from './app-routes.module';
@@ -35,19 +32,23 @@ Sentry.init({
   // @ts-ignore - TODO: Remove on next bump, not in types yet
   profilesSampleRate: 1.0,
   integrations: [
-    new Replay({
+    Sentry.replayIntegration({
       // No PII here so lets get the texts
       maskAllText: false,
       blockAllMedia: false,
       networkDetailAllowUrls: environment.NETWORK_DETAIL_ALLOW_URLS,
       networkRequestHeaders: ["referrer", "sentry-trace", "baggage"],
       networkResponseHeaders: ["Server"],
-       _experiments: {
-        canvas: {
-          fps: 4,
-          quality: 0.6,
-          manager: getCanvasManager,
-        },
+    }),
+    Sentry.replayCanvasIntegration(),
+    Sentry.feedbackIntegration({
+      colorScheme: "light", // no dark theme yet
+      themeLight: {
+        submitBackground: '#215C84',
+        submitBackgroundHover: '#A2BACB',
+        submitBorder: '#153b54',
+        inputBackground: '#ffffff',
+        inputForeground: '#374151',
       },
     }),
     new Sentry.BrowserTracing({
@@ -61,19 +62,6 @@ Sentry.init({
       }
     }),
     new Sentry.BrowserProfilingIntegration(),
-    new HttpClient(),
-    new CaptureConsole(),
-    new ReportingObserver(),
-    new Sentry.Feedback({
-      colorScheme: "light", // no dark theme yet
-      themeLight: {
-        submitBackground: '#215C84',
-        submitBackgroundHover: '#A2BACB',
-        submitBorder: '#153b54',
-        inputBackground: '#ffffff',
-        inputForeground: '#374151',
-      },
-    }),
   ],
 });
 
