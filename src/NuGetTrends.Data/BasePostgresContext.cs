@@ -67,12 +67,12 @@ public abstract class BasePostgresContext(DbContextOptions options) : DbContext(
                 var dbName = indexKey.GetDatabaseName();
                 if (string.IsNullOrWhiteSpace(dbName))
                 {
-                    throw new InvalidOperationException("Can't adjust casing, missing DB name");
+                    throw new InvalidOperationException("Can't adjust casing, missing DB name.");
                 }
                 indexKey.SetDatabaseName(ConvertKeyToSnake(mapper, dbName));
                 break;
             default:
-                throw new NotImplementedException("Unexpected type was provided to snake case converter");
+                throw new NotImplementedException($"Unexpected type '{entity.GetType().FullName}' was provided to snake case converter.");
         }
     }
 

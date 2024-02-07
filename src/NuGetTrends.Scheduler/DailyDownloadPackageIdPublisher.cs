@@ -35,7 +35,7 @@ public class DailyDownloadPackageIdPublisher(
                 autoDelete: false,
                 arguments: null);
 
-            logger.LogDebug("Queue creation OK with {QueueName}, {ConsumerCount}, {MessageCount}",
+            logger.LogDebug("Queue creation OK, with '{QueueName}', '{ConsumerCount}', '{MessageCount}'",
                 queueDeclareOk.QueueName, queueDeclareOk.ConsumerCount, queueDeclareOk.MessageCount);
 
             var properties = channel.CreateBasicProperties();
@@ -60,7 +60,7 @@ public class DailyDownloadPackageIdPublisher(
 
                 var batchSize = 25; // TODO: Configurable
                 var processBatchSpan = queueIdsSpan.StartChild("db.read",
-                    $"Go through reader and queue in batches of {batchSize} ids");
+                    $"Go through reader and queue in batches of '{batchSize}' ids.");
                 var batch = new List<string>(batchSize);
                 while (await reader.ReadAsync())
                 {
@@ -91,7 +91,7 @@ public class DailyDownloadPackageIdPublisher(
             }
             finally
             {
-                logger.LogInformation("Finished publishing messages. Messages queued: {count}", messageCount);
+                logger.LogInformation("Finished publishing messages. '{count}' messages queued.", messageCount);
             }
             transaction.Finish(SpanStatus.Ok);
         }

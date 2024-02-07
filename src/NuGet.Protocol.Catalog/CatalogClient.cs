@@ -20,7 +20,7 @@ public class CatalogClient(HttpClient httpClient, ILogger<CatalogClient> logger)
         var index = DeserializeUrlAsync<CatalogIndex>(indexUrl, token);
         if (index is null)
         {
-            throw new InvalidOperationException($"Url {indexUrl} didn't return a CatalogIndex.");
+            throw new InvalidOperationException($"URL '{indexUrl}' didn't return a CatalogIndex.");
         }
 
         return index!;
@@ -31,7 +31,7 @@ public class CatalogClient(HttpClient httpClient, ILogger<CatalogClient> logger)
         var page = DeserializeUrlAsync<CatalogPage>(pageUrl, token);
         if (page is null)
         {
-            throw new InvalidOperationException($"Url {pageUrl} didn't return a CatalogPage.");
+            throw new InvalidOperationException($"URL '{pageUrl}' didn't return a CatalogPage.");
         }
 
         return page!;
@@ -41,7 +41,7 @@ public class CatalogClient(HttpClient httpClient, ILogger<CatalogClient> logger)
     {
         // Buffer all of the JSON so we can parse twice. Once to determine the leaf type and once to deserialize
         // the entire thing to the proper leaf type.
-        _logger.LogDebug("Downloading {leafUrl} as a byte array.", leafUrl);
+        _logger.LogDebug("Downloading '{leafUrl}' as a byte array.", leafUrl);
         var jsonBytes = await _httpClient.GetByteArrayAsync(leafUrl);
         var untypedLeaf = DeserializeBytes<CatalogLeaf>(jsonBytes);
 
@@ -67,12 +67,12 @@ public class CatalogClient(HttpClient httpClient, ILogger<CatalogClient> logger)
                    { "leafUrl", leafUrl},
                }))
         {
-            _logger.LogInformation("Getting package leaf: {type}, {leafUrl}", type, leafUrl);
+            _logger.LogInformation("Getting package leaf of '{type}' type for leaf URL '{leafUrl}'.", type, leafUrl);
             var leaf = await DeserializeUrlAsync<T>(leafUrl, token);
 
             if (leaf is null)
             {
-                throw new InvalidOperationException("Leaf URL: {leafUrl} didn't return a valid leaf object.");
+                throw new InvalidOperationException($"Leaf URL '{leafUrl}' didn't return a valid leaf object.");
             }
 
             if (leaf.Type != type)
@@ -93,7 +93,7 @@ public class CatalogClient(HttpClient httpClient, ILogger<CatalogClient> logger)
         var result = JsonSerializer.Deserialize<T>(jsonReader);
         if (result == null)
         {
-            throw new InvalidOperationException("Deserialization resulted in null");
+            throw new InvalidOperationException("Deserialization resulted in null.");
         }
 
         return result;
@@ -102,7 +102,7 @@ public class CatalogClient(HttpClient httpClient, ILogger<CatalogClient> logger)
     private async Task<T?> DeserializeUrlAsync<T>(string documentUrl, CancellationToken token)
         where T : class
     {
-        _logger.LogDebug("Downloading {documentUrl} as a stream.", documentUrl);
+        _logger.LogDebug("Downloading '{documentUrl}' as a stream.", documentUrl);
 
         using var response = await _httpClient.GetAsync(documentUrl, token);
         await using var stream = await response.Content.ReadAsStreamAsync();

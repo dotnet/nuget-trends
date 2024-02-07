@@ -16,7 +16,7 @@ public class CatalogCursorStore(NuGetTrendsContext context) : ICursor
         var cursor = await context.Cursors.FindAsync(_id, token);
         if (cursor is null)
         {
-            throw new InvalidOperationException($"Expected to find a cursor named '{CursorId}'");
+            throw new InvalidOperationException($"Expected to find a cursor named '{CursorId}'.");
         }
         cursor.Value = value;
         context.Update(cursor);

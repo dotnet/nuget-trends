@@ -20,7 +20,7 @@ public class DailyDownloadWorker : IHostedService
     private readonly INuGetSearchService _nuGetSearchService;
     private readonly ILogger<DailyDownloadWorker> _logger;
     private readonly CancellationTokenSource _cancellationTokenSource = new();
-    private readonly ConcurrentBag<(IModel,IConnection)> _connections = new();
+    private readonly ConcurrentBag<(IModel, IConnection)> _connections = new();
 
     private readonly List<Task> _workers;
 
@@ -78,14 +78,14 @@ public class DailyDownloadWorker : IHostedService
                                 if (attempt == maxAttempts)
                                 {
                                     connectSpan.Finish(e);
-                                    _logger.LogCritical(e, "Couldn't connect to the broker. Attempts: {attempts}",
+                                    _logger.LogCritical(e, "Couldn't connect to the broker. Attempt '{attempts}'.",
                                         attempt);
                                     throw;
                                 }
 
                                 var waitMs = attempt * 10000;
                                 _logger.LogInformation(e,
-                                    "Failed to connect to the broker. Waiting for {waitMs} milliseconds. Attempt {attempts}",
+                                    "Failed to connect to the broker. Waiting for '{waitMs}' milliseconds. Attempt '{attempts}'.",
                                     waitMs, attempt);
                                 await Task.Delay(waitMs, cancellationToken);
                                 connectSpan.SetTag("waited_ms", waitMs.ToString());
@@ -125,7 +125,7 @@ public class DailyDownloadWorker : IHostedService
             autoDelete: false,
             arguments: null);
 
-        _logger.LogDebug("Queue creation OK with {QueueName}, {ConsumerCount}, {MessageCount}",
+        _logger.LogDebug("Queue creation OK with '{QueueName}', '{ConsumerCount}' and '{MessageCount}'",
             queueDeclareOk.QueueName, queueDeclareOk.ConsumerCount, queueDeclareOk.MessageCount);
 
         var consumer = new AsyncEventingBasicConsumer(channel);
@@ -141,7 +141,7 @@ public class DailyDownloadWorker : IHostedService
 
         defaultConsumer.Received += (s, e) =>
         {
-            _logger.LogWarning("DefaultConsumer fired: {message}", Convert.ToBase64String(e.Body.ToArray()));
+            _logger.LogWarning("DefaultConsumer fired message '{message}'.", Convert.ToBase64String(e.Body.ToArray()));
         };
 
         channel.DefaultConsumer = defaultConsumer;
@@ -156,7 +156,7 @@ public class DailyDownloadWorker : IHostedService
         try
         {
             var body = ea.Body;
-            _logger.LogDebug("Received message with body size: {size}", body.Length);
+            _logger.LogDebug("Received message with body size '{size}'.", body.Length);
             SentrySdk.ConfigureScope(s => s.SetTag("msg_size", body.Length.ToString()));
             var deserializationSpan = batchProcessSpan.StartChild("json.deserialize");
             packageIds = MessagePackSerializer.Deserialize<List<string>>(body);
@@ -164,7 +164,7 @@ public class DailyDownloadWorker : IHostedService
 
             if (packageIds == null)
             {
-                throw new InvalidOperationException($"Deserializing {body} resulted in a null reference.");
+                throw new InvalidOperationException($"Deserializing '{body}' resulted in a null reference.");
             }
 
             var updateCountSpan = batchProcessSpan.StartChild("update.download.count", "Updates the DB with the current daily downloads");
@@ -231,7 +231,7 @@ public class DailyDownloadWorker : IHostedService
             {
                 // All versions are unlisted or:
                 // "This package has been deleted from the gallery. It is no longer available for install/restore."
-                _logger.LogInformation("Package deleted: {packageId}", expectedPackageId);
+                _logger.LogInformation("Package with id '{packageId}' deleted.", expectedPackageId);
                 await RemovePackage(context, expectedPackageId, _cancellationTokenSource.Token);
             }
             else
@@ -299,7 +299,7 @@ public class DailyDownloadWorker : IHostedService
         if (package.Count == 0)
         {
             // This happens a lot.
-            _logger.LogInformation("Package with Id {packageId} not found!.", packageId);
+            _logger.LogInformation("Package with id '{packageId}' not found!.", packageId);
             return;
         }
 

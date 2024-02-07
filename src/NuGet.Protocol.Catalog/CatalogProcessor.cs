@@ -63,7 +63,7 @@ public class CatalogProcessor
         var minCommitTimestamp = await GetMinCommitTimestamp(token);
 
         _logger.LogInformation(
-            "Using time bounds {min:O} (exclusive) to {max:O} (inclusive).",
+            "Using time bounds '{min:O}' (exclusive) to '{max:O}' (inclusive).",
             minCommitTimestamp,
             _settings.MaxCommitTimestamp);
 
@@ -82,7 +82,7 @@ public class CatalogProcessor
             _settings.MaxCommitTimestamp);
 
         _logger.LogInformation(
-            "{pages} pages were in the time bounds, out of {totalPages}.",
+            "'{pages}' out of '{totalPages}' pages were in the time bounds.",
             pageItems.Count,
             index.Items.Count);
 
@@ -107,7 +107,7 @@ public class CatalogProcessor
         SentrySdk.GetSpan()?.SetTag("leafItemsCount", leafItems.Count.ToString());
 
         _logger.LogInformation(
-            "On page {page}, {leaves} out of {totalLeaves} were in the time bounds.",
+            "On page '{page}', '{leaves}' out of '{totalLeaves}' were in the time bounds.",
             pageItem.Url,
             leafItems.Count,
             page.Items.Count);
@@ -145,12 +145,12 @@ public class CatalogProcessor
                     else
                     {
                         // Lots of null leafs
-                        _logger.LogInformation("Unsupported leaf type: {type}.", task.Result?.GetType());
+                        _logger.LogInformation("Unsupported leaf type '{type}'.", task.Result?.GetType());
                     }
                 }
                 catch (Exception e)
                 {
-                    _logger.LogError(e, "Failed to process {result}.", task.Result);
+                    _logger.LogError(e, "Failed to process '{result}'.", task.Result);
                 }
             }
 
@@ -188,7 +188,7 @@ public class CatalogProcessor
 
     private async Task<string> GetCatalogIndexUrlAsync(CancellationToken token)
     {
-        _logger.LogInformation("Getting catalog index URL from {serviceIndexUrl}.", _settings.ServiceIndexUrl);
+        _logger.LogInformation("Getting catalog index URL from '{serviceIndexUrl}'.", _settings.ServiceIndexUrl);
         var sourceRepository = Repository.Factory.GetCoreV3(_settings.ServiceIndexUrl, FeedType.HttpV3);
         var serviceIndexResource = await sourceRepository.GetResourceAsync<ServiceIndexResourceV3>(token);
         var catalogIndexUrl = serviceIndexResource.GetServiceEntryUri(CatalogResourceType)?.AbsoluteUri;
