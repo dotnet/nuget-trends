@@ -67,7 +67,7 @@ public abstract class BasePostgresContext(DbContextOptions options) : DbContext(
                 var dbName = indexKey.GetDatabaseName();
                 if (string.IsNullOrWhiteSpace(dbName))
                 {
-                    throw new InvalidOperationException("Can't adjust casing, missing DB name");
+                    throw new InvalidOperationException("Can't adjust casing, missing DB name.");
                 }
                 indexKey.SetDatabaseName(ConvertKeyToSnake(mapper, dbName));
                 break;

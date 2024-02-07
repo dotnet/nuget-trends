@@ -48,13 +48,13 @@ public class CatalogLeafProcessor : ICatalogLeafProcessor
         var deleted = await deletedItems.ToListAsync(token);
         if (deleted.Count == 0)
         {
-            _logger.LogDebug("Deleted event but not found with: {Id}, {Version}", leaf.PackageId, leaf.PackageVersion);
+            _logger.LogDebug("Deleted event but not found for '{id}' and '{version}'", leaf.PackageId, leaf.PackageVersion);
         }
         else
         {
             if (deleted.Count > 1)
             {
-                _logger.LogError("Expected 1 item but found {count} for {id} and {version}.",
+                _logger.LogError("Expected 1 item but found '{count}' for '{id}' and '{version}'.",
                     deleted.Count,
                     leaf.PackageId,
                     leaf.PackageVersion);

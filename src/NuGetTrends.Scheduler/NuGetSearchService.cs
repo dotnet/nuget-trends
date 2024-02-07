@@ -37,7 +37,7 @@ public class NuGetSearchService(ILogger<NuGetSearchService> logger) : INuGetSear
 
             if (package == null)
             {
-                logger.LogDebug("Package {packageId} not found.", packageId);
+                logger.LogDebug("Package with id '{packageId}' not found.", packageId);
             }
 
             return package;

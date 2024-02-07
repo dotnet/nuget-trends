@@ -9,7 +9,7 @@ public static class ConfigurationExtension
         var connString = configuration.GetConnectionString("NuGetTrends");
         if (string.IsNullOrWhiteSpace(connString))
         {
-            throw new InvalidOperationException("No connection string available for NuGetTrends");
+            throw new InvalidOperationException("No connection string available for section NuGetTrends.");
         }
 
         return connString;
