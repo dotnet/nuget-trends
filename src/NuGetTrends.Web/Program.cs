@@ -56,6 +56,15 @@ public static class Program
                     .UseConfiguration(Configuration)
                     .UseSentry(o =>
                     {
+                        o.SetBeforeSend(e =>
+                        {
+                            if (e.Message?.Formatted is {} msg && msg.Contains(
+                                    "An error occurred using the connection to database '\"nugettrends\"' on server"))
+                            {
+                                e.Fingerprint = new []{msg};
+                            }
+                            return e;
+                        });
                         o.CaptureFailedRequests = true;
                         o.TracesSampler = context => context.CustomSamplingContext.TryGetValue("__HttpPath", out var path)
                                                      && path is "/t"
