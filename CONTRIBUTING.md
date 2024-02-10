@@ -4,10 +4,10 @@ Please raise an issue to discuss changes before raising large PRs.
 
 ### Requirements
 
-- .NET SDK 7
+- .NET SDK 8
 - Docker, Compose (for the dependencies, postgres, rabbitmq)
-- Node.js 15.0.1 (might also work with higher versions)
-- Yarn (We use Yarn instead of npm)
+- Node.js 20.10.0 (might also work with higher versions)
+- NPM
 
 
 ### Run dependant services
@@ -44,7 +44,7 @@ The website is composed by two parts: An Angular SPA and an ASP.NET Core API. Th
 To run it locally:
 
 **SPA** (src/NuGetTrends.Web/Portal)
-1. Install the SPA dependencies: `yarn install` (only the first time)
+1. Install the SPA dependencies: `npm install` (only the first time)
 2. Run the SPA: `ng serve`
 
 **API** (src/NuGetTrends.Web)
