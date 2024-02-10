@@ -7,8 +7,7 @@
     "build": "npm run generate-release && ng build",
     "generate-release": "mkdir -p tmp; echo window.SENTRY_RELEASE={id:\\'`git rev-parse --short HEAD`\\'} > tmp/release.js",
     "test-no-watch": "ng test --watch=false",
-    "test-cc": "ng test --watch=false --code-coverage",
-    "postinstall": "ngcc"
+    "test-cc": "ng test --watch=false --code-coverage"
   },
   "private": true,
   "dependencies": {
@@ -32,7 +31,7 @@
     "ngx-toastr": "^16.0.1",
     "rxjs": "~7.5.0",
     "tslib": "^2.3.0",
-    "zone.js": "~0.12.0"
+    "zone.js": "~0.14.0"
   },
   "devDependencies": {
     "@angular-devkit/build-angular": "^15.1.5",
