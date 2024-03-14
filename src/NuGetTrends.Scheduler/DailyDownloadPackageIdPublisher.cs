@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using NuGetTrends.Data;
 using RabbitMQ.Client;
-using Sentry;
+using Sentry.Hangfire;
 
 namespace NuGetTrends.Scheduler;
 
@@ -16,6 +16,7 @@ public class DailyDownloadPackageIdPublisher(
     IHub hub,
     ILogger<DailyDownloadPackageIdPublisher> logger)
 {
+    [SentryMonitorSlug("DailyDownloadPackageIdPublisher.Import")]
     public async Task Import(IJobCancellationToken token)
     {
         using var _ = hub.PushScope();

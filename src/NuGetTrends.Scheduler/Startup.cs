@@ -57,7 +57,8 @@ public class Startup(
         // TODO: Use Postgres storage instead:
         // Install: Hangfire.PostgreSql
         // Configure: config.UsePostgreSqlStorage(Configuration.GetConnectionString("HangfireConnection")
-        services.AddHangfire(config => config.UseStorage(new MemoryStorage()));
+        services.AddHangfire(config => config.UseStorage(new MemoryStorage()))
+            .AddSentry();
         services.AddHangfireServer();
 
         services.AddHttpClient("nuget"); // TODO: typed client? will be shared across all jobs
