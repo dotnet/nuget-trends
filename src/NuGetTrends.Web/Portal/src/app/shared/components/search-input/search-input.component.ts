@@ -16,7 +16,7 @@ import { PackagesService, PackageInteractionService } from '../../../core';
   styleUrls: ['./search-input.component.scss'],
   encapsulation: ViewEncapsulation.None,
 })
-@Sentry.TraceClassDecorator()
+@Sentry.TraceClass({ name: 'SearchInputComponent' })
 export class SearchInputComponent implements AfterViewInit {
   @ViewChild(MatAutocomplete) autoComplete!: MatAutocomplete;
   @ViewChild('searchBox') searchBox!: ElementRef;

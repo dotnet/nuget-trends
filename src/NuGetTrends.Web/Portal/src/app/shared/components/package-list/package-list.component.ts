@@ -11,7 +11,7 @@ import * as Sentry from "@sentry/angular-ivy";
   templateUrl: './package-list.component.html',
   styleUrls: ['./package-list.component.scss']
 })
-@Sentry.TraceClassDecorator()
+@Sentry.TraceClass({ name: 'HeaderComponent' })
 export class PackageListComponent implements OnDestroy {
   packageList: Array<IPackageColor>;
 

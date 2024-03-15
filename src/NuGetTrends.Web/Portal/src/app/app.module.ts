@@ -5,6 +5,7 @@ import { DatePipe } from '@angular/common';
 import { HttpClientModule } from '@angular/common/http';
 import { Router } from '@angular/router';
 import * as Sentry from '@sentry/angular-ivy';
+import { feedbackIntegration, feedbackModalIntegration, feedbackScreenshotIntegration } from "@sentry-internal/feedback";
 
 import { AppComponent } from './app.component';
 import { AppRoutingModule } from './app-routes.module';
@@ -41,7 +42,7 @@ Sentry.init({
       networkResponseHeaders: ["Server"],
     }),
     Sentry.replayCanvasIntegration(),
-    Sentry.feedbackIntegration({
+    feedbackIntegration({
       colorScheme: "light", // no dark theme yet
       themeLight: {
         submitBackground: '#215C84',
@@ -51,17 +52,12 @@ Sentry.init({
         inputForeground: '#374151',
       },
     }),
-    new Sentry.BrowserTracing({
-      routingInstrumentation: Sentry.instrumentAngularRouting,
+    feedbackModalIntegration(),
+    feedbackScreenshotIntegration(),
+    Sentry.browserTracingIntegration({
       idleTimeout: 30000,
-      heartbeatInterval:10000,
-      _experiments: {
-        enableInteractions: true,
-        // If you want automatic route transactions in react or similar
-        onStartRouteTransaction: Sentry.onProfilingStartRouteTransaction,
-      }
     }),
-    new Sentry.BrowserProfilingIntegration(),
+    Sentry.browserProfilingIntegration(),
   ],
 });
 

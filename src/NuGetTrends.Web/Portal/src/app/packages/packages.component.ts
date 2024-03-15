@@ -16,7 +16,7 @@ import { IPackageDownloadHistory, IDownloadStats } from '../shared/models/packag
   styleUrls: ['./packages.component.scss'],
   animations: [AppAnimations.slideInOutAnimation]
 })
-@Sentry.TraceClassDecorator()
+@Sentry.TraceClass({ name: 'HeaderComponent' })
 export class PackagesComponent implements OnInit, OnDestroy {
 
   private trendChart!: Chart;

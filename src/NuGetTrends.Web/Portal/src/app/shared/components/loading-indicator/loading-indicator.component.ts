@@ -10,7 +10,7 @@ import { LoadingIndicatorService } from './loading-indicator.service';
   templateUrl: './loading-indicator.component.html',
   styleUrls: ['./loading-indicator.component.scss']
 })
-@Sentry.TraceClassDecorator()
+@Sentry.TraceClass({ name: 'LoadingIndicatorComponent' })
 export class LoadingIndicatorComponent implements AfterViewInit, OnDestroy {
 
   loadingSubscription?: Subscription;

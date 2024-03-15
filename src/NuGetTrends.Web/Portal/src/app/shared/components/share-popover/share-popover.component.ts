@@ -9,7 +9,7 @@ import { SocialShareService } from 'src/app/core/services/social-share.service';
   templateUrl: './share-popover.component.html',
   styleUrls: ['./share-popover.component.scss']
 })
-@Sentry.TraceClassDecorator()
+@Sentry.TraceClass({ name: 'SharePopoverComponent' })
 export class SharePopoverComponent {
   @Input() buttonText = '';
   @Output() shared = new EventEmitter();
