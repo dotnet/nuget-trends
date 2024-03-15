@@ -22,6 +22,7 @@
     <PackageReference Include="Hangfire.AspNetCore" />
     <PackageReference Include="Hangfire.MemoryStorage" />
     <PackageReference Include="Sentry.AspNetCore" />
+    <PackageReference Include="Sentry.Hangfire" />
     <PackageReference Include="Sentry.Serilog" />
     <PackageReference Include="Serilog.AspNetCore" />
     <PackageReference Include="Serilog.Settings.Configuration" />

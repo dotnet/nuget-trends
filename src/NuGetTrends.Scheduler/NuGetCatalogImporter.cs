@@ -1,6 +1,7 @@
 using Hangfire;
 using NuGet.Protocol.Catalog;
 using Sentry;
+using Sentry.Hangfire;
 
 namespace NuGetTrends.Scheduler;
 
@@ -12,6 +13,7 @@ public class NuGetCatalogImporter(
     IHub hub,
     ILoggerFactory loggerFactory)
 {
+    [SentryMonitorSlug("NuGetCatalogImporter.Import")]
     public async Task Import(IJobCancellationToken token)
     {
         using var _ = hub.PushScope();
