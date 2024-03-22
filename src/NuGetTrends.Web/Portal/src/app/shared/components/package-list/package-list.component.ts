@@ -4,7 +4,7 @@ import { IPackageDownloadHistory, IPackageColor, TagColor } from '../../models/p
 import { PackageInteractionService } from '../../../core';
 import { environment } from '../../../../environments/environment.prod';
 import { ToastrService } from 'ngx-toastr';
-import * as Sentry from "@sentry/angular-ivy";
+import * as Sentry from "@sentry/angular";
 
 @Component({
   selector: 'app-package-list',
