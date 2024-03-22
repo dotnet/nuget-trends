@@ -1,7 +1,7 @@
 import { Component, OnDestroy, AfterViewInit, ElementRef, ChangeDetectorRef } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
-import * as Sentry from "@sentry/angular-ivy";
+import * as Sentry from "@sentry/angular";
 
 import { LoadingIndicatorService } from './loading-indicator.service';
 

@@ -4,7 +4,7 @@ import { NgModule, ErrorHandler } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { HttpClientModule } from '@angular/common/http';
 import { Router } from '@angular/router';
-import * as Sentry from '@sentry/angular-ivy';
+import * as Sentry from '@sentry/angular';
 import { feedbackIntegration, feedbackModalIntegration, feedbackScreenshotIntegration } from "@sentry-internal/feedback";
 
 import { AppComponent } from './app.component';

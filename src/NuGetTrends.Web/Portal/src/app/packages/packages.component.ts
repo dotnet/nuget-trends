@@ -5,7 +5,7 @@ import { firstValueFrom, Subscription } from 'rxjs';
 import { ActivatedRoute, Params, Router } from '@angular/router';
 import { AppAnimations } from '../shared';
 import { ToastrService } from 'ngx-toastr';
-import * as Sentry from "@sentry/angular-ivy";
+import * as Sentry from "@sentry/angular";
 
 import { PackagesService, PackageInteractionService } from '../core';
 import { IPackageDownloadHistory, IDownloadStats } from '../shared/models/package-models';

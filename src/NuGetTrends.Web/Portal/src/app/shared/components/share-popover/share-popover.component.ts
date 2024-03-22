@@ -1,6 +1,6 @@
 import { Component, Input, ElementRef, HostListener, EventEmitter, Output, ErrorHandler } from '@angular/core';
 import { ToastrService } from 'ngx-toastr';
-import * as Sentry from '@sentry/angular-ivy';
+import * as Sentry from '@sentry/angular';
 
 import { SocialShareService } from 'src/app/core/services/social-share.service';
 
