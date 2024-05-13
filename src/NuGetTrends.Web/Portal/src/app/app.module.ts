@@ -1,25 +1,25 @@
-import { BrowserModule } from '@angular/platform-browser';
-import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import { NgModule, ErrorHandler } from '@angular/core';
-import { DatePipe } from '@angular/common';
-import { HttpClientModule } from '@angular/common/http';
-import { Router } from '@angular/router';
-import * as Sentry from '@sentry/angular';
-import { feedbackIntegration, feedbackModalIntegration, feedbackScreenshotIntegration } from "@sentry-internal/feedback";
+import { BrowserModule } from "@angular/platform-browser";
+import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
+import { NgModule, ErrorHandler } from "@angular/core";
+import { DatePipe } from "@angular/common";
+import { HttpClientModule } from "@angular/common/http";
+import { Router } from "@angular/router";
+import * as Sentry from "@sentry/angular";
 
-import { AppComponent } from './app.component';
-import { AppRoutingModule } from './app-routes.module';
-import { environment } from '../environments/environment';
-import { PackagesModule } from './packages/packages.module';
-import { SharedModule } from './shared/shared.module';
-import { HomeModule } from './home/home.module';
-import { CoreModule } from './core/core.module';
+import { AppComponent } from "./app.component";
+import { AppRoutingModule } from "./app-routes.module";
+import { environment } from "../environments/environment";
+import { PackagesModule } from "./packages/packages.module";
+import { SharedModule } from "./shared/shared.module";
+import { HomeModule } from "./home/home.module";
+import { CoreModule } from "./core/core.module";
 
 if (process.env.NODE_ENV === "development") {
-  import('@spotlightjs/spotlight').then((Spotlight) =>
+  import("@spotlightjs/spotlight").then((Spotlight) =>
     Spotlight.init({
-      anchor: 'centerRight',
-      injectImmediately: true })
+      anchor: "centerRight",
+      injectImmediately: true,
+    })
   );
 }
 
@@ -42,18 +42,12 @@ Sentry.init({
       networkResponseHeaders: ["Server"],
     }),
     Sentry.replayCanvasIntegration(),
-    feedbackIntegration({
+    Sentry.feedbackIntegration({
       colorScheme: "light", // no dark theme yet
       themeLight: {
-        submitBackground: '#215C84',
-        submitBackgroundHover: '#A2BACB',
-        submitBorder: '#153b54',
-        inputBackground: '#ffffff',
-        inputForeground: '#374151',
+        accentBackground: "#215C84",
       },
     }),
-    feedbackModalIntegration(),
-    feedbackScreenshotIntegration(),
     Sentry.browserTracingIntegration({
       idleTimeout: 30000,
     }),
@@ -62,9 +56,7 @@ Sentry.init({
 });
 
 @NgModule({
-  declarations: [
-    AppComponent
-  ],
+  declarations: [AppComponent],
   imports: [
     Sentry.TraceModule,
     AppRoutingModule,
@@ -74,7 +66,7 @@ Sentry.init({
     CoreModule,
     SharedModule,
     PackagesModule,
-    HomeModule
+    HomeModule,
   ],
   providers: [
     DatePipe,
@@ -82,7 +74,7 @@ Sentry.init({
       provide: ErrorHandler,
       useValue: Sentry.createErrorHandler({
         showDialog: environment.production, // User Feedback enabled in production
-        logErrors: !environment.production // log console errors in dev mode
+        logErrors: !environment.production, // log console errors in dev mode
       }),
     },
     {
@@ -90,11 +82,10 @@ Sentry.init({
       deps: [Router],
     },
   ],
-  bootstrap: [AppComponent]
+  bootstrap: [AppComponent],
 })
 export class AppModule {
-
   // force instantiating Sentry tracing
   // https://docs.sentry.io/platforms/javascript/guides/angular/#monitor-performance
-  constructor(_: Sentry.TraceService) { }
+  constructor(_: Sentry.TraceService) {}
 }
