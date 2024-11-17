@@ -120,8 +120,9 @@ export class PackagesComponent implements OnInit, OnDestroy {
    * Initializes the chart with the first added package
    */
   private initializeChart(firstPackageData: IPackageDownloadHistory): void {
+    let rawDates: Date[] = firstPackageData.downloads.map((download: IDownloadStats) => download.week);
     this.chartData.labels = firstPackageData.downloads.map((download: IDownloadStats) => {
-      return this.datePipe.transform(download.week, 'MMM d')!;
+      return this.getFormattedDate(download.week, this.packageInteractionService.searchPeriod);
     });
 
     this.chartData.datasets!.push(this.parseDataSet(firstPackageData));
@@ -135,6 +136,11 @@ export class PackagesComponent implements OnInit, OnDestroy {
       },
       tooltips: {
         callbacks: {
+          title: (tooltipItems: any[]) => {
+            const tooltipItem = tooltipItems[0];
+            const rawDate = rawDates[tooltipItem.index];
+            return this.datePipe.transform(rawDate, 'dd MMM yyyy')!;
+          },
           label: (tooltipItem: any, data: any) => {
             let label = data.datasets[tooltipItem.datasetIndex].label || 'NuGet Package';
             if (label) {
@@ -268,5 +274,20 @@ export class PackagesComponent implements OnInit, OnDestroy {
       queryParams,
       queryParamsHandling: 'merge'
     });
+  }
+
+  /**
+ * Gets correctly formated date depending on the period
+ */
+  private getFormattedDate(date: Date | string, period: number): string {
+    if (period >= 3 && period <= 6) {
+      return this.datePipe.transform(date, 'dd.MMM.yyyy')!;
+    } else if (period >= 12 && period <= 24) {
+      return this.datePipe.transform(date, 'MMM.yyyy')!;
+    } else if (period >= 72 && period <= 120) {
+      return this.datePipe.transform(date, 'yyyy')!;
+    } else {
+      return this.datePipe.transform(date, 'MMM yyyy')!;
+    }
   }
 }
