@@ -1,5 +1,5 @@
 import { Component, ErrorHandler, OnDestroy, OnInit } from '@angular/core';
-import { Chart, ChartData, ChartDataSets, ChartOptions } from 'chart.js';
+import { Chart, ChartData, ChartDataSets, ChartOptions, TimeUnit } from 'chart.js';
 import { DatePipe } from '@angular/common';
 import { firstValueFrom, Subscription } from 'rxjs';
 import { ActivatedRoute, Params, Router } from '@angular/router';
@@ -120,14 +120,9 @@ export class PackagesComponent implements OnInit, OnDestroy {
    * Initializes the chart with the first added package
    */
   private initializeChart(firstPackageData: IPackageDownloadHistory): void {
-    let rawDates: Date[] = firstPackageData.downloads.map((download: IDownloadStats) => download.week);
-    this.chartData.labels = firstPackageData.downloads.map((download: IDownloadStats) => {
-      return this.getFormattedDate(download.week, this.packageInteractionService.searchPeriod);
-    });
-
     this.chartData.datasets!.push(this.parseDataSet(firstPackageData));
     Chart.defaults.global.defaultFontSize = 13;
-
+  
     const chartOptions: ChartOptions = {
       responsive: true,
       maintainAspectRatio: false,
@@ -138,7 +133,7 @@ export class PackagesComponent implements OnInit, OnDestroy {
         callbacks: {
           title: (tooltipItems: any[]) => {
             const tooltipItem = tooltipItems[0];
-            const rawDate = rawDates[tooltipItem.index];
+            const rawDate = tooltipItem.xLabel;
             return this.datePipe.transform(rawDate, 'dd MMM yyyy')!;
           },
           label: (tooltipItem: any, data: any) => {
@@ -160,7 +155,21 @@ export class PackagesComponent implements OnInit, OnDestroy {
           scaleLabel: {
             display: false,
             labelString: 'Month'
-          }
+          },
+          type: 'time',
+          time: {
+            unit: this.getTimeUnit(this.packageInteractionService.searchPeriod),
+            displayFormats: {
+              day: 'DD MMM yyyy',
+              month: 'MMM yyyy',
+              year: 'yyyy'
+            }
+          },
+          ticks: {
+            source: 'auto',
+            autoSkip: true,
+          },
+  
         }],
         yAxes: [{
           display: true,
@@ -174,10 +183,10 @@ export class PackagesComponent implements OnInit, OnDestroy {
         }]
       }
     };
-
+  
     this.canvas = document.getElementById('trend-chart');
     this.ctx = this.canvas.getContext('2d');
-
+  
     this.trendChart = new Chart(this.ctx, {
       type: 'line',
       data: this.chartData,
@@ -190,7 +199,10 @@ export class PackagesComponent implements OnInit, OnDestroy {
    */
   private parseDataSet(packageHistory: IPackageDownloadHistory): ChartDataSets {
     const totalDownloads = packageHistory.downloads.map((data: IDownloadStats) => {
-      return data.count;
+      return {
+        x: new Date(data.week),
+        y: data.count
+      };
     });
 
     return {
@@ -279,15 +291,15 @@ export class PackagesComponent implements OnInit, OnDestroy {
   /**
  * Gets correctly formated date depending on the period
  */
-  private getFormattedDate(date: Date | string, period: number): string {
+  private getTimeUnit(period: number): TimeUnit {
     if (period >= 3 && period <= 6) {
-      return this.datePipe.transform(date, 'dd.MMM.yyyy')!;
+      return 'day';
     } else if (period >= 12 && period <= 24) {
-      return this.datePipe.transform(date, 'MMM.yyyy')!;
+      return 'month';
     } else if (period >= 72 && period <= 120) {
-      return this.datePipe.transform(date, 'yyyy')!;
+      return 'year';
     } else {
-      return this.datePipe.transform(date, 'MMM yyyy')!;
+      return 'month';
     }
   }
 }
