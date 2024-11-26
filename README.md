@@ -10,6 +10,7 @@
 [![Nuget Trends Web](https://github.com/dotnet/nuget-trends/workflows/Web/badge.svg)](https://github.com/dotnet/nuget-trends/actions?query=workflow%3AWeb)
 [![Codecov](https://img.shields.io/codecov/c/github/dotnet/nuget-trends?label=SPA%20-%20Coverage)](https://codecov.io/gh/dotnet/nuget-trends)
 [![Scheduler](https://github.com/dotnet/nuget-trends/workflows/Scheduler/badge.svg)](https://github.com/dotnet/nuget-trends/actions?query=workflow%3AScheduler)
+[![BuiltWithDot.Net shield](https://builtwithdot.net/project/414/nuget-trends/badge)](https://builtwithdot.net/project/414/nuget-trends)
 
 ## Summary
 
