@@ -1,14 +1,29 @@
 import { Component, ErrorHandler, OnDestroy, OnInit } from '@angular/core';
-import { Chart, ChartData, ChartDataSets, ChartOptions, TimeUnit } from 'chart.js';
 import { DatePipe } from '@angular/common';
 import { firstValueFrom, Subscription } from 'rxjs';
 import { ActivatedRoute, Params, Router } from '@angular/router';
 import { AppAnimations } from '../shared';
 import { ToastrService } from 'ngx-toastr';
 import * as Sentry from "@sentry/angular";
+import 'chartjs-adapter-date-fns'; 
 
 import { PackagesService, PackageInteractionService } from '../core';
 import { IPackageDownloadHistory, IDownloadStats } from '../shared/models/package-models';
+import { 
+  Chart, 
+  ChartData, 
+  ChartOptions, 
+  ChartDataset, 
+  TimeScale, 
+  LinearScale, 
+  Tooltip, 
+  Legend, 
+  LineController, 
+  LineElement, 
+  PointElement 
+} from 'chart.js';
+
+Chart.register(LineController, LineElement, PointElement, LinearScale, TimeScale, Tooltip, Legend);
 
 @Component({
   selector: 'app-dashboard',
@@ -120,73 +135,85 @@ export class PackagesComponent implements OnInit, OnDestroy {
    * Initializes the chart with the first added package
    */
   private initializeChart(firstPackageData: IPackageDownloadHistory): void {
+
+    if (this.trendChart) {
+      this.trendChart.destroy();
+    }
+
     this.chartData.datasets!.push(this.parseDataSet(firstPackageData));
-    Chart.defaults.global.defaultFontSize = 13;
-  
+    Chart.defaults.font.size = 13;
+
     const chartOptions: ChartOptions = {
       responsive: true,
       maintainAspectRatio: false,
-      legend: {
-        display: false
-      },
-      tooltips: {
-        callbacks: {
-          title: (tooltipItems: any[]) => {
-            const tooltipItem = tooltipItems[0];
-            const rawDate = tooltipItem.xLabel;
-            return this.datePipe.transform(rawDate, 'dd MMM yyyy')!;
+      plugins: {
+        legend: {
+          display: false,
+        },
+        tooltip: {
+          animation: false,
+          callbacks: {
+            title: (tooltipItems) => {
+              const rawData = tooltipItems[0].raw as { x: number; y: number }; 
+              const rawDate = rawData.x;
+              return this.datePipe.transform(rawDate, 'dd MMM yyyy')!;
+            },
+            label: (tooltipItem) => {
+              let label = tooltipItem.dataset.label || 'NuGet Package';
+              if (label) {
+                label += ': ';
+              }
+
+              const rawData = tooltipItem.raw as { x: number; y: number }; 
+              const value = rawData.y;
+              label += value.toLocaleString();
+              return label;
+            },
           },
-          label: (tooltipItem: any, data: any) => {
-            let label = data.datasets[tooltipItem.datasetIndex].label || 'NuGet Package';
-            if (label) {
-              label += ': ';
-            }
-            label += tooltipItem.yLabel.toLocaleString();
-            return label;
-          }
-        }
+        },
       },
       scales: {
-        gridLines: {
-          display: true
-        },
-        xAxes: [{
+        x: {
           display: true,
-          scaleLabel: {
+          title: {
             display: false,
-            labelString: 'Month'
+            text: 'Month',
           },
           type: 'time',
           time: {
             unit: this.getTimeUnit(this.packageInteractionService.searchPeriod),
             displayFormats: {
-              day: 'DD MMM yyyy',
+              day: 'dd MMM yyyy',
               month: 'MMM yyyy',
-              year: 'yyyy'
-            }
+              year: 'yyyy',
+            },
           },
           ticks: {
             source: 'auto',
             autoSkip: true,
           },
-  
-        }],
-        yAxes: [{
+        },
+        y: {
           display: true,
           ticks: {
-            callback: (value: string) => value.toLocaleString(),
+            callback: (tickValue: string | number) => {
+              if (typeof tickValue === 'number') {
+                return tickValue.toLocaleString();
+              }
+              return tickValue;
+            },
           },
-          scaleLabel: {
+          title: {
             display: false,
-            labelString: 'Downloads'
-          }
-        }]
-      }
+            text: 'Downloads',
+          },
+        },
+      },
     };
-  
+
     this.canvas = document.getElementById('trend-chart');
     this.ctx = this.canvas.getContext('2d');
-  
+
     this.trendChart = new Chart(this.ctx, {
       type: 'line',
       data: this.chartData,
@@ -197,11 +224,11 @@ export class PackagesComponent implements OnInit, OnDestroy {
   /**
    * Parses an IPackageDownloadHistory to a Chart.js type
    */
-  private parseDataSet(packageHistory: IPackageDownloadHistory): ChartDataSets {
+  private parseDataSet(packageHistory: IPackageDownloadHistory): ChartDataset<'line'> {
     const totalDownloads = packageHistory.downloads.map((data: IDownloadStats) => {
       return {
-        x: new Date(data.week),
-        y: data.count
+        x: new Date(data.week).getTime(),
+        y: data.count,
       };
     });
 
@@ -220,7 +247,7 @@ export class PackagesComponent implements OnInit, OnDestroy {
       data: totalDownloads,
     };
   }
-
+  
   /**
    * Reads the packages from the URL and initialize the chart
    * Useful when sharing the URL with others
@@ -291,7 +318,7 @@ export class PackagesComponent implements OnInit, OnDestroy {
   /**
  * Gets correctly formated date depending on the period
  */
-  private getTimeUnit(period: number): TimeUnit {
+  private getTimeUnit(period: number): any {
     if (period >= 3 && period <= 6) {
       return 'day';
     } else if (period >= 12 && period <= 24) {
