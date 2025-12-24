@@ -23,9 +23,7 @@ on:
   workflow_dispatch:
 jobs:
   build:
-    # Pinning to 22.04 due to:
-    # https://github.com/puppeteer/puppeteer/issues/12818#issuecomment-2593659514
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: 1
       DOTNET_NOLOGO: 1
