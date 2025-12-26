@@ -18,3 +18,30 @@ footer {
   line-height: 30px;
   color: $grey-light
 }
+
+.sentry-sponsor {
+  margin-top: 10px;
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: $grey-light;
+    text-decoration: none;
+
+    &:hover {
+      color: $white-ter;
+
+      .sentry-logo {
+        opacity: 1;
+      }
+    }
+  }
+
+  .sentry-logo {
+    height: 36px;
+    width: auto;
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
+  }
+}
