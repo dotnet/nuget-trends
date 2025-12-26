@@ -21,7 +21,7 @@
     "@angular/platform-browser": "^19.0.0",
     "@angular/platform-browser-dynamic": "^19.0.0",
     "@angular/router": "^19.0.0",
-    "@sentry/angular": "^8.0.0",
+    "@sentry/angular": "^10.32.1",
     "bulma": "^0.9.4",
     "bulma-start": "^0.0.5",
     "chart.js": "^4.4.7",
@@ -37,7 +37,7 @@
     "@angular/cli": "^19.0.0",
     "@angular/compiler-cli": "^19.0.0",
     "@angular/language-service": "^19.0.0",
-    "@spotlightjs/spotlight": "^2.0.0",
+
     "@types/jasmine": "~5.1.0",
     "@types/node": "^22.19.3",
     "jasmine-core": "~5.1.0",

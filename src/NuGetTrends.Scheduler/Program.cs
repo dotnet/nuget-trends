@@ -76,10 +76,6 @@ public class Program
                                    category,
                                    "Microsoft.EntityFrameworkCore.Model.Validation",
                                    StringComparison.Ordinal));
-                        if (Environment != Production)
-                        {
-                            o.EnableSpotlight = true;
-                        }
                     })
                     .UseStartup<Startup>();
             });

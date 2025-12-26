@@ -53,10 +53,6 @@ try
                 ? 0 // tunneling JS events
                 : 1.0;
             o.AddExceptionFilterForType<OperationCanceledException>();
-            if (environment != Production)
-            {
-                o.EnableSpotlight = true;
-            }
         });
 
     builder.Services.AddSentryTunneling(); // Add Sentry Tunneling to avoid ad-blockers.
