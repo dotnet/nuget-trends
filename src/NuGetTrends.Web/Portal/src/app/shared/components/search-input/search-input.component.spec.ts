@@ -102,7 +102,7 @@ describe('SearchInputComponent', () => {
     dispatchMatAutocompleteEvents('entity', component);
 
     // Assert - Should show all the options
-    expect(document.querySelectorAll('.mat-option').length)
+    expect(document.querySelectorAll('.mat-mdc-option').length)
       .toBe(PackagesServiceMock.mockedPackageResult.length);
   }));
 
@@ -179,7 +179,7 @@ describe('SearchInputComponent', () => {
     fixture.detectChanges();
     dispatchMatAutocompleteEvents('entity', component);
 
-    const firstOption: any = document.querySelectorAll('.mat-option')[0];
+    const firstOption: any = document.querySelectorAll('.mat-mdc-option')[0];
     firstOption.click();
     tick(300);
 
@@ -198,7 +198,7 @@ describe('SearchInputComponent', () => {
     fixture.detectChanges();
     dispatchMatAutocompleteEvents('entity', component);
 
-    const firstOption: any = document.querySelectorAll('.mat-option')[0];
+    const firstOption: any = document.querySelectorAll('.mat-mdc-option')[0];
     firstOption.click();
     tick(300);
 
@@ -215,7 +215,7 @@ describe('SearchInputComponent', () => {
     fixture.detectChanges();
     dispatchMatAutocompleteEvents('entity', component);
 
-    const firstOption: any = document.querySelectorAll('.mat-option')[0];
+    const firstOption: any = document.querySelectorAll('.mat-mdc-option')[0];
     firstOption.click();
     tick(300);
 
@@ -229,7 +229,7 @@ describe('SearchInputComponent', () => {
 
     // Arrange
     dispatchMatAutocompleteEvents('entity', component);
-    expect(document.querySelectorAll('.mat-option').length)
+    expect(document.querySelectorAll('.mat-mdc-option').length)
       .toBe(PackagesServiceMock.mockedPackageResult.length);
 
     // Act
@@ -243,7 +243,7 @@ describe('SearchInputComponent', () => {
     dispatchMatAutocompleteEvents('', component);
 
     // Assert
-    expect(document.querySelectorAll('.mat-option').length)
+    expect(document.querySelectorAll('.mat-mdc-option').length)
       .toBe(0);
   }));
 
@@ -252,14 +252,14 @@ describe('SearchInputComponent', () => {
 
     // Arrange
     dispatchMatAutocompleteEvents('entity', component);
-    expect(document.querySelectorAll('.mat-option').length)
+    expect(document.querySelectorAll('.mat-mdc-option').length)
       .toBe(PackagesServiceMock.mockedPackageResult.length);
 
     // Act
     dispatchMatAutocompleteEvents('', component);
 
     // Assert
-    expect(document.querySelectorAll('.mat-option').length)
+    expect(document.querySelectorAll('.mat-mdc-option').length)
       .toBe(PackagesServiceMock.mockedPackageResult.length);
   }));
 
