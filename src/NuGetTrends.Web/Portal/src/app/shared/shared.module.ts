@@ -1,7 +1,7 @@
 import { NgModule } from '@angular/core';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
-import { MatLegacyAutocompleteModule as MatAutocompleteModule } from '@angular/material/legacy-autocomplete';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { HTTP_INTERCEPTORS } from '@angular/common/http';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { ToastrModule } from 'ngx-toastr';
@@ -17,6 +17,14 @@ import {
 import { SharePopoverComponent } from './components/share-popover/share-popover.component';
 
 @NgModule({
+  declarations: [
+    SearchInputComponent,
+    PackageListComponent,
+    SearchTypeComponent,
+    SearchPeriodComponent,
+    LoadingIndicatorComponent,
+    SharePopoverComponent
+  ],
   imports: [
     CommonModule,
     FormsModule,
@@ -27,14 +35,6 @@ import { SharePopoverComponent } from './components/share-popover/share-popover.
     }),
     ReactiveFormsModule,
     BrowserAnimationsModule
-  ],
-  declarations: [
-    SearchInputComponent,
-    PackageListComponent,
-    SearchTypeComponent,
-    SearchPeriodComponent,
-    LoadingIndicatorComponent,
-    SharePopoverComponent
   ],
   exports: [
     CommonModule,

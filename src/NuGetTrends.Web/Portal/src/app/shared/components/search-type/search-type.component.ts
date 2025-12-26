@@ -3,6 +3,7 @@ import { SearchType } from '../../models/package-models';
 import { PackageInteractionService } from '../../../core';
 
 @Component({
+  standalone: false,
   selector: 'app-search-type',
   templateUrl: './search-type.component.html',
   styleUrls: ['./search-type.component.scss']

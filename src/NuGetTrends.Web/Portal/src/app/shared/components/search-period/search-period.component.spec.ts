@@ -26,7 +26,7 @@ describe('SearchPeriodComponent', () => {
         FormsModule,
         ReactiveFormsModule,
         RouterTestingModule.withRoutes([]),
-        HttpClientModule
+        HttpClientModule,
       ],
       providers: [
         { provide: Router, useClass: MockedRouter },

@@ -51,7 +51,9 @@ describe('PackagesComponent', () => {
 
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
-      declarations: [PackagesComponent, PackageListComponent, SearchPeriodComponent, SharePopoverComponent],
+      declarations: [
+        PackagesComponent, PackageListComponent, SearchPeriodComponent, SharePopoverComponent
+      ],
       imports: [
         CommonModule,
         FormsModule,
@@ -62,8 +64,10 @@ describe('PackagesComponent', () => {
         ToastrModule.forRoot({
           positionClass: 'toast-bottom-right',
           preventDuplicates: true,
-      })],
-      providers: [ DatePipe,
+        }),
+      ],
+      providers: [
+        DatePipe,
         { provide: PackagesService, useClass: PackagesServiceMock },
         { provide: ToastrService, useClass: ToastrMock },
         { provide: Router, useClass: MockedRouter },

@@ -6,9 +6,8 @@ import { FooterComponent } from './footer/footer.component';
 import { NavigationComponent } from './navigation/navigation.component';
 
 @NgModule({
-  imports: [],
-  exports: [FooterComponent],
   declarations: [FooterComponent, NavigationComponent],
+  exports: [FooterComponent, NavigationComponent],
   providers: [PackagesService, PackageInteractionService]
 })
 export class CoreModule {

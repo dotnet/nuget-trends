@@ -24,7 +24,8 @@ describe('SharePopoverComponent', () => {
         ToastrModule.forRoot({
           positionClass: 'toast-bottom-right',
           preventDuplicates: true,
-        })],
+        }),
+      ],
       providers: [
         { provide: ToastrService, useClass: ToastrMock },
       ]
