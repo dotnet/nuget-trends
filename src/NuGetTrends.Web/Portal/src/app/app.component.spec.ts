@@ -13,17 +13,17 @@ import { AppComponent } from './app.component';
 describe('AppComponent', () => {
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
-      declarations: [
-        AppComponent
-      ],
-      imports: [AppRoutingModule, AppRoutingModule,
+      declarations: [AppComponent],
+      imports: [
+        AppRoutingModule,
         BrowserModule,
         BrowserAnimationsModule,
         HttpClientModule,
         CoreModule,
         SharedModule,
         PackagesModule,
-        HomeModule]
+        HomeModule
+      ]
     }).compileComponents();
   }));
   it('should create the app', waitForAsync(() => {

@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 
 @Component({
   selector: 'app-navigation',
+  standalone: false,
   template: `
     <nav class="navbar has-shadow">
       <div class="container">

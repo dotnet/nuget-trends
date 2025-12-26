@@ -1,7 +1,7 @@
 import { AfterViewInit, Component, ElementRef, ErrorHandler, ViewChild, ViewEncapsulation } from '@angular/core';
 import { UntypedFormControl } from '@angular/forms';
 import { Router } from '@angular/router';
-import { MatLegacyAutocomplete as MatAutocomplete, MatLegacyAutocompleteSelectedEvent as MatAutocompleteSelectedEvent } from '@angular/material/legacy-autocomplete';
+import { MatAutocomplete, MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
 import { catchError, debounceTime, distinctUntilChanged, filter, map, mapTo, startWith, switchMap, tap } from 'rxjs/operators';
 import { EMPTY, Observable, Subject, merge, firstValueFrom } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
@@ -15,6 +15,7 @@ import { PackagesService, PackageInteractionService } from '../../../core';
   templateUrl: './search-input.component.html',
   styleUrls: ['./search-input.component.scss'],
   encapsulation: ViewEncapsulation.None,
+  standalone: false
 })
 @Sentry.TraceClass({ name: 'SearchInputComponent' })
 export class SearchInputComponent implements AfterViewInit {

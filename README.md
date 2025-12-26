@@ -36,15 +36,14 @@ Please refer to [CONTRIBUTING.md](CONTRIBUTING.md).
       </a>
 </div>
 
+## Sponsors
+
+<a href="https://sentry.io" target="_blank">
+  <img src=".github/sentry-logo.svg" width="200" alt="Sentry">
+</a>
+
+NuGet Trends is proudly hosted by [Sentry](https://sentry.io). They cover all infrastructure costs including servers, database, and provide their application monitoring platform for free. Thank you, Sentry, for [supporting open source](https://opensourcepledge.com/members/sentry/)!
+
 ## Acknowledgments
 
-* [Sentry.io](https://sentry.io) for supporting [open source projects like this](https://sentry.io/for/open-source/), free of charge.
 * [JetBrains](https://www.jetbrains.com/?from=NuGetTrends) for providing free licenses for core contributors.
-
-<h2>.NET Foundation
-<a href="https://dotnetfoundation.org/" target="_blank" align="center;bottom">
-<img src=".github/dotnetfoundationhorizontal.svg" width="70">
-</a>
-</h2>
-
-This project is supported by the [.NET Foundation](https://dotnetfoundation.org).

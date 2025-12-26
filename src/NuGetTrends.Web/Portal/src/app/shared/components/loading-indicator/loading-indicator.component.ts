@@ -8,7 +8,8 @@ import { LoadingIndicatorService } from './loading-indicator.service';
 @Component({
   selector: 'app-loading',
   templateUrl: './loading-indicator.component.html',
-  styleUrls: ['./loading-indicator.component.scss']
+  styleUrls: ['./loading-indicator.component.scss'],
+  standalone: false
 })
 @Sentry.TraceClass({ name: 'LoadingIndicatorComponent' })
 export class LoadingIndicatorComponent implements AfterViewInit, OnDestroy {
