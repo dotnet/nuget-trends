@@ -14,24 +14,15 @@ import { SharedModule } from "./shared/shared.module";
 import { HomeModule } from "./home/home.module";
 import { CoreModule } from "./core/core.module";
 
-if (process.env.NODE_ENV === "development") {
-  import("@spotlightjs/spotlight").then((Spotlight) =>
-    Spotlight.init({
-      anchor: "centerRight",
-      injectImmediately: true,
-    })
-  );
-}
-
 Sentry.init({
   dsn: environment.SENTRY_DSN,
   environment: environment.name,
   tunnel: environment.SENTRY_TUNNEL,
-  enableTracing: true,
+  tracesSampleRate: 1.0,
+  enableLogs: true,
   replaysSessionSampleRate: 1.0,
   replaysOnErrorSampleRate: 1.0,
-  // @ts-ignore - TODO: Remove on next bump, not in types yet
-  profilesSampleRate: 1.0,
+  profileSessionSampleRate: 1.0,
   integrations: [
     Sentry.replayIntegration({
       // No PII here so lets get the texts

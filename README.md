@@ -43,7 +43,3 @@ Please refer to [CONTRIBUTING.md](CONTRIBUTING.md).
 </a>
 
 NuGet Trends is proudly hosted by [Sentry](https://sentry.io). They cover all infrastructure costs including servers, database, and provide their application monitoring platform for free. Thank you, Sentry, for [supporting open source](https://opensourcepledge.com/members/sentry/)!
-
-## Acknowledgments
-
-* [JetBrains](https://www.jetbrains.com/?from=NuGetTrends) for providing free licenses for core contributors.
