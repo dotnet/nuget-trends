@@ -24,8 +24,13 @@ public class Startup(
         services.Configure<DailyDownloadWorkerOptions>(configuration.GetSection("DailyDownloadWorker"));
         services.Configure<RabbitMqOptions>(configuration.GetSection("RabbitMq"));
         services.Configure<BackgroundJobServerOptions>(configuration.GetSection("Hangfire"));
-        services.Configure<ClickHouseOptions>(configuration.GetSection(ClickHouseOptions.SectionName));
-        services.AddSingleton<IClickHouseService, ClickHouseService>();
+        services.AddSingleton<IClickHouseService>(sp =>
+        {
+            var connString = configuration.GetConnectionString("ClickHouse")
+                ?? throw new InvalidOperationException("ClickHouse connection string not configured.");
+            var logger = sp.GetRequiredService<ILogger<ClickHouseService>>();
+            return new ClickHouseService(connString, logger);
+        });
 
         services.AddSingleton<IConnectionFactory>(c =>
         {

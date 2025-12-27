@@ -1,6 +1,5 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 using NuGetTrends.Data.ClickHouse;
 using NuGetTrends.Data.Tests.Infrastructure;
 using Xunit;
@@ -16,11 +15,7 @@ public class ClickHouseServiceTests : IAsyncLifetime
     public ClickHouseServiceTests(ClickHouseFixture fixture)
     {
         _fixture = fixture;
-        var options = Options.Create(new ClickHouseOptions
-        {
-            ConnectionString = fixture.ConnectionString
-        });
-        _sut = new ClickHouseService(options, NullLogger<ClickHouseService>.Instance);
+        _sut = new ClickHouseService(fixture.ConnectionString, NullLogger<ClickHouseService>.Instance);
     }
 
     public async Task InitializeAsync()

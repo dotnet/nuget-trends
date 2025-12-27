@@ -2,18 +2,17 @@ using System.Globalization;
 using ClickHouse.Client.ADO;
 using ClickHouse.Client.Copy;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace NuGetTrends.Data.ClickHouse;
 
 public class ClickHouseService : IClickHouseService
 {
-    private readonly ClickHouseOptions _options;
+    private readonly string _connectionString;
     private readonly ILogger<ClickHouseService> _logger;
 
-    public ClickHouseService(IOptions<ClickHouseOptions> options, ILogger<ClickHouseService> logger)
+    public ClickHouseService(string connectionString, ILogger<ClickHouseService> logger)
     {
-        _options = options.Value;
+        _connectionString = connectionString;
         _logger = logger;
     }
 
@@ -27,7 +26,7 @@ public class ClickHouseService : IClickHouseService
             return;
         }
 
-        await using var connection = new ClickHouseConnection(_options.ConnectionString);
+        await using var connection = new ClickHouseConnection(_connectionString);
         await connection.OpenAsync(ct);
 
         using var bulkCopy = new ClickHouseBulkCopy(connection)
@@ -55,7 +54,7 @@ public class ClickHouseService : IClickHouseService
         int months,
         CancellationToken ct = default)
     {
-        await using var connection = new ClickHouseConnection(_options.ConnectionString);
+        await using var connection = new ClickHouseConnection(_connectionString);
         await connection.OpenAsync(ct);
 
         await using var cmd = connection.CreateCommand();
@@ -100,7 +99,7 @@ public class ClickHouseService : IClickHouseService
         DateOnly date,
         CancellationToken ct = default)
     {
-        await using var connection = new ClickHouseConnection(_options.ConnectionString);
+        await using var connection = new ClickHouseConnection(_connectionString);
         await connection.OpenAsync(ct);
 
         await using var cmd = connection.CreateCommand();
@@ -151,7 +150,7 @@ public class ClickHouseService : IClickHouseService
         // Collect processed package IDs across all batches
         var processed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        await using var connection = new ClickHouseConnection(_options.ConnectionString);
+        await using var connection = new ClickHouseConnection(_connectionString);
         await connection.OpenAsync(ct);
 
         // Process in batches to avoid HTTP form field size limits

@@ -90,8 +90,13 @@ try
          }
      });
 
-     builder.Services.Configure<ClickHouseOptions>(configuration.GetSection(ClickHouseOptions.SectionName));
-     builder.Services.AddSingleton<IClickHouseService, ClickHouseService>();
+     builder.Services.AddSingleton<IClickHouseService>(sp =>
+     {
+         var connString = configuration.GetConnectionString("ClickHouse")
+             ?? throw new InvalidOperationException("ClickHouse connection string not configured.");
+         var logger = sp.GetRequiredService<ILogger<ClickHouseService>>();
+         return new ClickHouseService(connString, logger);
+     });
 
      builder.Services.AddSwaggerGen(c =>
      {
