@@ -255,37 +255,9 @@ SELECT count() FROM daily_downloads;
 
 ## Data Migration
 
-### Export from PostgreSQL (with lowercase transformation)
+Use the streaming migration script: [`scripts/migrate-daily-downloads-to-clickhouse.cs`](../scripts/README.md)
 
-```bash
-psql -h <host> -U nugettrends -d nugettrends \
-  -c "COPY (SELECT LOWER(package_id), date::date, download_count FROM daily_downloads) TO STDOUT WITH CSV" \
-  > daily_downloads.csv
-```
-
-### Import to ClickHouse
-
-```bash
-clickhouse-client --query \
-  "INSERT INTO daily_downloads FORMAT CSV" < daily_downloads.csv
-```
-
-### Verify Migration
-
-```sql
--- Compare row counts
--- PostgreSQL:
-SELECT count(*) FROM daily_downloads;
-
--- ClickHouse:
-SELECT count() FROM daily_downloads;
-
--- Spot check specific packages
-SELECT package_id, min(date), max(date), count()
-FROM daily_downloads
-WHERE package_id = 'sentry'
-GROUP BY package_id;
-```
+The script streams the entire PostgreSQL table in a single query, applies `LOWER()` to normalize package IDs, and batch-inserts to ClickHouse. See the script README for usage details.
 
 ---
 
@@ -309,9 +281,7 @@ GROUP BY package_id;
 - [x] Write integration tests (ClickHouseServiceTests with Testcontainers)
 
 ### Phase 3: Data Migration
-- [ ] Take PostgreSQL backup/snapshot
-- [ ] Export data from PostgreSQL (with lowercase transformation)
-- [ ] Import to ClickHouse
+- [x] Run streaming migration script (`scripts/migrate-daily-downloads-to-clickhouse.cs`)
 - [ ] Verify row counts match
 - [ ] Spot-check data integrity for sample packages
 
