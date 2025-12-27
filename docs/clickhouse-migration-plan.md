@@ -40,31 +40,33 @@ This document outlines the plan to migrate the `daily_downloads` time-series dat
 
 ### Architecture Diagram
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                       PostgreSQL                             │
-│  - package_details_catalog_leafs                            │
-│  - package_downloads (for search autocomplete + orig case)  │
-│  - package_dependency_group, package_dependency             │
-│  - cursors                                                  │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                          PostgreSQL                                 │
+│  - package_details_catalog_leafs (NuGet catalog metadata)           │
+│  - package_downloads (latest count + LatestDownloadCountCheckedUtc) │
+│  - package_dependency_group, package_dependency                     │
+│  - cursors                                                          │
+└─────────────────────────────────────────────────────────────────────┘
                               │
         Publisher queries     │    Worker updates
-        package list          │    package_downloads
+        unprocessed packages  │    package_downloads
                               ▼
-┌─────────────────────────────────────────────────────────────┐
-│                       ClickHouse                             │
-│                                                              │
-│  daily_downloads                                            │
-│  ├── ENGINE = MergeTree()                                   │
-│  ├── PARTITION BY toYYYYMM(date)                           │
-│  └── ORDER BY (package_id, date)                           │
-│                                                              │
-│  Key Design: package_id stored LOWERCASE for case-insensitive│
-│  searching. Original case retrieved from PostgreSQL.         │
-│                                                              │
-│  Query: Aggregate on-the-fly (no materialized views)        │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                          ClickHouse                                 │
+│                                                                     │
+│  daily_downloads                                                    │
+│  ├── ENGINE = ReplacingMergeTree()  (deduplicates by ORDER BY key) │
+│  ├── PARTITION BY toYYYYMM(date)                                   │
+│  └── ORDER BY (package_id, date)                                   │
+│                                                                     │
+│  Key Design: package_id stored LOWERCASE for case-insensitive      │
+│  searching. Original case retrieved from PostgreSQL.                │
+│                                                                     │
+│  Query: Aggregate on-the-fly (no materialized views)               │
+└─────────────────────────────────────────────────────────────────────┘
 ```
+
+For the complete data pipeline architecture (publisher, RabbitMQ, workers), see [CONTRIBUTING.md](../CONTRIBUTING.md#daily-download-pipeline-architecture).
 
 ---
 
@@ -80,25 +82,19 @@ This document outlines the plan to migrate the `daily_downloads` time-series dat
 | `UInt64` for download_count | Unsigned, matches expected values |
 | `PARTITION BY toYYYYMM(date)` | Monthly partitions for efficient date range pruning |
 | `ORDER BY (package_id, date)` | Optimizes the primary query pattern (filter by package_id, range on date) |
+| `ReplacingMergeTree` engine | Deduplicates rows with same `(package_id, date)` during background merges - safety net for duplicate inserts |
 | No materialized views | Single-package queries are fast enough without pre-aggregation |
 | Keep all data forever | No retention policy, preserve full history |
 
 ### Schema Definition
 
-```sql
-CREATE TABLE IF NOT EXISTS daily_downloads
-(
-    -- Package ID stored in LOWERCASE for case-insensitive searching
-    -- Original case is available from PostgreSQL package_downloads table
-    package_id String,
-    date Date,
-    download_count UInt64
-)
-ENGINE = MergeTree()
-PARTITION BY toYYYYMM(date)
-ORDER BY (package_id, date)
-SETTINGS index_granularity = 8192;
-```
+See [`src/NuGetTrends.Data/ClickHouse/migrations/2024-12-26-1-init.sql`](../src/NuGetTrends.Data/ClickHouse/migrations/2024-12-26-1-init.sql) for the full schema.
+
+Key points:
+- `ENGINE = ReplacingMergeTree()` - deduplicates rows with same `(package_id, date)` during background merges
+- `PARTITION BY toYYYYMM(date)` - monthly partitions for efficient date range pruning
+- `ORDER BY (package_id, date)` - optimizes filter by package_id + range on date
+- Package IDs stored **lowercase** for case-insensitive queries
 
 ### Example Queries
 
@@ -175,299 +171,40 @@ YYYY-MM-DD-N-description.sql
 
 ## Code Changes
 
-### 1. Add ClickHouse Client Package
+All code changes have been implemented. See the key files:
 
-**File**: `src/NuGetTrends.Data/NuGetTrends.Data.csproj`
-```xml
-<PackageReference Include="ClickHouse.Client" Version="7.*" />
-```
+| Component | File |
+|-----------|------|
+| ClickHouse Service Interface | [`src/NuGetTrends.Data/ClickHouse/IClickHouseService.cs`](../src/NuGetTrends.Data/ClickHouse/IClickHouseService.cs) |
+| ClickHouse Service Implementation | [`src/NuGetTrends.Data/ClickHouse/ClickHouseService.cs`](../src/NuGetTrends.Data/ClickHouse/ClickHouseService.cs) |
+| Worker (batch insert to ClickHouse) | [`src/NuGetTrends.Scheduler/DailyDownloadWorker.cs`](../src/NuGetTrends.Scheduler/DailyDownloadWorker.cs) |
+| Publisher (PostgreSQL join filter) | [`src/NuGetTrends.Scheduler/DailyDownloadPackageIdPublisher.cs`](../src/NuGetTrends.Scheduler/DailyDownloadPackageIdPublisher.cs) |
+| API Controller | [`src/NuGetTrends.Web/PackageController.cs`](../src/NuGetTrends.Web/PackageController.cs) |
+| DI Registration (Scheduler) | [`src/NuGetTrends.Scheduler/Startup.cs`](../src/NuGetTrends.Scheduler/Startup.cs) |
+| DI Registration (Web) | [`src/NuGetTrends.Web/Program.cs`](../src/NuGetTrends.Web/Program.cs) |
 
-### 2. ClickHouse Configuration
+### Configuration
 
-**File**: `src/NuGetTrends.Data/ClickHouseOptions.cs`
-```csharp
-public class ClickHouseOptions
-{
-    public const string SectionName = "ClickHouse";
-    public string ConnectionString { get; set; } = "Host=localhost;Port=8123;Database=nugettrends";
-}
-```
+Connection string is configured under `ConnectionStrings:ClickHouse` in appsettings.json:
 
-### 3. New ClickHouse Service
-
-**New file**: `src/NuGetTrends.Data/IClickHouseService.cs`
-
-```csharp
-public interface IClickHouseService
-{
-    /// <summary>
-    /// Batch insert daily downloads. Package IDs are automatically lowercased.
-    /// </summary>
-    Task InsertDailyDownloadsAsync(
-        IEnumerable<(string PackageId, DateOnly Date, long DownloadCount)> downloads,
-        CancellationToken ct = default);
-    
-    /// <summary>
-    /// Get weekly download aggregations for a package.
-    /// </summary>
-    /// <param name="packageId">Package ID (will be lowercased for query)</param>
-    /// <param name="months">Number of months to look back</param>
-    Task<List<DailyDownloadResult>> GetWeeklyDownloadsAsync(
-        string packageId, 
-        int months, 
-        CancellationToken ct = default);
-    
-    /// <summary>
-    /// Get package IDs that have downloads recorded for a specific date.
-    /// Returns lowercase package IDs.
-    /// </summary>
-    Task<HashSet<string>> GetPackagesWithDownloadsForDateAsync(
-        DateOnly date, 
-        CancellationToken ct = default);
-}
-```
-
-**New file**: `src/NuGetTrends.Data/ClickHouseService.cs`
-
-```csharp
-public class ClickHouseService : IClickHouseService
-{
-    private readonly ClickHouseConnection _connection;
-    private readonly ILogger<ClickHouseService> _logger;
-
-    public ClickHouseService(IOptions<ClickHouseOptions> options, ILogger<ClickHouseService> logger)
-    {
-        _connection = new ClickHouseConnection(options.Value.ConnectionString);
-        _logger = logger;
-    }
-
-    public async Task InsertDailyDownloadsAsync(
-        IEnumerable<(string PackageId, DateOnly Date, long DownloadCount)> downloads,
-        CancellationToken ct = default)
-    {
-        var data = downloads.Select(d => new object[] 
-        { 
-            d.PackageId.ToLowerInvariant(),  // Always store lowercase
-            d.Date, 
-            d.DownloadCount 
-        });
-
-        await using var bulkCopy = new ClickHouseBulkCopy(_connection)
-        {
-            DestinationTableName = "daily_downloads",
-            ColumnNames = new[] { "package_id", "date", "download_count" }
-        };
-
-        await bulkCopy.InitAsync();
-        await bulkCopy.WriteToServerAsync(data, ct);
-    }
-
-    public async Task<List<DailyDownloadResult>> GetWeeklyDownloadsAsync(
-        string packageId, 
-        int months, 
-        CancellationToken ct = default)
-    {
-        const string sql = @"
-            SELECT 
-                toMonday(date) AS week,
-                avg(download_count) AS download_count
-            FROM daily_downloads
-            WHERE package_id = {packageId:String}
-              AND date >= today() - INTERVAL {months:Int32} MONTH
-            GROUP BY week
-            ORDER BY week";
-
-        await _connection.OpenAsync(ct);
-        await using var cmd = _connection.CreateCommand();
-        cmd.CommandText = sql;
-        cmd.AddParameter("packageId", packageId.ToLowerInvariant());
-        cmd.AddParameter("months", months);
-
-        var results = new List<DailyDownloadResult>();
-        await using var reader = await cmd.ExecuteReaderAsync(ct);
-        while (await reader.ReadAsync(ct))
-        {
-            results.Add(new DailyDownloadResult
-            {
-                Week = reader.GetDateTime(0),
-                DownloadCount = reader.IsDBNull(1) ? null : (long?)reader.GetDouble(1)
-            });
-        }
-        return results;
-    }
-
-    public async Task<HashSet<string>> GetPackagesWithDownloadsForDateAsync(
-        DateOnly date, 
-        CancellationToken ct = default)
-    {
-        const string sql = @"
-            SELECT DISTINCT package_id
-            FROM daily_downloads
-            WHERE date = {date:Date}";
-
-        await _connection.OpenAsync(ct);
-        await using var cmd = _connection.CreateCommand();
-        cmd.CommandText = sql;
-        cmd.AddParameter("date", date);
-
-        var results = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        await using var reader = await cmd.ExecuteReaderAsync(ct);
-        while (await reader.ReadAsync(ct))
-        {
-            results.Add(reader.GetString(0));
-        }
-        return results;
-    }
-}
-```
-
-### 4. Modify DailyDownloadWorker for Batch Inserts
-
-**File**: `src/NuGetTrends.Scheduler/DailyDownloadWorker.cs`
-
-```csharp
-// Before: Insert one at a time via EF Core
-context.DailyDownloads.Add(new DailyDownload
-{
-    PackageId = packageMetadata.Identity.Id,
-    Date = DateTime.UtcNow.Date,
-    DownloadCount = packageMetadata.DownloadCount
-});
-
-// After: Collect all downloads, then batch insert to ClickHouse
-private async Task UpdateDownloadCount(IList<string> packageIds, ISpan parentSpan)
-{
-    // ... fetch package metadata (existing code) ...
-
-    var today = DateOnly.FromDateTime(DateTime.UtcNow);
-    var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>();
-
-    for (var i = 0; i < tasks.Count; i++)
-    {
-        var packageMetadata = tasks[i].Result;
-        if (packageMetadata?.DownloadCount != null)
-        {
-            downloads.Add((
-                packageMetadata.Identity.Id,
-                today,
-                packageMetadata.DownloadCount.Value
-            ));
-
-            // Update PackageDownloads in PostgreSQL (existing code for search/autocomplete)
-            // ...
-        }
-    }
-
-    // Batch insert to ClickHouse
-    if (downloads.Count > 0)
-    {
-        var chInsertSpan = parentSpan.StartChild("clickhouse.insert", "Batch insert daily downloads");
-        chInsertSpan.SetTag("count", downloads.Count.ToString());
-        await _clickHouseService.InsertDailyDownloadsAsync(downloads, _cancellationTokenSource.Token);
-        chInsertSpan.Finish();
-    }
-
-    // Save PostgreSQL changes (PackageDownloads updates)
-    await context.SaveChangesAsync(_cancellationTokenSource.Token);
-}
-```
-
-### 5. Modify PackageController
-
-**File**: `src/NuGetTrends.Web/PackageController.cs`
-
-```csharp
-public class PackageController(
-    NuGetTrendsContext context,
-    IClickHouseService clickHouseService) : ControllerBase
-{
-    [HttpGet("history/{id}")]
-    public async Task<IActionResult> GetDownloadHistory(
-        [FromRoute] string id,
-        CancellationToken cancellationToken,
-        [FromQuery] int months = 3)
-    {
-        // Validate package exists in PostgreSQL (also gets original case if needed)
-        if (!await context.PackageDownloads
-            .AnyAsync(p => p.PackageIdLowered == id.ToLower(CultureInfo.InvariantCulture), cancellationToken))
-        {
-            return NotFound();
-        }
-
-        // Query ClickHouse for download history
-        var downloads = await clickHouseService.GetWeeklyDownloadsAsync(id, months, cancellationToken);
-        
-        return Ok(new { Id = id, Downloads = downloads });
-    }
-}
-```
-
-### 6. Modify DailyDownloadPackageIdPublisher
-
-**File**: `src/NuGetTrends.Scheduler/DailyDownloadPackageIdPublisher.cs`
-
-Replace PostgreSQL VIEW query with ClickHouse check:
-
-```csharp
-public class DailyDownloadPackageIdPublisher(
-    IConnectionFactory connectionFactory,
-    NuGetTrendsContext context,
-    IClickHouseService clickHouseService,  // Add this
-    IHub hub,
-    ILogger<DailyDownloadPackageIdPublisher> logger)
-{
-    public async Task Import(IJobCancellationToken token)
-    {
-        // Get all package IDs from PostgreSQL
-        var allPackages = await context.PackageDetailsCatalogLeafs
-            .Select(p => p.PackageId)
-            .Distinct()
-            .ToListAsync();
-
-        // Get packages already processed today from ClickHouse
-        var processedToday = await clickHouseService.GetPackagesWithDownloadsForDateAsync(
-            DateOnly.FromDateTime(DateTime.UtcNow));
-
-        // Find pending (case-insensitive comparison since CH stores lowercase)
-        var pending = allPackages
-            .Where(p => !processedToday.Contains(p.ToLowerInvariant()))
-            .ToList();
-
-        // Queue pending packages (existing batching logic)
-        // ...
-    }
-}
-```
-
-### 7. Configuration
-
-**File**: `src/NuGetTrends.Scheduler/appsettings.json`
 ```json
 {
-  "ClickHouse": {
-    "ConnectionString": "Host=localhost;Port=8123;Database=nugettrends"
+  "ConnectionStrings": {
+    "NuGetTrends": "Host=localhost;Database=nugettrends;...",
+    "ClickHouse": "Host=localhost;Port=8123;Database=nugettrends"
   }
 }
 ```
 
-**File**: `src/NuGetTrends.Web/appsettings.json`
-```json
-{
-  "ClickHouse": {
-    "ConnectionString": "Host=localhost;Port=8123;Database=nugettrends"
-  }
-}
-```
+### Deduplication Strategy
 
-### 8. DI Registration
+The publisher uses a PostgreSQL LEFT JOIN to filter packages where `LatestDownloadCountCheckedUtc < today`. This prevents re-processing packages that have already been checked today.
 
-**File**: `src/NuGetTrends.Scheduler/Startup.cs` and `src/NuGetTrends.Web/Program.cs`
-```csharp
-services.Configure<ClickHouseOptions>(configuration.GetSection(ClickHouseOptions.SectionName));
-services.AddSingleton<IClickHouseService, ClickHouseService>();
-```
+As a safety net, ClickHouse uses `ReplacingMergeTree` engine which deduplicates rows with the same `(package_id, date)` during background merges.
 
-### 9. Remove PostgreSQL daily_downloads
+See [CONTRIBUTING.md](../CONTRIBUTING.md#daily-download-pipeline-architecture) for the complete pipeline architecture diagram.
+
+### Cleanup (Phase 5)
 
 After migration is complete:
 - Remove `DailyDownload` entity from `NuGetTrendsContext`
@@ -562,14 +299,14 @@ GROUP BY package_id;
 
 ### Phase 2: Code Implementation
 - [x] Add `ClickHouse.Client` NuGet package
-- [x] Implement `ClickHouseOptions` configuration class
 - [x] Implement `IClickHouseService` and `ClickHouseService`
 - [x] Register in DI containers (Scheduler and Web)
-- [x] Add ClickHouse configuration to appsettings.json files
+- [x] Add ClickHouse configuration to appsettings.json files (using `ConnectionStrings:ClickHouse`)
 - [x] Modify `DailyDownloadWorker` for batch inserts to ClickHouse
 - [x] Modify `PackageController` to read from ClickHouse
-- [x] Modify `DailyDownloadPackageIdPublisher` pending logic
-- [ ] Write unit/integration tests
+- [x] Modify `DailyDownloadPackageIdPublisher` to use PostgreSQL JOIN filter (replaces ClickHouse check)
+- [x] Use `ReplacingMergeTree` engine for deduplication safety net
+- [x] Write integration tests (ClickHouseServiceTests with Testcontainers)
 
 ### Phase 3: Data Migration
 - [ ] Take PostgreSQL backup/snapshot

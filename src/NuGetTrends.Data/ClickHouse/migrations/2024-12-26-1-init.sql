@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS nugettrends.daily_downloads
     -- Total download count for this package on this date
     download_count UInt64
 )
-ENGINE = MergeTree()
+ENGINE = ReplacingMergeTree()
 -- Monthly partitions for efficient date range pruning
 PARTITION BY toYYYYMM(date)
 -- Primary sort key: optimizes filter by package_id + range on date
