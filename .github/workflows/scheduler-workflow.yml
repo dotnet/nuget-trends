@@ -74,10 +74,7 @@ jobs:
         working-directory: src/NuGetTrends.Scheduler/
 
       - name: Test
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-        run: dotnet test -c Release
-
+        run: dotnet test -c Release -p:SentryUploadSymbols=false
         working-directory: src/NuGetTrends.Data.Tests/
 
       - name: Publish

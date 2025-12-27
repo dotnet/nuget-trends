@@ -28,7 +28,7 @@ jobs:
         run: dotnet restore src/NuGetTrends.IntegrationTests
 
       - name: Build
-        run: dotnet build src/NuGetTrends.IntegrationTests -c Release --no-restore
+        run: dotnet build src/NuGetTrends.IntegrationTests -c Release --no-restore -p:SentryUploadSymbols=false
 
       - name: Run E2E Tests
         run: dotnet test src/NuGetTrends.IntegrationTests -c Release --no-build --logger "trx;LogFileName=e2e-results.trx" --logger "console;verbosity=detailed"
