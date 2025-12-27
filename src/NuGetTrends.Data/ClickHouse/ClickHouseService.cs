@@ -127,6 +127,9 @@ public class ClickHouseService : IClickHouseService
         return results;
     }
 
+    // ClickHouse HTTP interface has limits on form field size, so we batch queries
+    private const int MaxPackageIdsPerQuery = 2000;
+
     public async Task<List<string>> GetUnprocessedPackagesAsync(
         IReadOnlyList<string> packageIds,
         DateOnly date,
@@ -145,34 +148,41 @@ public class ClickHouseService : IClickHouseService
             caseMapping.TryAdd(lower, id); // Keep first occurrence's case
         }
 
+        // Collect processed package IDs across all batches
+        var processed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         await using var connection = new ClickHouseConnection(_options.ConnectionString);
         await connection.OpenAsync(ct);
 
-        await using var cmd = connection.CreateCommand();
-        cmd.CommandText = """
-            SELECT package_id
-            FROM daily_downloads
-            WHERE date = {date:Date}
-              AND has({packageIds:Array(String)}, package_id)
-            """;
-
-        var dateParam = cmd.CreateParameter();
-        dateParam.ParameterName = "date";
-        dateParam.Value = date;
-        cmd.Parameters.Add(dateParam);
-
-        var packageIdsParam = cmd.CreateParameter();
-        packageIdsParam.ParameterName = "packageIds";
-        packageIdsParam.Value = caseMapping.Keys.ToArray();
-        cmd.Parameters.Add(packageIdsParam);
-
-        // Collect processed package IDs
-        var processed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        await using var reader = await cmd.ExecuteReaderAsync(ct);
-
-        while (await reader.ReadAsync(ct))
+        // Process in batches to avoid HTTP form field size limits
+        var lowercaseIds = caseMapping.Keys.ToList();
+        for (var i = 0; i < lowercaseIds.Count; i += MaxPackageIdsPerQuery)
         {
-            processed.Add(reader.GetString(0));
+            var batch = lowercaseIds.Skip(i).Take(MaxPackageIdsPerQuery).ToArray();
+
+            await using var cmd = connection.CreateCommand();
+            cmd.CommandText = """
+                SELECT package_id
+                FROM daily_downloads
+                WHERE date = {date:Date}
+                  AND has({packageIds:Array(String)}, package_id)
+                """;
+
+            var dateParam = cmd.CreateParameter();
+            dateParam.ParameterName = "date";
+            dateParam.Value = date;
+            cmd.Parameters.Add(dateParam);
+
+            var packageIdsParam = cmd.CreateParameter();
+            packageIdsParam.ParameterName = "packageIds";
+            packageIdsParam.Value = batch;
+            cmd.Parameters.Add(packageIdsParam);
+
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+            {
+                processed.Add(reader.GetString(0));
+            }
         }
 
         // Return unprocessed packages with original case

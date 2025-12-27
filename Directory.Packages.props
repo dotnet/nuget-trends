@@ -28,5 +28,12 @@
     <PackageVersion Include="Shortr.Npgsql" Version="1.0.0-beta01" />
     <PackageVersion Include="Swashbuckle.AspNetCore" Version="6.5.0" />
     <PackageVersion Include="UnoptimizedAssemblyDetector" Version="0.1.1" />
+    <!-- Test packages -->
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageVersion Include="xunit" Version="2.9.2" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageVersion Include="FluentAssertions" Version="7.0.0" />
+    <!-- Testcontainers: Keep ClickHouse version in sync with docker-compose.yml (currently 25.11.5) -->
+    <PackageVersion Include="Testcontainers.ClickHouse" Version="4.1.0" />
   </ItemGroup>
 </Project>

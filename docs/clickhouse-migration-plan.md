@@ -107,7 +107,7 @@ SETTINGS index_granularity = 8192;
 SELECT 
     toMonday(date) AS week,
     avg(download_count) AS download_count
-FROM daily_downloads
+FROM nugettrends.daily_downloads
 WHERE package_id = lower('Sentry')  -- Always query with lowercase
   AND date >= today() - INTERVAL 12 MONTH
 GROUP BY week
@@ -117,7 +117,7 @@ ORDER BY week;
 **Daily granularity (for short time ranges):**
 ```sql
 SELECT date, download_count
-FROM daily_downloads
+FROM nugettrends.daily_downloads
 WHERE package_id = lower('Sentry')
   AND date >= today() - INTERVAL 30 DAY
 ORDER BY date;
@@ -128,7 +128,7 @@ ORDER BY date;
 SELECT 
     toStartOfMonth(date) AS month,
     avg(download_count) AS download_count
-FROM daily_downloads
+FROM nugettrends.daily_downloads
 WHERE package_id = lower('Sentry')
   AND date >= today() - INTERVAL 10 YEAR
 GROUP BY month
@@ -138,7 +138,7 @@ ORDER BY month;
 **Check packages processed today:**
 ```sql
 SELECT DISTINCT package_id
-FROM daily_downloads
+FROM nugettrends.daily_downloads
 WHERE date = today();
 ```
 
