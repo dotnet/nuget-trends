@@ -56,7 +56,7 @@ This document outlines the plan to migrate the `daily_downloads` time-series dat
 │                                                                     │
 │  daily_downloads                                                    │
 │  ├── ENGINE = ReplacingMergeTree()  (deduplicates by ORDER BY key) │
-│  ├── PARTITION BY toYYYYMM(date)                                   │
+│  ├── PARTITION BY toYear(date)                                     │
 │  └── ORDER BY (package_id, date)                                   │
 │                                                                     │
 │  Key Design: package_id stored LOWERCASE for case-insensitive      │
@@ -80,7 +80,7 @@ For the complete data pipeline architecture (publisher, RabbitMQ, workers), see 
 | `String` for package_id | NuGet has 400K+ packages, exceeding LowCardinality's recommended 10K threshold. Native string compression with ZSTD is efficient enough. |
 | `Date` instead of `DateTime` | Daily granularity is sufficient, saves storage |
 | `UInt64` for download_count | Unsigned, matches expected values |
-| `PARTITION BY toYYYYMM(date)` | Monthly partitions for efficient date range pruning |
+| `PARTITION BY toYear(date)` | Yearly partitions for optional data management (e.g., DROP PARTITION to remove old years). Yearly preferred over monthly to avoid INSERT issues with max_partitions_per_insert_block limit. |
 | `ORDER BY (package_id, date)` | Optimizes the primary query pattern (filter by package_id, range on date) |
 | `ReplacingMergeTree` engine | Deduplicates rows with same `(package_id, date)` during background merges - safety net for duplicate inserts |
 | No materialized views | Single-package queries are fast enough without pre-aggregation |
@@ -92,7 +92,7 @@ See [`src/NuGetTrends.Data/ClickHouse/migrations/2024-12-26-1-init.sql`](../src/
 
 Key points:
 - `ENGINE = ReplacingMergeTree()` - deduplicates rows with same `(package_id, date)` during background merges
-- `PARTITION BY toYYYYMM(date)` - monthly partitions for efficient date range pruning
+- `PARTITION BY toYear(date)` - yearly partitions for optional data management
 - `ORDER BY (package_id, date)` - optimizes filter by package_id + range on date
 - Package IDs stored **lowercase** for case-insensitive queries
 
