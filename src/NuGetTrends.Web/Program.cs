@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.OpenApi.Models;
 using NuGetTrends.Data;
+using NuGetTrends.Data.ClickHouse;
 using Serilog;
 using Shortr;
 using Shortr.Npgsql;
@@ -53,10 +54,6 @@ try
                 ? 0 // tunneling JS events
                 : 1.0;
             o.AddExceptionFilterForType<OperationCanceledException>();
-            if (environment != Production)
-            {
-                o.EnableSpotlight = true;
-            }
         });
 
     builder.Services.AddSentryTunneling(); // Add Sentry Tunneling to avoid ad-blockers.
@@ -92,6 +89,9 @@ try
              options.EnableSensitiveDataLogging();
          }
      });
+
+     builder.Services.Configure<ClickHouseOptions>(configuration.GetSection(ClickHouseOptions.SectionName));
+     builder.Services.AddSingleton<IClickHouseService, ClickHouseService>();
 
      builder.Services.AddSwaggerGen(c =>
      {

@@ -33,6 +33,20 @@ services:
     depends_on:
       - postgres
     restart: "no"
+  clickhouse:
+    image: clickhouse/clickhouse-server:24
+    restart: "no"
+    environment:
+      CLICKHOUSE_DB: nugettrends
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ""
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - ./src/NuGetTrends.Data/ClickHouse/migrations:/docker-entrypoint-initdb.d:ro
 volumes:
   pgdata:
   pgadmindata:
+  clickhouse-data:

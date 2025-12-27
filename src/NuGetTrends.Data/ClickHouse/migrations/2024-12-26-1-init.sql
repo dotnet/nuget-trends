@@ -1,0 +1,25 @@
+-- ClickHouse Schema Migration: 2024-12-26-1-init
+-- Initial schema for NuGet Trends daily downloads
+
+-- Create the nugettrends database if it doesn't exist
+CREATE DATABASE IF NOT EXISTS nugettrends;
+
+-- Create the daily_downloads table
+-- Package IDs are stored in LOWERCASE for case-insensitive searching
+-- Original case is available from PostgreSQL package_downloads table
+CREATE TABLE IF NOT EXISTS nugettrends.daily_downloads
+(
+    -- Package ID stored in LOWERCASE for case-insensitive searching
+    package_id LowCardinality(String),
+    -- Date of the download count snapshot (daily granularity)
+    date Date,
+    -- Total download count for this package on this date
+    download_count UInt64
+)
+ENGINE = MergeTree()
+-- Monthly partitions for efficient date range pruning
+PARTITION BY toYYYYMM(date)
+-- Primary sort key: optimizes filter by package_id + range on date
+ORDER BY (package_id, date)
+-- Default index granularity
+SETTINGS index_granularity = 8192;

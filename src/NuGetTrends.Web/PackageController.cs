@@ -2,12 +2,15 @@ using System.Globalization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NuGetTrends.Data;
+using NuGetTrends.Data.ClickHouse;
 
 namespace NuGetTrends.Web;
 
 [Route("api/package")]
 [ApiController]
-public class PackageController(NuGetTrendsContext context) : ControllerBase
+public class PackageController(
+    NuGetTrendsContext context,
+    IClickHouseService clickHouseService) : ControllerBase
 {
     [HttpGet("search")]
     public async Task<ActionResult<IEnumerable<object>>> Search(
@@ -35,13 +38,15 @@ public class PackageController(NuGetTrendsContext context) : ControllerBase
         CancellationToken cancellationToken,
         [FromQuery] int months = 3)
     {
-        if (! await context.PackageDownloads.
-                AnyAsync(p => p.PackageIdLowered == id.ToLower(CultureInfo.InvariantCulture), cancellationToken))
+        // Validate package exists in PostgreSQL
+        if (!await context.PackageDownloads
+                .AnyAsync(p => p.PackageIdLowered == id.ToLower(CultureInfo.InvariantCulture), cancellationToken))
         {
             return NotFound();
         }
 
-        var downloads = await context.GetDailyDownloads(id, months);
+        // Query ClickHouse for download history
+        var downloads = await clickHouseService.GetWeeklyDownloadsAsync(id, months, cancellationToken);
         var data = new
         {
             Id = id,

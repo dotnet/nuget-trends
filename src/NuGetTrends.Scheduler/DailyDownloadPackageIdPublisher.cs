@@ -1,8 +1,9 @@
+using System.Globalization;
 using Hangfire;
 using MessagePack;
 using Microsoft.EntityFrameworkCore;
-using Npgsql;
 using NuGetTrends.Data;
+using NuGetTrends.Data.ClickHouse;
 using RabbitMQ.Client;
 using Sentry.Hangfire;
 
@@ -13,6 +14,7 @@ namespace NuGetTrends.Scheduler;
 public class DailyDownloadPackageIdPublisher(
     IConnectionFactory connectionFactory,
     NuGetTrendsContext context,
+    IClickHouseService clickHouseService,
     IHub hub,
     ILogger<DailyDownloadPackageIdPublisher> logger)
 {
@@ -48,30 +50,43 @@ public class DailyDownloadPackageIdPublisher(
             try
             {
                 var queueIdsSpan = transaction.StartChild("queue.ids");
-                var dbConnectSpan = queueIdsSpan.StartChild("db.connect", "Connect to Postgres");
-                await using var conn = context.Database.GetDbConnection();
-                await conn.OpenAsync();
-                dbConnectSpan.Finish();
 
-                const string queryIds = "SELECT package_id FROM pending_packages_daily_downloads";
-                var dbQuerySpan = queueIdsSpan.StartChild("db.query", queryIds);
-                await using var cmd = new NpgsqlCommand(queryIds, (NpgsqlConnection)conn);
-                await using var reader = await cmd.ExecuteReaderAsync();
+                // Get all package IDs from PostgreSQL
+                var dbQuerySpan = queueIdsSpan.StartChild("db.query", "Get all package IDs from PostgreSQL");
+                var allPackages = await context.PackageDetailsCatalogLeafs
+                    .Select(p => p.PackageId)
+                    .Distinct()
+                    .ToListAsync();
+                dbQuerySpan.SetTag("count", allPackages.Count.ToString());
                 dbQuerySpan.Finish();
 
+                // Get packages already processed today from ClickHouse
+                var chQuerySpan = queueIdsSpan.StartChild("clickhouse.query", "Get packages processed today");
+                var processedToday = await clickHouseService.GetPackagesWithDownloadsForDateAsync(
+                    DateOnly.FromDateTime(DateTime.UtcNow));
+                chQuerySpan.SetTag("count", processedToday.Count.ToString());
+                chQuerySpan.Finish();
+
+                // Find pending packages (case-insensitive comparison since ClickHouse stores lowercase)
+                var pendingSpan = queueIdsSpan.StartChild("filter.pending", "Filter pending packages");
+                var pending = allPackages
+                    .Where(p => p != null && !processedToday.Contains(p.ToLower(CultureInfo.InvariantCulture)))
+                    .ToList();
+                pendingSpan.SetTag("count", pending.Count.ToString());
+                pendingSpan.Finish();
+
                 var batchSize = 25; // TODO: Configurable
-                var processBatchSpan = queueIdsSpan.StartChild("db.read",
-                    $"Go through reader and queue in batches of '{batchSize}' ids.");
+                var processBatchSpan = queueIdsSpan.StartChild("queue.batch",
+                    $"Queue pending packages in batches of '{batchSize}' ids.");
                 var batch = new List<string>(batchSize);
-                while (await reader.ReadAsync())
+                foreach (var packageId in pending)
                 {
                     messageCount++;
-                    batch.Add((string)reader[0]);
+                    batch.Add(packageId!);
 
                     if (batch.Count == batchSize)
                     {
                         Queue(batch, channel, queueName, properties);
-
                         batch.Clear();
                     }
                 }
