@@ -11,9 +11,10 @@ using Swashbuckle.AspNetCore.SwaggerUI;
 using SystemEnvironment = System.Environment;
 
 const string Production = nameof(Production);
+const string Testing = nameof(Testing);
 var environment = SystemEnvironment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? Production;
 
-if (environment != Production)
+if (environment != Production && environment != Testing)
 {
     Serilog.Debugging.SelfLog.Enable(Console.Error);
 }
@@ -25,9 +26,15 @@ var configuration = new ConfigurationBuilder()
     .AddEnvironmentVariables()
     .Build();
 
-Log.Logger = new LoggerConfiguration()
-    .ReadFrom.Configuration(configuration)
-    .CreateLogger();
+// In Testing environment, use a minimal logger without Sentry
+Log.Logger = environment == Testing
+    ? new LoggerConfiguration()
+        .MinimumLevel.Warning()
+        .WriteTo.Console()
+        .CreateLogger()
+    : new LoggerConfiguration()
+        .ReadFrom.Configuration(configuration)
+        .CreateLogger();
 
 try
 {
