@@ -2,9 +2,9 @@ using System.Collections.Concurrent;
 using MessagePack;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using Npgsql;
 using NuGet.Protocol.Core.Types;
 using NuGetTrends.Data;
+using NuGetTrends.Data.ClickHouse;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using Sentry;
@@ -18,6 +18,7 @@ public class DailyDownloadWorker : IHostedService
     private readonly IConnectionFactory _connectionFactory;
     private readonly IServiceProvider _services;
     private readonly INuGetSearchService _nuGetSearchService;
+    private readonly IClickHouseService _clickHouseService;
     private readonly ILogger<DailyDownloadWorker> _logger;
     private readonly CancellationTokenSource _cancellationTokenSource = new();
     private readonly ConcurrentBag<(IModel, IConnection)> _connections = new();
@@ -29,12 +30,14 @@ public class DailyDownloadWorker : IHostedService
         IConnectionFactory connectionFactory,
         IServiceProvider services,
         INuGetSearchService nuGetSearchService,
+        IClickHouseService clickHouseService,
         ILogger<DailyDownloadWorker> logger)
     {
         _options = options.Value;
         _connectionFactory = connectionFactory;
         _services = services;
         _nuGetSearchService = nuGetSearchService;
+        _clickHouseService = clickHouseService;
         _logger = logger;
         _workers = new List<Task>(_options.WorkerCount);
     }
@@ -223,6 +226,10 @@ public class DailyDownloadWorker : IHostedService
 
         using var scope = _services.CreateScope();
         await using var context = scope.ServiceProvider.GetRequiredService<NuGetTrendsContext>();
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var clickHouseDownloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>();
+
         for (var i = 0; i < tasks.Count; i++)
         {
             var expectedPackageId = packageIds[i];
@@ -236,12 +243,11 @@ public class DailyDownloadWorker : IHostedService
             }
             else
             {
-                context.DailyDownloads.Add(new DailyDownload
+                // Collect for batch insert to ClickHouse
+                if (packageMetadata.DownloadCount is { } downloadCount)
                 {
-                    PackageId = packageMetadata.Identity.Id,
-                    Date = DateTime.UtcNow.Date,
-                    DownloadCount = packageMetadata.DownloadCount
-                });
+                    clickHouseDownloads.Add((packageMetadata.Identity.Id, today, downloadCount));
+                }
 
                 void Update(PackageDownload package, IPackageSearchMetadata metadata)
                 {
@@ -258,6 +264,7 @@ public class DailyDownloadWorker : IHostedService
                     package.LatestDownloadCountCheckedUtc = DateTime.UtcNow;
                 }
 
+                // Update PackageDownloads in PostgreSQL (for search/autocomplete)
                 var pkgDownload = await context.PackageDownloads.FirstOrDefaultAsync(
                     p => p.PackageIdLowered == packageMetadata.Identity.Id.ToLower());
                 if (pkgDownload == null)
@@ -276,18 +283,27 @@ public class DailyDownloadWorker : IHostedService
                     context.PackageDownloads.Update(pkgDownload);
                 }
             }
+        }
 
+        // Batch insert to ClickHouse
+        if (clickHouseDownloads.Count > 0)
+        {
+            var chInsertSpan = parentSpan.StartChild("clickhouse.insert", "Batch insert daily downloads");
+            chInsertSpan.SetTag("count", clickHouseDownloads.Count.ToString());
             try
             {
-                await context.SaveChangesAsync(_cancellationTokenSource.Token);
+                await _clickHouseService.InsertDailyDownloadsAsync(clickHouseDownloads, _cancellationTokenSource.Token);
+                chInsertSpan.Finish(SpanStatus.Ok);
             }
-            catch (DbUpdateException e)
-                when (e.InnerException is PostgresException { ConstraintName: "PK_daily_downloads" })
+            catch (Exception e)
             {
-                // Re-entrancy
-                _logger.LogWarning(e, "Skipping record already tracked.");
+                chInsertSpan.Finish(e);
+                throw;
             }
         }
+
+        // Save PostgreSQL changes (PackageDownloads updates only)
+        await context.SaveChangesAsync(_cancellationTokenSource.Token);
     }
 
     private async Task RemovePackage(NuGetTrendsContext context, string packageId, CancellationToken token)

@@ -33,6 +33,7 @@ The project uses `.editorconfig` files to define code formatting rules. Always f
 1. **Do not change indentation style** when editing files. The Portal uses 2-space indentation consistently.
 2. When adding new Angular components, use the existing NgModule pattern with `standalone: false` in the `@Component` decorator.
 3. For tests, components go in `declarations`, not `imports` (since they are not standalone).
+4. **Never use `#region`/`#endregion`** in C# code. Keep code organized through proper class structure and small, focused methods instead.
 
 ## Project Structure
 

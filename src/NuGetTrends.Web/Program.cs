@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.OpenApi.Models;
 using NuGetTrends.Data;
+using NuGetTrends.Data.ClickHouse;
 using Serilog;
 using Shortr;
 using Shortr.Npgsql;
@@ -87,6 +88,14 @@ try
          {
              options.EnableSensitiveDataLogging();
          }
+     });
+
+     builder.Services.AddSingleton<IClickHouseService>(sp =>
+     {
+         var connString = configuration.GetConnectionString("ClickHouse")
+             ?? throw new InvalidOperationException("ClickHouse connection string not configured.");
+         var logger = sp.GetRequiredService<ILogger<ClickHouseService>>();
+         return new ClickHouseService(connString, logger);
      });
 
      builder.Services.AddSwaggerGen(c =>
