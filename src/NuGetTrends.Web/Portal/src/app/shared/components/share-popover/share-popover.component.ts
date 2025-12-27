@@ -5,6 +5,7 @@ import * as Sentry from '@sentry/angular';
 import { SocialShareService } from 'src/app/core/services/social-share.service';
 
 @Component({
+  standalone: false,
   selector: 'app-share-popover',
   templateUrl: './share-popover.component.html',
   styleUrls: ['./share-popover.component.scss']

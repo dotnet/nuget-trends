@@ -29,7 +29,8 @@ Chart.register(LineController, LineElement, PointElement, LinearScale, TimeScale
   selector: 'app-dashboard',
   templateUrl: './packages.component.html',
   styleUrls: ['./packages.component.scss'],
-  animations: [AppAnimations.slideInOutAnimation]
+  animations: [AppAnimations.slideInOutAnimation],
+  standalone: false
 })
 @Sentry.TraceClass({ name: 'HeaderComponent' })
 export class PackagesComponent implements OnInit, OnDestroy {

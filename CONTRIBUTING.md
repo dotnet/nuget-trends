@@ -51,7 +51,7 @@ To run it locally:
 2. Run the API with `dotnet run`
 
 The app can be browsed at:
-- `http://localhost:5000`
+- `http://localhost:5100`
 - `https://localhost:5001`
 - `http://localhost:4200` (default `ng serve` port)
 

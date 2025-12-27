@@ -16,12 +16,12 @@ describe('PackageListComponent', () => {
 
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
-      declarations: [ PackageListComponent ],
+      declarations: [PackageListComponent],
       imports: [
         ToastrModule.forRoot({
           positionClass: 'toast-bottom-right',
           preventDuplicates: true,
-        })
+        }),
       ],
       providers: [
         { provide: ToastrService, useClass: ToastrMock },

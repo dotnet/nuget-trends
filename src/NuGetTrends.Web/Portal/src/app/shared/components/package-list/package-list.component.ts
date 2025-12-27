@@ -7,6 +7,7 @@ import { ToastrService } from 'ngx-toastr';
 import * as Sentry from "@sentry/angular";
 
 @Component({
+  standalone: false,
   selector: 'app-package-list',
   templateUrl: './package-list.component.html',
   styleUrls: ['./package-list.component.scss']

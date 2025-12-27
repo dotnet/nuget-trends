@@ -5,7 +5,8 @@ import { AppAnimations } from '../shared';
   selector: 'app-home',
   templateUrl: './home.component.html',
   styleUrls: ['./home.component.scss'],
-  animations: [AppAnimations.slideInOutAnimation]
+  animations: [AppAnimations.slideInOutAnimation],
+  standalone: false
 })
 export class HomeComponent {
 

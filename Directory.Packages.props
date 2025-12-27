@@ -3,7 +3,7 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>
-    <PackageVersion Include="Hangfire.AspNetCore" Version="1.8.7" />
+    <PackageVersion Include="Hangfire.AspNetCore" Version="1.8.22" />
     <PackageVersion Include="Hangfire.MemoryStorage" Version="1.8.0" />
     <PackageVersion Include="MessagePack" Version="2.5.187" />
     <PackageVersion Include="Microsoft.AspNetCore.SpaServices.Extensions" Version="10.0.1" />

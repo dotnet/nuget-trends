@@ -6,6 +6,7 @@ import { SearchPeriod, DefaultSearchPeriods, InitialSearchPeriod } from '../../m
 import { PackageInteractionService } from '../../../core';
 
 @Component({
+  standalone: false,
   selector: 'app-search-period',
   templateUrl: './search-period.component.html',
   styleUrls: ['./search-period.component.scss']
