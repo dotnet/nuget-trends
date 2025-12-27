@@ -75,7 +75,7 @@ This document outlines the plan to migrate the `daily_downloads` time-series dat
 | Decision | Rationale |
 |----------|-----------|
 | `package_id` stored **lowercase only** | Enables case-insensitive queries without `LOWER()` function. Original case is available from PostgreSQL `package_downloads.PackageId` |
-| `LowCardinality(String)` for package_id | Dictionary encoding for repeated strings, reduces storage and speeds up filtering |
+| `String` for package_id | NuGet has 400K+ packages, exceeding LowCardinality's recommended 10K threshold. Native string compression with ZSTD is efficient enough. |
 | `Date` instead of `DateTime` | Daily granularity is sufficient, saves storage |
 | `UInt64` for download_count | Unsigned, matches expected values |
 | `PARTITION BY toYYYYMM(date)` | Monthly partitions for efficient date range pruning |
@@ -90,7 +90,7 @@ CREATE TABLE IF NOT EXISTS daily_downloads
 (
     -- Package ID stored in LOWERCASE for case-insensitive searching
     -- Original case is available from PostgreSQL package_downloads table
-    package_id LowCardinality(String),
+    package_id String,
     date Date,
     download_count UInt64
 )

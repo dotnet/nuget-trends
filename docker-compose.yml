@@ -19,27 +19,16 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-  pgadmin:
-    environment:
-      PGADMIN_DEFAULT_EMAIL: test@user.com
-      PGADMIN_DEFAULT_PASSWORD: PUg2rt6Pp8Arx7Z9FbgJLFvxEL7pZ2
-    links:
-      - postgres
-    image: dpage/pgadmin4
-    ports:
-      - "5433:80"
-    volumes:
-      - pgadmindata:/var/lib/pgadmin
-    depends_on:
-      - postgres
-    restart: "no"
+
   clickhouse:
-    image: clickhouse/clickhouse-server:24
+    image: clickhouse/clickhouse-server:25.11.5
     restart: "no"
     environment:
       CLICKHOUSE_DB: nugettrends
       CLICKHOUSE_USER: default
       CLICKHOUSE_PASSWORD: ""
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+      ALLOW_EMPTY_PASSWORD: yes
     ports:
       - "8123:8123"
       - "9000:9000"
@@ -48,5 +37,4 @@ services:
       - ./src/NuGetTrends.Data/ClickHouse/migrations:/docker-entrypoint-initdb.d:ro
 volumes:
   pgdata:
-  pgadmindata:
   clickhouse-data:

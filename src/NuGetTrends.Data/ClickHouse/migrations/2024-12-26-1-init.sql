@@ -10,7 +10,8 @@ CREATE DATABASE IF NOT EXISTS nugettrends;
 CREATE TABLE IF NOT EXISTS nugettrends.daily_downloads
 (
     -- Package ID stored in LOWERCASE for case-insensitive searching
-    package_id LowCardinality(String),
+    -- Not using LowCardinality since NuGet has 400K+ packages (exceeds recommended 10K threshold)
+    package_id String,
     -- Date of the download count snapshot (daily granularity)
     date Date,
     -- Total download count for this package on this date
