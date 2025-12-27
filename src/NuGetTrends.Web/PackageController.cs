@@ -10,7 +10,8 @@ namespace NuGetTrends.Web;
 [ApiController]
 public class PackageController(
     NuGetTrendsContext context,
-    IClickHouseService clickHouseService) : ControllerBase
+    IClickHouseService clickHouseService,
+    ILogger<PackageController> logger) : ControllerBase
 {
     [HttpGet("search")]
     public async Task<ActionResult<IEnumerable<object>>> Search(
@@ -38,21 +39,24 @@ public class PackageController(
         CancellationToken cancellationToken,
         [FromQuery] int months = 3)
     {
-        // Validate package exists in PostgreSQL
-        if (!await context.PackageDownloads
-                .AnyAsync(p => p.PackageIdLowered == id.ToLower(CultureInfo.InvariantCulture), cancellationToken))
+        // Query ClickHouse first (happy path: 1 query instead of 2)
+        var downloads = await clickHouseService.GetWeeklyDownloadsAsync(id, months, cancellationToken);
+
+        if (downloads.Count == 0)
         {
-            return NotFound();
+            // Check if package exists in PostgreSQL
+            var exists = await context.PackageDownloads
+                .AnyAsync(p => p.PackageIdLowered == id.ToLower(CultureInfo.InvariantCulture), cancellationToken);
+
+            if (!exists)
+            {
+                return NotFound();
+            }
+
+            // Package exists but no download history - likely just imported from catalog
+            logger.LogWarning("Package '{PackageId}' exists in PostgreSQL but has no download history in ClickHouse", id);
         }
 
-        // Query ClickHouse for download history
-        var downloads = await clickHouseService.GetWeeklyDownloadsAsync(id, months, cancellationToken);
-        var data = new
-        {
-            Id = id,
-            Downloads = downloads
-        };
-
-        return Ok(data);
+        return Ok(new { Id = id, Downloads = downloads });
     }
 }
