@@ -126,4 +126,65 @@ public class ClickHouseService : IClickHouseService
         _logger.LogDebug("Found {Count} packages with downloads for date {Date}", results.Count, date);
         return results;
     }
+
+    public async Task<List<string>> GetUnprocessedPackagesAsync(
+        IReadOnlyList<string> packageIds,
+        DateOnly date,
+        CancellationToken ct = default)
+    {
+        if (packageIds.Count == 0)
+        {
+            return [];
+        }
+
+        // Build a lookup from lowercase -> original case
+        var caseMapping = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var id in packageIds)
+        {
+            var lower = id.ToLower(CultureInfo.InvariantCulture);
+            caseMapping.TryAdd(lower, id); // Keep first occurrence's case
+        }
+
+        await using var connection = new ClickHouseConnection(_options.ConnectionString);
+        await connection.OpenAsync(ct);
+
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = """
+            SELECT package_id
+            FROM daily_downloads
+            WHERE date = {date:Date}
+              AND has({packageIds:Array(String)}, package_id)
+            """;
+
+        var dateParam = cmd.CreateParameter();
+        dateParam.ParameterName = "date";
+        dateParam.Value = date;
+        cmd.Parameters.Add(dateParam);
+
+        var packageIdsParam = cmd.CreateParameter();
+        packageIdsParam.ParameterName = "packageIds";
+        packageIdsParam.Value = caseMapping.Keys.ToArray();
+        cmd.Parameters.Add(packageIdsParam);
+
+        // Collect processed package IDs
+        var processed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+
+        while (await reader.ReadAsync(ct))
+        {
+            processed.Add(reader.GetString(0));
+        }
+
+        // Return unprocessed packages with original case
+        var unprocessed = caseMapping
+            .Where(kv => !processed.Contains(kv.Key))
+            .Select(kv => kv.Value)
+            .ToList();
+
+        _logger.LogDebug(
+            "Checked {Total} packages for date {Date}: {Processed} processed, {Unprocessed} unprocessed",
+            packageIds.Count, date, processed.Count, unprocessed.Count);
+
+        return unprocessed;
+    }
 }

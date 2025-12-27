@@ -36,4 +36,17 @@ public interface IClickHouseService
     Task<HashSet<string>> GetPackagesWithDownloadsForDateAsync(
         DateOnly date,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// From a batch of package IDs, returns those that do NOT have downloads recorded for a specific date.
+    /// This is memory-efficient for large datasets as it processes in batches.
+    /// </summary>
+    /// <param name="packageIds">Batch of package IDs to check (will be lowercased)</param>
+    /// <param name="date">Date to check</param>
+    /// <param name="ct">Cancellation token</param>
+    /// <returns>Set of package IDs (original case) that are not yet processed for the date</returns>
+    Task<List<string>> GetUnprocessedPackagesAsync(
+        IReadOnlyList<string> packageIds,
+        DateOnly date,
+        CancellationToken ct = default);
 }

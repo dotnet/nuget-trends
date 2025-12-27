@@ -1,4 +1,3 @@
-using System.Globalization;
 using Hangfire;
 using MessagePack;
 using Microsoft.EntityFrameworkCore;
@@ -18,6 +17,12 @@ public class DailyDownloadPackageIdPublisher(
     IHub hub,
     ILogger<DailyDownloadPackageIdPublisher> logger)
 {
+    // Batch size for checking against ClickHouse (memory efficient)
+    private const int ClickHouseBatchSize = 10_000;
+
+    // Batch size for RabbitMQ messages
+    private const int QueueBatchSize = 25;
+
     [SentryMonitorSlug("DailyDownloadPackageIdPublisher.Import")]
     public async Task Import(IJobCancellationToken token)
     {
@@ -47,67 +52,64 @@ public class DailyDownloadPackageIdPublisher(
             connectionSpan.Finish();
 
             var messageCount = 0;
+            var totalPackagesChecked = 0;
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
             try
             {
                 var queueIdsSpan = transaction.StartChild("queue.ids");
 
-                // Get all package IDs from PostgreSQL
-                var dbQuerySpan = queueIdsSpan.StartChild("db.query", "Get all package IDs from PostgreSQL");
-                var allPackages = await context.PackageDetailsCatalogLeafs
-                    .Select(p => p.PackageId)
-                    .Distinct()
-                    .ToListAsync();
-                dbQuerySpan.SetTag("count", allPackages.Count.ToString());
-                dbQuerySpan.Finish();
+                // Stream package IDs from PostgreSQL in batches to avoid loading all into memory
+                var dbStreamSpan = queueIdsSpan.StartChild("db.stream", "Stream package IDs from PostgreSQL");
 
-                // Get packages already processed today from ClickHouse
-                var chQuerySpan = queueIdsSpan.StartChild("clickhouse.query", "Get packages processed today");
-                var processedToday = await clickHouseService.GetPackagesWithDownloadsForDateAsync(
-                    DateOnly.FromDateTime(DateTime.UtcNow));
-                chQuerySpan.SetTag("count", processedToday.Count.ToString());
-                chQuerySpan.Finish();
+                var queueBatch = new List<string>(QueueBatchSize);
 
-                // Find pending packages (case-insensitive comparison since ClickHouse stores lowercase)
-                var pendingSpan = queueIdsSpan.StartChild("filter.pending", "Filter pending packages");
-                var pending = allPackages
-                    .Where(p => p != null && !processedToday.Contains(p.ToLower(CultureInfo.InvariantCulture)))
-                    .ToList();
-                pendingSpan.SetTag("count", pending.Count.ToString());
-                pendingSpan.Finish();
-
-                var batchSize = 25; // TODO: Configurable
-                var processBatchSpan = queueIdsSpan.StartChild("queue.batch",
-                    $"Queue pending packages in batches of '{batchSize}' ids.");
-                var batch = new List<string>(batchSize);
-                foreach (var packageId in pending)
+                await foreach (var packageBatch in GetPackageIdBatchesAsync(ClickHouseBatchSize, token.ShutdownToken))
                 {
-                    messageCount++;
-                    batch.Add(packageId!);
+                    totalPackagesChecked += packageBatch.Count;
 
-                    if (batch.Count == batchSize)
+                    // Check which packages from this batch are not yet processed in ClickHouse
+                    var unprocessed = await clickHouseService.GetUnprocessedPackagesAsync(
+                        packageBatch, today, token.ShutdownToken);
+
+                    // Queue unprocessed packages
+                    foreach (var packageId in unprocessed)
                     {
-                        Queue(batch, channel, queueName, properties);
-                        batch.Clear();
+                        messageCount++;
+                        queueBatch.Add(packageId);
+
+                        if (queueBatch.Count == QueueBatchSize)
+                        {
+                            Queue(queueBatch, channel, queueName, properties);
+                            queueBatch.Clear();
+                        }
                     }
                 }
-                processBatchSpan.Finish();
 
-                if (batch.Count != 0)
+                dbStreamSpan.SetTag("total-checked", totalPackagesChecked.ToString());
+                dbStreamSpan.Finish();
+
+                // Queue remaining packages
+                if (queueBatch.Count != 0)
                 {
-                    var queueSpan = queueIdsSpan.StartChild("queue.enqueue", "Enqueue incomplete batch.");
-                    queueSpan.SetTag("count", batch.Count.ToString());
-                    Queue(batch, channel, queueName, properties);
+                    var queueSpan = queueIdsSpan.StartChild("queue.enqueue", "Enqueue final batch");
+                    queueSpan.SetTag("count", queueBatch.Count.ToString());
+                    Queue(queueBatch, channel, queueName, properties);
                     queueSpan.Finish();
                 }
 
                 queueIdsSpan.SetTag("queue-name", queueName);
-                queueIdsSpan.SetTag("batch-size", batchSize.ToString());
+                queueIdsSpan.SetTag("clickhouse-batch-size", ClickHouseBatchSize.ToString());
+                queueIdsSpan.SetTag("queue-batch-size", QueueBatchSize.ToString());
+                queueIdsSpan.SetTag("total-checked", totalPackagesChecked.ToString());
                 queueIdsSpan.SetTag("message-count", messageCount.ToString());
                 queueIdsSpan.Finish();
             }
             finally
             {
-                logger.LogInformation("Finished publishing messages. '{count}' messages queued.", messageCount);
+                logger.LogInformation(
+                    "Finished publishing messages. Checked {TotalPackages} packages, queued {QueuedCount} for download.",
+                    totalPackagesChecked, messageCount);
             }
             transaction.Finish(SpanStatus.Ok);
         }
@@ -115,6 +117,41 @@ public class DailyDownloadPackageIdPublisher(
         {
             transaction.Finish(e);
             throw;
+        }
+    }
+
+    /// <summary>
+    /// Streams package IDs from PostgreSQL in batches to avoid loading all into memory.
+    /// </summary>
+    private async IAsyncEnumerable<List<string>> GetPackageIdBatchesAsync(
+        int batchSize,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
+    {
+        var batch = new List<string>(batchSize);
+
+        await foreach (var packageId in context.PackageDetailsCatalogLeafs
+            .Select(p => p.PackageId)
+            .Distinct()
+            .AsAsyncEnumerable()
+            .WithCancellation(ct))
+        {
+            if (packageId == null)
+            {
+                continue;
+            }
+
+            batch.Add(packageId);
+
+            if (batch.Count >= batchSize)
+            {
+                yield return batch;
+                batch = new List<string>(batchSize);
+            }
+        }
+
+        if (batch.Count > 0)
+        {
+            yield return batch;
         }
     }
 
