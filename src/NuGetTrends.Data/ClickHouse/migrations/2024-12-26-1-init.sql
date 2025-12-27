@@ -18,8 +18,9 @@ CREATE TABLE IF NOT EXISTS nugettrends.daily_downloads
     download_count UInt64
 )
 ENGINE = ReplacingMergeTree()
--- Monthly partitions for efficient date range pruning
-PARTITION BY toYYYYMM(date)
+-- Yearly partitions for optional data management (e.g., DROP PARTITION to remove old years)
+-- Yearly is preferred over monthly to avoid INSERT issues with max_partitions_per_insert_block
+PARTITION BY toYear(date)
 -- Primary sort key: optimizes filter by package_id + range on date
 ORDER BY (package_id, date)
 -- Default index granularity
