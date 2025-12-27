@@ -105,29 +105,17 @@ public class DailyDownloadPackageIdPublisher(
 
     /// <summary>
     /// Streams package IDs from PostgreSQL that haven't been checked today.
-    /// Uses a LEFT JOIN to filter out packages where LatestDownloadCountCheckedUtc is today.
     /// </summary>
     private async IAsyncEnumerable<string> GetUnprocessedPackageIdsAsync(
         [EnumeratorCancellation] CancellationToken ct)
     {
         var todayUtc = DateTime.UtcNow.Date;
 
-        // Get distinct package IDs from catalog that either:
-        // 1. Don't exist in package_downloads yet (new packages), OR
-        // 2. Were last checked before today
-        var query = from leaf in context.PackageDetailsCatalogLeafs
-            join pd in context.PackageDownloads
-                on leaf.PackageId!.ToLower() equals pd.PackageIdLowered into downloads
-            from pd in downloads.DefaultIfEmpty()
-            where pd == null || pd.LatestDownloadCountCheckedUtc < todayUtc
-            select leaf.PackageId;
-
-        await foreach (var packageId in query.Distinct().AsAsyncEnumerable().WithCancellation(ct))
+        await foreach (var packageId in context.GetUnprocessedPackageIds(todayUtc)
+                           .AsAsyncEnumerable()
+                           .WithCancellation(ct))
         {
-            if (packageId != null)
-            {
-                yield return packageId;
-            }
+            yield return packageId;
         }
     }
 

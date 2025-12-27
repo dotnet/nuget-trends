@@ -78,6 +78,40 @@ public class ClickHouseFixture : IAsyncLifetime
         return (T)Convert.ChangeType(result!, typeof(T));
     }
 
+    /// <summary>
+    /// Forces ReplacingMergeTree to deduplicate rows immediately.
+    /// Normally deduplication happens during background merges, but this forces it for testing.
+    /// </summary>
+    public async Task OptimizeTableAsync()
+    {
+        await using var connection = new ClickHouseConnection(ConnectionString);
+        await connection.OpenAsync();
+
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = "OPTIMIZE TABLE daily_downloads FINAL";
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    /// <summary>
+    /// Executes a raw SQL command and returns all rows as a list.
+    /// </summary>
+    public async Task<List<T>> ExecuteQueryAsync<T>(string sql, Func<System.Data.Common.DbDataReader, T> mapper)
+    {
+        await using var connection = new ClickHouseConnection(ConnectionString);
+        await connection.OpenAsync();
+
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = sql;
+        await using var reader = await cmd.ExecuteReaderAsync();
+
+        var results = new List<T>();
+        while (await reader.ReadAsync())
+        {
+            results.Add(mapper(reader));
+        }
+        return results;
+    }
+
     private async Task RunMigrationsAsync()
     {
         var migrationScripts = GetMigrationScripts();
