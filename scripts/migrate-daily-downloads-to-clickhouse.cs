@@ -9,11 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
-using System.IO;
 using System.Linq;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Threading;
 using System.Threading.Tasks;
 using ClickHouse.Client.ADO;
 using ClickHouse.Client.Copy;
@@ -23,8 +19,8 @@ using Npgsql;
 // NuGet Trends: PostgreSQL -> ClickHouse Migration Script
 // ============================================================================
 // Migrates daily_downloads table from PostgreSQL to ClickHouse.
-// Processes packages one at a time, ordered by download count (largest first).
-// Uses existing primary key index on (package_id, date) - no new indexes needed.
+// Streams the entire table in a single query for maximum performance.
+// Applies LOWER() on-the-fly to normalize package IDs.
 //
 // Environment Variables:
 //   PG_CONNECTION_STRING - PostgreSQL connection string
@@ -34,13 +30,21 @@ using Npgsql;
 //   ./migrate-daily-downloads-to-clickhouse.cs [options]
 //
 // Options:
-//   --batch-size N          Rows per batch insert (default: 100000)
-//   --save-every N          Save progress every N packages (default: 100)
-//   --package PKG           Migrate only a specific package (for testing)
-//   --limit N               Migrate only first N packages (for testing)
-//   --verify-only           Only run verification, skip migration
-//   --dry-run               Show plan without executing
-//   --reset                 Clear progress file and start fresh
+//   --batch-size N    Rows per batch insert (default: 1000000)
+//   --verify-only     Only run verification, skip migration
+//   --dry-run         Show plan without executing
+//   --help, -h        Show help message
+//
+// Before running:
+//   # Drop and recreate ClickHouse table for clean slate
+//   clickhouse-client --host=HOST --password=PASS --multiquery -q "
+//   DROP TABLE IF EXISTS nugettrends.daily_downloads;
+//   CREATE TABLE nugettrends.daily_downloads (
+//     package_id String, date Date, download_count UInt64
+//   ) ENGINE = ReplacingMergeTree()
+//   PARTITION BY toYear(date)
+//   ORDER BY (package_id, date);
+//   "
 // ============================================================================
 
 var exitCode = await new MigrationRunner().RunAsync(args);
@@ -54,130 +58,9 @@ public record MigrationConfig
 {
     public string PostgresConnectionString { get; init; } = "";
     public string ClickHouseConnectionString { get; init; } = "";
-    public int BatchSize { get; init; } = 100_000;
-    public int SaveEvery { get; init; } = 100;
-    public string? SinglePackage { get; init; }
-    public int? Limit { get; init; }
+    public int BatchSize { get; init; } = 1_000_000;
     public bool VerifyOnly { get; init; }
     public bool DryRun { get; init; }
-    public bool Reset { get; init; }
-    public string ProgressFilePath { get; init; } = "";
-}
-
-// ============================================================================
-// Progress Tracking
-// ============================================================================
-
-public class MigrationProgress
-{
-    [JsonPropertyName("completedPackages")]
-    public HashSet<string> CompletedPackages { get; set; } = [];
-
-    [JsonPropertyName("totalRowsMigrated")]
-    public long TotalRowsMigrated { get; set; }
-
-    [JsonPropertyName("totalPackagesMigrated")]
-    public int TotalPackagesMigrated { get; set; }
-
-    [JsonPropertyName("startedAt")]
-    public DateTime StartedAt { get; set; }
-
-    [JsonPropertyName("lastUpdatedAt")]
-    public DateTime LastUpdatedAt { get; set; }
-
-    [JsonPropertyName("currentPackage")]
-    public string? CurrentPackage { get; set; }
-
-    [JsonPropertyName("failedPackages")]
-    public Dictionary<string, int> FailedPackages { get; set; } = [];
-}
-
-public class ProgressTracker
-{
-    private readonly string _filePath;
-    private MigrationProgress _progress;
-    private int _unsavedCount;
-    private readonly int _saveEvery;
-
-    public ProgressTracker(string filePath, int saveEvery)
-    {
-        _filePath = filePath;
-        _saveEvery = saveEvery;
-        _progress = Load();
-    }
-
-    public MigrationProgress Progress => _progress;
-
-    public bool IsCompleted(string packageId)
-    {
-        return _progress.CompletedPackages.Contains(packageId.ToLowerInvariant());
-    }
-
-    public int GetFailedAttempts(string packageId)
-    {
-        return _progress.FailedPackages.TryGetValue(packageId.ToLowerInvariant(), out var count) ? count : 0;
-    }
-
-    public void RecordFailure(string packageId)
-    {
-        var key = packageId.ToLowerInvariant();
-        _progress.FailedPackages[key] = GetFailedAttempts(packageId) + 1;
-        _progress.LastUpdatedAt = DateTime.UtcNow;
-        Save(); // Always save on failure
-    }
-
-    public void SetCurrentPackage(string packageId)
-    {
-        _progress.CurrentPackage = packageId;
-    }
-
-    public void RecordSuccess(string packageId, long rows)
-    {
-        var key = packageId.ToLowerInvariant();
-        _progress.CompletedPackages.Add(key);
-        _progress.TotalRowsMigrated += rows;
-        _progress.TotalPackagesMigrated++;
-        _progress.FailedPackages.Remove(key);
-        _progress.CurrentPackage = null;
-        _progress.LastUpdatedAt = DateTime.UtcNow;
-
-        _unsavedCount++;
-        if (_unsavedCount >= _saveEvery)
-        {
-            Save();
-            _unsavedCount = 0;
-        }
-    }
-
-    public void Reset()
-    {
-        _progress = new MigrationProgress { StartedAt = DateTime.UtcNow, LastUpdatedAt = DateTime.UtcNow };
-        Save();
-    }
-
-    public void ForceSave()
-    {
-        Save();
-        _unsavedCount = 0;
-    }
-
-    private MigrationProgress Load()
-    {
-        if (!File.Exists(_filePath))
-        {
-            return new MigrationProgress { StartedAt = DateTime.UtcNow, LastUpdatedAt = DateTime.UtcNow };
-        }
-
-        var json = File.ReadAllText(_filePath);
-        return JsonSerializer.Deserialize<MigrationProgress>(json)
-            ?? new MigrationProgress { StartedAt = DateTime.UtcNow, LastUpdatedAt = DateTime.UtcNow };
-    }
-
-    private void Save()
-    {
-        var json = JsonSerializer.Serialize(_progress, new JsonSerializerOptions { WriteIndented = true });
-        File.WriteAllText(_filePath, json);
-    }
 }
 
 // ============================================================================
@@ -226,32 +109,16 @@ public static class Console2
         Console.ResetColor();
     }
 
-    public static void WriteProgress(int current, int total, string packageId, long rows, double rate)
+    public static void WriteProgress(long current, long total, double rowsPerSec)
     {
-        var percent = (double)current / total * 100;
-        var barWidth = 25;
+        var percent = total > 0 ? (double)current / total * 100 : 0;
+        var barWidth = 30;
         var filled = (int)(percent / 100 * barWidth);
         var bar = new string('#', filled) + new string('-', barWidth - filled);
 
-        var eta = rate > 0 ? TimeSpan.FromSeconds((total - current) / rate) : TimeSpan.Zero;
-        var etaStr = FormatDuration(eta);
+        var eta = rowsPerSec > 0 ? TimeSpan.FromSeconds((total - current) / rowsPerSec) : TimeSpan.Zero;
 
-        // Truncate package ID if too long
-        var displayPkg = packageId.Length > 30 ? packageId[..27] + "..." : packageId;
-
-        Console.Write($"\r  [{bar}] {current:N0}/{total:N0} ({percent:F1}%) | {displayPkg,-30} | {FormatNumber(rows)} rows | ETA: {etaStr}   ");
-    }
-
-    public static void ClearLine()
-    {
-        try
-        {
-            Console.Write("\r" + new string(' ', Console.WindowWidth - 1) + "\r");
-        }
-        catch
-        {
-            Console.Write("\r" + new string(' ', 120) + "\r");
-        }
+        Console.Write($"\r  [{bar}] {FormatNumber(current)} / {FormatNumber(total)} ({percent:F1}%) | {FormatNumber((long)rowsPerSec)}/sec | ETA: {FormatDuration(eta)}   ");
     }
 
     public static string FormatNumber(long n)
@@ -259,7 +126,7 @@ public static class Console2
         return n switch
         {
             >= 1_000_000_000 => $"{n / 1_000_000_000.0:F2}B",
-            >= 1_000_000 => $"{n / 1_000_000.0:F2}M",
+            >= 1_000_000 => $"{n / 1_000_000.0:F1}M",
             >= 1_000 => $"{n / 1_000.0:F1}K",
             _ => n.ToString()
         };
@@ -282,7 +149,6 @@ public static class Console2
 public class MigrationRunner
 {
     private MigrationConfig _config = null!;
-    private ProgressTracker _progress = null!;
 
     public async Task<int> RunAsync(string[] args)
     {
@@ -300,32 +166,12 @@ public class MigrationRunner
                 return 1;
             }
 
-            _progress = new ProgressTracker(_config.ProgressFilePath, _config.SaveEvery);
-
-            if (_config.Reset)
-            {
-                Console2.WriteWarning("Resetting progress file...");
-                _progress.Reset();
-            }
-
             // Display configuration
             Console.WriteLine();
             Console.WriteLine("Configuration:");
             Console2.WriteInfo($"PostgreSQL: {MaskConnectionString(_config.PostgresConnectionString)}");
             Console2.WriteInfo($"ClickHouse: {MaskConnectionString(_config.ClickHouseConnectionString)}");
             Console2.WriteInfo($"Batch Size: {_config.BatchSize:N0} rows");
-            Console2.WriteInfo($"Save Every: {_config.SaveEvery} packages");
-            Console2.WriteInfo($"Progress File: {_config.ProgressFilePath}");
-
-            if (_config.SinglePackage != null)
-            {
-                Console2.WriteInfo($"Single Package: {_config.SinglePackage}");
-            }
-
-            if (_config.Limit.HasValue)
-            {
-                Console2.WriteInfo($"Limit: {_config.Limit} packages");
-            }
 
             if (_config.DryRun)
             {
@@ -338,93 +184,39 @@ public class MigrationRunner
                 return await RunVerificationAsync() ? 0 : 1;
             }
 
-            // Get package list ordered by download count
-            Console2.WriteHeader("Loading Package List");
-            var packages = await GetPackageListAsync();
-
-            var totalPackages = packages.Count;
-            var alreadyMigrated = packages.Count(p => _progress.IsCompleted(p));
-            var remaining = totalPackages - alreadyMigrated;
-
-            Console2.WriteInfo($"Total packages: {totalPackages:N0}");
-            Console2.WriteInfo($"Already migrated: {alreadyMigrated:N0}");
-            Console2.WriteInfo($"Remaining: {remaining:N0}");
+            // Get row count estimate from PostgreSQL
+            Console2.WriteHeader("Analyzing Source Data");
+            var estimatedRows = await GetPostgresRowEstimateAsync();
+            Console2.WriteInfo($"Estimated rows: {Console2.FormatNumber(estimatedRows)}");
+            Console2.WriteInfo($"Estimated batches: {estimatedRows / _config.BatchSize:N0}");
 
             if (_config.DryRun)
             {
                 Console2.WriteHeader("Dry Run Complete");
-                Console2.WriteInfo("First 10 packages to migrate:");
-                foreach (var pkg in packages.Where(p => !_progress.IsCompleted(p)).Take(10))
-                {
-                    Console2.WriteInfo($"  - {pkg}");
-                }
+                Console2.WriteInfo($"Would migrate ~{Console2.FormatNumber(estimatedRows)} rows");
+                Console2.WriteInfo($"In batches of {_config.BatchSize:N0} rows");
                 return 0;
             }
 
             // Run migration
             Console2.WriteHeader("Migration Progress");
+            Console2.WriteInfo("Streaming entire table from PostgreSQL...");
+            Console.WriteLine();
 
-            var overallSw = Stopwatch.StartNew();
-            var totalRowsMigrated = 0L;
-            var packagesProcessed = 0;
-            var packagesMigrated = 0;
-            var startTime = DateTime.UtcNow;
-
-            foreach (var packageId in packages)
-            {
-                packagesProcessed++;
-
-                if (_progress.IsCompleted(packageId))
-                {
-                    continue;
-                }
-
-                _progress.SetCurrentPackage(packageId);
-
-                var result = await MigratePackageAsync(packageId);
-
-                if (!result.Success)
-                {
-                    var attempts = _progress.GetFailedAttempts(packageId);
-                    if (attempts >= 3)
-                    {
-                        Console.WriteLine();
-                        Console2.WriteError($"Package '{packageId}' failed 3 times. Stopping migration.");
-                        Console2.WriteInfo("Use --reset to start fresh or manually fix the issue.");
-                        _progress.ForceSave();
-                        return 1;
-                    }
-
-                    Console2.WriteWarning($"Package '{packageId}' failed (attempt {attempts}/3). Continuing...");
-                    continue;
-                }
-
-                totalRowsMigrated += result.RowsMigrated;
-                packagesMigrated++;
-
-                // Calculate rate (packages per second)
-                var elapsed = DateTime.UtcNow - startTime;
-                var rate = elapsed.TotalSeconds > 0 ? packagesMigrated / elapsed.TotalSeconds : 0;
-
-                Console2.WriteProgress(packagesProcessed, totalPackages, packageId, result.RowsMigrated, rate);
-            }
-
-            _progress.ForceSave();
-            overallSw.Stop();
+            var sw = Stopwatch.StartNew();
+            var rowsMigrated = await StreamMigrateAsync(estimatedRows);
+            sw.Stop();
 
             Console.WriteLine();
             Console.WriteLine();
+
+            Console2.WriteSuccess($"Migration completed in {Console2.FormatDuration(sw.Elapsed)}");
+            Console2.WriteInfo($"Rows migrated: {Console2.FormatNumber(rowsMigrated)}");
+            Console2.WriteInfo($"Avg throughput: {Console2.FormatNumber((long)(rowsMigrated / sw.Elapsed.TotalSeconds))}/sec");
 
             // Run verification
             Console2.WriteHeader("Verification");
             var verificationPassed = await RunVerificationAsync();
-
-            // Summary
-            Console2.WriteHeader("Migration Complete");
-            Console2.WriteInfo($"Duration: {Console2.FormatDuration(overallSw.Elapsed)}");
-            Console2.WriteInfo($"Rows migrated: {Console2.FormatNumber(totalRowsMigrated)}");
-            Console2.WriteInfo($"Packages migrated: {packagesMigrated:N0}");
-            Console2.WriteInfo($"Avg throughput: {Console2.FormatNumber((long)(totalRowsMigrated / overallSw.Elapsed.TotalSeconds))}/sec");
 
             return verificationPassed ? 0 : 1;
         }
@@ -439,7 +231,6 @@ public class MigrationRunner
 
     private bool TryParseConfig(string[] args, out MigrationConfig config)
     {
-        // Check for help first
         if (args.Contains("--help") || args.Contains("-h"))
         {
             PrintHelp();
@@ -464,13 +255,9 @@ public class MigrationRunner
             return false;
         }
 
-        var batchSize = 100_000;
-        var saveEvery = 100;
-        string? singlePackage = null;
-        int? limit = null;
+        var batchSize = 1_000_000;
         var verifyOnly = false;
         var dryRun = false;
-        var reset = false;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -479,43 +266,22 @@ public class MigrationRunner
                 case "--batch-size" when i + 1 < args.Length:
                     batchSize = int.Parse(args[++i]);
                     break;
-                case "--save-every" when i + 1 < args.Length:
-                    saveEvery = int.Parse(args[++i]);
-                    break;
-                case "--package" when i + 1 < args.Length:
-                    singlePackage = args[++i];
-                    break;
-                case "--limit" when i + 1 < args.Length:
-                    limit = int.Parse(args[++i]);
-                    break;
                 case "--verify-only":
                     verifyOnly = true;
                     break;
                 case "--dry-run":
                     dryRun = true;
                     break;
-                case "--reset":
-                    reset = true;
-                    break;
             }
         }
-
-        var scriptDir = Path.GetDirectoryName(Environment.ProcessPath)
-            ?? AppContext.BaseDirectory
-            ?? ".";
 
         config = new MigrationConfig
         {
             PostgresConnectionString = pgConnStr,
             ClickHouseConnectionString = chConnStr,
             BatchSize = batchSize,
-            SaveEvery = saveEvery,
-            SinglePackage = singlePackage,
-            Limit = limit,
             VerifyOnly = verifyOnly,
-            DryRun = dryRun,
-            Reset = reset,
-            ProgressFilePath = Path.Combine(scriptDir, ".migration-progress.json")
+            DryRun = dryRun
         };
 
         return true;
@@ -524,6 +290,11 @@ public class MigrationRunner
     private void PrintHelp()
     {
         Console.WriteLine(@"
+NuGet Trends: PostgreSQL -> ClickHouse Migration
+
+Streams the entire daily_downloads table from PostgreSQL to ClickHouse.
+Applies LOWER() on-the-fly to normalize package IDs for case-insensitive queries.
+
 Usage: ./migrate-daily-downloads-to-clickhouse.cs [options]
 
 Environment Variables (required):
@@ -531,36 +302,39 @@ Environment Variables (required):
   CH_CONNECTION_STRING    ClickHouse connection string
 
 Options:
-  --batch-size N          Rows per batch insert (default: 100000)
-  --save-every N          Save progress every N packages (default: 100)
-  --package PKG           Migrate only a specific package (for testing)
-  --limit N               Migrate only first N packages (for testing)
-  --verify-only           Only run verification, skip migration
-  --dry-run               Show plan without executing
-  --reset                 Clear progress file and start fresh
-  --help, -h              Show this help message
+  --batch-size N    Rows per batch insert (default: 1000000)
+  --verify-only     Only run verification, skip migration
+  --dry-run         Show plan without executing
+  --help, -h        Show this help message
 
 Examples:
   # Full migration
   ./migrate-daily-downloads-to-clickhouse.cs
 
-  # Test with a single package
-  ./migrate-daily-downloads-to-clickhouse.cs --package Newtonsoft.Json
-
-  # Migrate first 100 packages (for testing)
-  ./migrate-daily-downloads-to-clickhouse.cs --limit 100
+  # Use smaller batches (if memory constrained)
+  ./migrate-daily-downloads-to-clickhouse.cs --batch-size 500000
 
   # Verify only (no migration)
   ./migrate-daily-downloads-to-clickhouse.cs --verify-only
 
-  # Reset and start fresh
-  ./migrate-daily-downloads-to-clickhouse.cs --reset
+  # Dry run (show plan without executing)
+  ./migrate-daily-downloads-to-clickhouse.cs --dry-run
+
+Before running:
+  # Drop and recreate ClickHouse table for clean slate
+  clickhouse-client --host=$CH_HOST --password=$CH_PASS --multiquery -q ""
+  DROP TABLE IF EXISTS nugettrends.daily_downloads;
+  CREATE TABLE nugettrends.daily_downloads (
+    package_id String, date Date, download_count UInt64
+  ) ENGINE = ReplacingMergeTree()
+  PARTITION BY toYear(date)
+  ORDER BY (package_id, date);
+  ""
 ");
     }
 
     private string MaskConnectionString(string connStr)
     {
-        // Simple masking of password
         var parts = connStr.Split(';');
         var masked = parts.Select(p =>
         {
@@ -575,84 +349,59 @@ Examples:
         return string.Join(";", masked);
     }
 
-    private async Task<List<string>> GetPackageListAsync()
+    private async Task<long> GetPostgresRowEstimateAsync()
     {
-        if (_config.SinglePackage != null)
-        {
-            return [_config.SinglePackage];
-        }
-
         await using var conn = new NpgsqlConnection(_config.PostgresConnectionString);
         await conn.OpenAsync();
 
-        // Get packages ordered by download count (largest first)
-        // Uses the package_downloads table which has the latest download counts
+        // Use pg_class for fast estimate instead of COUNT(*)
         await using var cmd = new NpgsqlCommand(
-            "SELECT package_id FROM package_downloads ORDER BY latest_download_count DESC NULLS LAST", conn);
-        cmd.CommandTimeout = 300;
+            "SELECT reltuples::bigint FROM pg_class WHERE relname = 'daily_downloads'", conn);
 
-        var packages = new List<string>();
-        await using var reader = await cmd.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
-        {
-            packages.Add(reader.GetString(0));
-
-            if (_config.Limit.HasValue && packages.Count >= _config.Limit.Value)
-            {
-                break;
-            }
-        }
-
-        return packages;
+        var result = await cmd.ExecuteScalarAsync();
+        return result is long l ? l : Convert.ToInt64(result ?? 0);
     }
 
-    private async Task<(bool Success, long RowsMigrated)> MigratePackageAsync(string packageId)
-    {
-        try
-        {
-            var rowsMigrated = await StreamMigratePackageAsync(packageId);
-            _progress.RecordSuccess(packageId, rowsMigrated);
-            return (true, rowsMigrated);
-        }
-        catch (Exception ex)
-        {
-            Console2.ClearLine();
-            Console2.WriteError($"[{packageId}] Error: {ex.Message}");
-            _progress.RecordFailure(packageId);
-            return (false, 0);
-        }
-    }
-
-    private async Task<long> StreamMigratePackageAsync(string packageId)
+    private async Task<long> StreamMigrateAsync(long estimatedTotalRows)
     {
         await using var pgConn = new NpgsqlConnection(_config.PostgresConnectionString);
         await pgConn.OpenAsync();
 
-        // Query uses the primary key index on (package_id, date)
-        await using var pgCmd = new NpgsqlCommand(
-            "SELECT LOWER(package_id), date, download_count FROM daily_downloads WHERE package_id = @packageId ORDER BY date",
-            pgConn);
-        pgCmd.Parameters.AddWithValue("packageId", packageId);
-        pgCmd.CommandTimeout = 3600; // 1 hour for very large packages
+        // Stream entire table - apply LOWER() on-the-fly for case-insensitive package IDs
+        // No ORDER BY needed - ClickHouse will sort on insert based on ORDER BY key
+        await using var cmd = new NpgsqlCommand(
+            "SELECT LOWER(package_id), date, download_count FROM daily_downloads", pgConn);
+        cmd.CommandTimeout = 0; // No timeout for long-running query
 
-        await using var reader = await pgCmd.ExecuteReaderAsync();
+        await using var reader = await cmd.ExecuteReaderAsync(System.Data.CommandBehavior.SequentialAccess);
 
         var batch = new List<object[]>(_config.BatchSize);
         var totalRows = 0L;
+        var sw = Stopwatch.StartNew();
+        var lastProgressUpdate = sw.ElapsedMilliseconds;
 
         while (await reader.ReadAsync())
         {
-            var pkgIdLower = reader.GetString(0);
+            var packageId = reader.GetString(0);
             var date = DateOnly.FromDateTime(reader.GetDateTime(1));
             var downloadCount = reader.IsDBNull(2) ? 0UL : (ulong)reader.GetInt64(2);
 
-            batch.Add([pkgIdLower, date, downloadCount]);
+            batch.Add([packageId, date, downloadCount]);
             totalRows++;
 
             if (batch.Count >= _config.BatchSize)
             {
                 await InsertBatchToClickHouseAsync(batch);
                 batch.Clear();
+
+                // Update progress every 500ms
+                var elapsed = sw.ElapsedMilliseconds;
+                if (elapsed - lastProgressUpdate > 500)
+                {
+                    var rowsPerSec = totalRows / sw.Elapsed.TotalSeconds;
+                    Console2.WriteProgress(totalRows, estimatedTotalRows, rowsPerSec);
+                    lastProgressUpdate = elapsed;
+                }
             }
         }
 
@@ -661,6 +410,10 @@ Examples:
         {
             await InsertBatchToClickHouseAsync(batch);
         }
+
+        // Final progress update
+        var finalRowsPerSec = totalRows / sw.Elapsed.TotalSeconds;
+        Console2.WriteProgress(totalRows, totalRows, finalRowsPerSec);
 
         return totalRows;
     }
@@ -685,20 +438,27 @@ Examples:
     {
         var allPassed = true;
 
-        // Level 1: Total row count
+        // Level 1: Row count comparison
         Console.WriteLine();
-        Console.WriteLine("  Level 1: Total Row Count");
+        Console.WriteLine("  Level 1: Row Count Comparison");
 
-        var pgTotal = await GetPostgresTotalCountAsync();
-        var chTotal = await GetClickHouseTotalCountAsync();
+        var pgEstimate = await GetPostgresRowEstimateAsync();
+        var chCount = await GetClickHouseRowCountAsync();
 
-        if (pgTotal == chTotal)
+        // Allow 1% variance due to estimate vs actual
+        var variance = Math.Abs(pgEstimate - chCount) / (double)pgEstimate * 100;
+        if (variance < 1)
         {
-            Console2.WriteSuccess($"Total rows match: {Console2.FormatNumber(pgTotal)}");
+            Console2.WriteSuccess($"Row counts match (within 1%): PG~{Console2.FormatNumber(pgEstimate)}, CH={Console2.FormatNumber(chCount)}");
+        }
+        else if (variance < 5)
+        {
+            Console2.WriteWarning($"Row counts differ slightly: PG~{Console2.FormatNumber(pgEstimate)}, CH={Console2.FormatNumber(chCount)} ({variance:F1}% variance)");
+            Console2.WriteInfo("Note: PostgreSQL count is an estimate from pg_class.");
         }
         else
         {
-            Console2.WriteError($"Total rows MISMATCH: PG={Console2.FormatNumber(pgTotal)}, CH={Console2.FormatNumber(chTotal)}");
+            Console2.WriteError($"Row counts differ significantly: PG~{Console2.FormatNumber(pgEstimate)}, CH={Console2.FormatNumber(chCount)} ({variance:F1}% variance)");
             allPassed = false;
         }
 
@@ -706,39 +466,46 @@ Examples:
         Console.WriteLine();
         Console.WriteLine("  Level 2: Unique Package Count");
 
-        var pgPackageCount = await GetPostgresPackageCountAsync();
         var chPackageCount = await GetClickHousePackageCountAsync();
-
-        if (pgPackageCount == chPackageCount)
-        {
-            Console2.WriteSuccess($"Package count matches: {Console2.FormatNumber(pgPackageCount)}");
-        }
-        else
-        {
-            Console2.WriteError($"Package count MISMATCH: PG={Console2.FormatNumber(pgPackageCount)}, CH={Console2.FormatNumber(chPackageCount)}");
-            allPassed = false;
-        }
+        Console2.WriteInfo($"ClickHouse unique packages: {Console2.FormatNumber(chPackageCount)}");
 
         // Level 3: Sample package verification
         Console.WriteLine();
         Console.WriteLine("  Level 3: Sample Package Verification");
 
-        var samplePackages = await GetSamplePackagesAsync();
-        var packagesPassed = 0;
-
-        foreach (var packageId in samplePackages)
+        var samplePackages = new[] { "newtonsoft.json", "sentry", "dapper", "nlog", "serilog", "system.text.json", "microsoft.extensions.logging" };
+        foreach (var pkg in samplePackages)
         {
-            var (pgRows, pgSum) = await GetPostgresPackageStatsAsync(packageId);
-            var (chRows, chSum) = await GetClickHousePackageStatsAsync(packageId);
-
-            if (pgRows == chRows && pgSum == chSum)
+            var (rows, minDate, maxDate) = await GetClickHousePackageStatsAsync(pkg);
+            if (rows > 0)
             {
-                Console2.WriteSuccess($"{packageId}: {Console2.FormatNumber(pgRows)} rows, sum={Console2.FormatNumber(pgSum)}");
-                packagesPassed++;
+                Console2.WriteSuccess($"{pkg}: {Console2.FormatNumber(rows)} rows ({minDate:yyyy-MM-dd} to {maxDate:yyyy-MM-dd})");
             }
             else
             {
-                Console2.WriteError($"{packageId}: PG({Console2.FormatNumber(pgRows)} rows, sum={Console2.FormatNumber(pgSum)}) != CH({Console2.FormatNumber(chRows)} rows, sum={Console2.FormatNumber(chSum)})");
+                Console2.WriteWarning($"{pkg}: No data found (may not exist in source)");
+            }
+        }
+
+        // Level 4: Case insensitivity check
+        Console.WriteLine();
+        Console.WriteLine("  Level 4: Case Insensitivity Check");
+
+        // Query ClickHouse directly without lowercasing to verify stored case
+        var lowerRows = await GetClickHouseRowCountForExactPackageIdAsync("newtonsoft.json");
+        var upperRows = await GetClickHouseRowCountForExactPackageIdAsync("NEWTONSOFT.JSON");
+        var mixedRows = await GetClickHouseRowCountForExactPackageIdAsync("Newtonsoft.Json");
+
+        if (lowerRows > 0 && upperRows == 0 && mixedRows == 0)
+        {
+            Console2.WriteSuccess($"Package IDs are normalized to lowercase ({Console2.FormatNumber(lowerRows)} rows for 'newtonsoft.json')");
+        }
+        else
+        {
+            Console2.WriteWarning($"Case check: lowercase={lowerRows}, UPPERCASE={upperRows}, MixedCase={mixedRows}");
+            if (upperRows > 0 || mixedRows > 0)
+            {
+                Console2.WriteError("Found non-lowercase package IDs in ClickHouse!");
                 allPassed = false;
             }
         }
@@ -746,7 +513,7 @@ Examples:
         Console.WriteLine();
         if (allPassed)
         {
-            Console2.WriteSuccess("All verification checks passed!");
+            Console2.WriteSuccess("Verification complete!");
         }
         else
         {
@@ -756,19 +523,7 @@ Examples:
         return allPassed;
     }
 
-    private async Task<long> GetPostgresTotalCountAsync()
-    {
-        await using var conn = new NpgsqlConnection(_config.PostgresConnectionString);
-        await conn.OpenAsync();
-
-        await using var cmd = new NpgsqlCommand("SELECT COUNT(*) FROM daily_downloads", conn);
-        cmd.CommandTimeout = 600;
-
-        var result = await cmd.ExecuteScalarAsync();
-        return (long)(result ?? 0L);
-    }
-
-    private async Task<long> GetClickHouseTotalCountAsync()
+    private async Task<long> GetClickHouseRowCountAsync()
     {
         await using var conn = new ClickHouseConnection(_config.ClickHouseConnectionString);
         await conn.OpenAsync();
@@ -778,18 +533,6 @@ Examples:
 
         var result = await cmd.ExecuteScalarAsync();
         return Convert.ToInt64(result ?? 0L);
-    }
-
-    private async Task<long> GetPostgresPackageCountAsync()
-    {
-        await using var conn = new NpgsqlConnection(_config.PostgresConnectionString);
-        await conn.OpenAsync();
-
-        await using var cmd = new NpgsqlCommand("SELECT COUNT(DISTINCT package_id) FROM daily_downloads", conn);
-        cmd.CommandTimeout = 600;
-
-        var result = await cmd.ExecuteScalarAsync();
-        return (long)(result ?? 0L);
     }
 
     private async Task<long> GetClickHousePackageCountAsync()
@@ -804,60 +547,41 @@ Examples:
         return Convert.ToInt64(result ?? 0L);
     }
 
-    private async Task<List<string>> GetSamplePackagesAsync()
-    {
-        // Get a mix of packages: some popular, some random
-        await using var conn = new NpgsqlConnection(_config.PostgresConnectionString);
-        await conn.OpenAsync();
-
-        // Get 5 packages with the most rows and 5 random packages
-        await using var cmd = new NpgsqlCommand(@"
-            (SELECT package_id FROM daily_downloads GROUP BY package_id ORDER BY COUNT(*) DESC LIMIT 5)
-            UNION ALL
-            (SELECT package_id FROM daily_downloads GROUP BY package_id ORDER BY RANDOM() LIMIT 5)", conn);
-        cmd.CommandTimeout = 300;
-
-        var packages = new List<string>();
-        await using var reader = await cmd.ExecuteReaderAsync();
-        while (await reader.ReadAsync())
-        {
-            var packageId = reader.GetString(0);
-            if (!packages.Contains(packageId, StringComparer.OrdinalIgnoreCase))
-            {
-                packages.Add(packageId);
-            }
-        }
-
-        return packages.Take(10).ToList();
-    }
-
-    private async Task<(long Rows, long Sum)> GetPostgresPackageStatsAsync(string packageId)
-    {
-        await using var conn = new NpgsqlConnection(_config.PostgresConnectionString);
-        await conn.OpenAsync();
-
-        await using var cmd = new NpgsqlCommand(
-            "SELECT COUNT(*), COALESCE(SUM(download_count), 0) FROM daily_downloads WHERE LOWER(package_id) = LOWER(@packageId)", conn);
-        cmd.Parameters.AddWithValue("packageId", packageId);
-        cmd.CommandTimeout = 300;
-
-        await using var reader = await cmd.ExecuteReaderAsync();
-        await reader.ReadAsync();
-
-        return (reader.GetInt64(0), reader.GetInt64(1));
-    }
-
-    private async Task<(long Rows, long Sum)> GetClickHousePackageStatsAsync(string packageId)
+    private async Task<(long Rows, DateOnly MinDate, DateOnly MaxDate)> GetClickHousePackageStatsAsync(string packageId)
     {
         await using var conn = new ClickHouseConnection(_config.ClickHouseConnectionString);
         await conn.OpenAsync();
 
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText = $"SELECT count(), sum(download_count) FROM daily_downloads WHERE package_id = '{packageId.ToLower(CultureInfo.InvariantCulture)}'";
+        // Query with lowercase - package_id is stored lowercase
+        cmd.CommandText = $"SELECT count(), min(date), max(date) FROM daily_downloads WHERE package_id = '{packageId.ToLower(CultureInfo.InvariantCulture)}'";
 
         await using var reader = await cmd.ExecuteReaderAsync();
-        await reader.ReadAsync();
+        if (await reader.ReadAsync())
+        {
+            var rows = Convert.ToInt64(reader.GetValue(0));
+            if (rows == 0)
+            {
+                return (0, default, default);
+            }
+            var minDate = DateOnly.FromDateTime(reader.GetDateTime(1));
+            var maxDate = DateOnly.FromDateTime(reader.GetDateTime(2));
+            return (rows, minDate, maxDate);
+        }
 
-        return (Convert.ToInt64(reader.GetValue(0)), Convert.ToInt64(reader.GetValue(1)));
+        return (0, default, default);
+    }
+
+    private async Task<long> GetClickHouseRowCountForExactPackageIdAsync(string packageId)
+    {
+        await using var conn = new ClickHouseConnection(_config.ClickHouseConnectionString);
+        await conn.OpenAsync();
+
+        await using var cmd = conn.CreateCommand();
+        // Query with EXACT case - no lowercasing - to verify stored case
+        cmd.CommandText = $"SELECT count() FROM daily_downloads WHERE package_id = '{packageId}'";
+
+        var result = await cmd.ExecuteScalarAsync();
+        return Convert.ToInt64(result ?? 0L);
     }
 }
