@@ -19,7 +19,7 @@ public class CatalogLeafProcessor : ICatalogLeafProcessor
     private int _counter;
 
     private IServiceScope _scope;
-    private NuGetTrendsContext _context;
+    internal NuGetTrendsContext Context;
 
     public CatalogLeafProcessor(
         IServiceProvider provider,
@@ -29,25 +29,25 @@ public class CatalogLeafProcessor : ICatalogLeafProcessor
         _logger = logger;
 
         _scope = _provider.CreateScope();
-        _context = _scope.ServiceProvider.GetRequiredService<NuGetTrendsContext>();
+        Context = _scope.ServiceProvider.GetRequiredService<NuGetTrendsContext>();
     }
 
     private async Task Save(CancellationToken token)
     {
-        await _context.SaveChangesAsync(token);
+        await Context.SaveChangesAsync(token);
 
         if (++_counter == 100) // recycle the DbContext
         {
             _scope.Dispose();
             _scope = _provider.CreateScope();
-            _context = _scope.ServiceProvider.GetRequiredService<NuGetTrendsContext>();
+            Context = _scope.ServiceProvider.GetRequiredService<NuGetTrendsContext>();
             _counter = 0;
         }
     }
 
     public async Task ProcessPackageDeleteAsync(PackageDeleteCatalogLeaf leaf, CancellationToken token)
     {
-        var deletedItems = _context.PackageDetailsCatalogLeafs.Where(p =>
+        var deletedItems = Context.PackageDetailsCatalogLeafs.Where(p =>
             p.PackageId == leaf.PackageId && p.PackageVersion == leaf.PackageVersion);
 
         var deleted = await deletedItems.ToListAsync(token);
@@ -67,7 +67,7 @@ public class CatalogLeafProcessor : ICatalogLeafProcessor
 
             foreach (var del in deleted)
             {
-                _context.PackageDetailsCatalogLeafs.Remove(del);
+                Context.PackageDetailsCatalogLeafs.Remove(del);
             }
             await Save(token);
         }
@@ -75,12 +75,12 @@ public class CatalogLeafProcessor : ICatalogLeafProcessor
 
     public async Task ProcessPackageDetailsAsync(PackageDetailsCatalogLeaf leaf, CancellationToken token)
     {
-        var exists = await _context.PackageDetailsCatalogLeafs.AnyAsync(
+        var exists = await Context.PackageDetailsCatalogLeafs.AnyAsync(
             p => p.PackageId == leaf.PackageId && p.PackageVersion == leaf.PackageVersion, token);
 
         if (!exists)
         {
-            _context.PackageDetailsCatalogLeafs.Add(leaf);
+            Context.PackageDetailsCatalogLeafs.Add(leaf);
             try
             {
                 await Save(token);
@@ -90,7 +90,7 @@ public class CatalogLeafProcessor : ICatalogLeafProcessor
                 // Race condition: another process inserted the same package between our AnyAsync check
                 // and SaveChangesAsync. This is harmless - the package exists, which is what we wanted.
                 // Detach the entity to prevent cascading failures on subsequent saves.
-                _context.Entry(leaf).State = EntityState.Detached;
+                Context.Entry(leaf).State = EntityState.Detached;
 
                 _logger.LogDebug(
                     "Package {PackageId} v{PackageVersion} already exists (concurrent insert), skipping.",
