@@ -70,7 +70,9 @@ public class Startup(
         // TODO: Use Postgres storage instead:
         // Install: Hangfire.PostgreSql
         // Configure: config.UsePostgreSqlStorage(Configuration.GetConnectionString("HangfireConnection")
-        services.AddHangfire(config => config.UseStorage(new MemoryStorage()))
+        services.AddHangfire(config => config
+                .UseStorage(new MemoryStorage())
+                .UseFilter(new SkipConcurrentExecutionFilter()))
             .AddSentry();
         services.AddHangfireServer();
 

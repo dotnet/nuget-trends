@@ -69,6 +69,7 @@ public class Program
                         });
                         o.CaptureFailedRequests = true;
                         o.AddExceptionFilterForType<OperationCanceledException>();
+                        o.AddExceptionFilterForType<ConcurrentExecutionSkippedException>();
                         o.AddLogEntryFilter((category, level, eventId, exception)
                             => eventId.ToString() ==
                                "Microsoft.EntityFrameworkCore.Infrastructure.SensitiveDataLoggingEnabledWarning"

@@ -20,14 +20,15 @@ internal static class RecurringJobManagerExtensions
     {
         var jobManager = app.ApplicationServices.GetRequiredService<IRecurringJobManager>();
 
+        // Hangfire injects IJobCancellationToken and PerformContext at runtime
         jobManager.AddOrUpdate<NuGetCatalogImporter>(
             "NuGetCatalogImporter",
-            j => j.Import(JobCancellationToken.Null), // Hangfire passes in a token on activation
+            j => j.Import(JobCancellationToken.Null, null),
             Cron.Hourly());
 
         jobManager.AddOrUpdate<DailyDownloadPackageIdPublisher>(
             "DownloadCountImporter",
-            j => j.Import(JobCancellationToken.Null),
+            j => j.Import(JobCancellationToken.Null, null),
             // Runs at 1 AM UTC
             Cron.Daily(1));
     }
