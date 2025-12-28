@@ -6,17 +6,90 @@ using Sentry;
 
 namespace NuGetTrends.Data.ClickHouse;
 
+/// <summary>
+/// Parsed ClickHouse connection information for Sentry span attributes.
+/// Register as singleton to avoid re-parsing connection string on each request.
+/// </summary>
+public sealed class ClickHouseConnectionInfo
+{
+    public string? Host { get; init; }
+    public string? Port { get; init; }
+    public string? Database { get; init; }
+
+    /// <summary>
+    /// Parses a ClickHouse connection string to extract host, port, and database.
+    /// Supports both URI format (http://host:port/db) and Key=Value format (Host=x;Port=y;Database=z).
+    /// </summary>
+    public static ClickHouseConnectionInfo Parse(string connectionString)
+    {
+        // ClickHouse connection strings can be in different formats:
+        // 1. Key=Value format: "Host=localhost;Port=8123;Database=default"
+        // 2. URI format: "http://localhost:8123/default"
+
+        if (connectionString.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            connectionString.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            // URI format
+            if (Uri.TryCreate(connectionString, UriKind.Absolute, out var uri))
+            {
+                return new ClickHouseConnectionInfo
+                {
+                    Host = uri.Host,
+                    Port = uri.Port.ToString(),
+                    Database = !string.IsNullOrEmpty(uri.AbsolutePath) && uri.AbsolutePath != "/"
+                        ? uri.AbsolutePath.TrimStart('/')
+                        : null
+                };
+            }
+        }
+
+        // Key=Value format
+        string? host = null, port = null, database = null;
+        var parts = connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries);
+        foreach (var part in parts)
+        {
+            var keyValue = part.Split('=', 2);
+            if (keyValue.Length != 2)
+            {
+                continue;
+            }
+
+            var key = keyValue[0].Trim();
+            var value = keyValue[1].Trim();
+
+            if (key.Equals("Host", StringComparison.OrdinalIgnoreCase) ||
+                key.Equals("Server", StringComparison.OrdinalIgnoreCase))
+            {
+                host = value;
+            }
+            else if (key.Equals("Port", StringComparison.OrdinalIgnoreCase))
+            {
+                port = value;
+            }
+            else if (key.Equals("Database", StringComparison.OrdinalIgnoreCase))
+            {
+                database = value;
+            }
+        }
+
+        return new ClickHouseConnectionInfo { Host = host, Port = port, Database = database };
+    }
+}
+
 public class ClickHouseService : IClickHouseService
 {
     private readonly string _connectionString;
     private readonly ILogger<ClickHouseService> _logger;
     private readonly ClickHouseConnectionInfo _connectionInfo;
 
-    public ClickHouseService(string connectionString, ILogger<ClickHouseService> logger)
+    public ClickHouseService(
+        string connectionString,
+        ILogger<ClickHouseService> logger,
+        ClickHouseConnectionInfo connectionInfo)
     {
         _connectionString = connectionString;
         _logger = logger;
-        _connectionInfo = ParseConnectionString(connectionString);
+        _connectionInfo = connectionInfo;
     }
 
     public async Task InsertDailyDownloadsAsync(
@@ -84,9 +157,7 @@ public class ClickHouseService : IClickHouseService
             ORDER BY week
             """;
 
-        // Parameterize the query for Sentry (replace ClickHouse {param:Type} with ?)
-        var queryDescription = ParameterizeQuery(query);
-        var span = StartDatabaseSpan(parentSpan, queryDescription, "SELECT");
+        var span = StartDatabaseSpan(parentSpan, query, "SELECT");
 
         try
         {
@@ -132,19 +203,6 @@ public class ClickHouseService : IClickHouseService
     }
 
     /// <summary>
-    /// Converts ClickHouse parameterized query syntax to Sentry-compatible format.
-    /// Replaces {paramName:Type} with ? placeholder.
-    /// </summary>
-    private static string ParameterizeQuery(string query)
-    {
-        // Replace ClickHouse parameter syntax {name:Type} with ?
-        return System.Text.RegularExpressions.Regex.Replace(
-            query,
-            @"\{[^}]+\}",
-            "?");
-    }
-
-    /// <summary>
     /// Starts a database span following Sentry's Queries module conventions.
     /// </summary>
     private ISpan? StartDatabaseSpan(ISpan? parentSpan, string queryDescription, string operation)
@@ -179,71 +237,5 @@ public class ClickHouseService : IClickHouseService
         }
 
         return span;
-    }
-
-    /// <summary>
-    /// Parses connection string to extract host, port, and database for span attributes.
-    /// </summary>
-    private static ClickHouseConnectionInfo ParseConnectionString(string connectionString)
-    {
-        var info = new ClickHouseConnectionInfo();
-
-        // ClickHouse connection strings can be in different formats:
-        // 1. Key=Value format: "Host=localhost;Port=8123;Database=default"
-        // 2. URI format: "http://localhost:8123/default"
-
-        if (connectionString.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
-            connectionString.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-        {
-            // URI format
-            if (Uri.TryCreate(connectionString, UriKind.Absolute, out var uri))
-            {
-                info.Host = uri.Host;
-                info.Port = uri.Port.ToString();
-                if (!string.IsNullOrEmpty(uri.AbsolutePath) && uri.AbsolutePath != "/")
-                {
-                    info.Database = uri.AbsolutePath.TrimStart('/');
-                }
-            }
-        }
-        else
-        {
-            // Key=Value format
-            var parts = connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries);
-            foreach (var part in parts)
-            {
-                var keyValue = part.Split('=', 2);
-                if (keyValue.Length != 2)
-                {
-                    continue;
-                }
-
-                var key = keyValue[0].Trim();
-                var value = keyValue[1].Trim();
-
-                if (key.Equals("Host", StringComparison.OrdinalIgnoreCase) ||
-                    key.Equals("Server", StringComparison.OrdinalIgnoreCase))
-                {
-                    info.Host = value;
-                }
-                else if (key.Equals("Port", StringComparison.OrdinalIgnoreCase))
-                {
-                    info.Port = value;
-                }
-                else if (key.Equals("Database", StringComparison.OrdinalIgnoreCase))
-                {
-                    info.Database = value;
-                }
-            }
-        }
-
-        return info;
-    }
-
-    private sealed class ClickHouseConnectionInfo
-    {
-        public string? Host { get; set; }
-        public string? Port { get; set; }
-        public string? Database { get; set; }
     }
 }

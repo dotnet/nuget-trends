@@ -144,9 +144,11 @@ public class IntegrationTestFixture : IAsyncLifetime
     /// </summary>
     public IClickHouseService CreateClickHouseService()
     {
+        var connectionInfo = ClickHouseConnectionInfo.Parse(ClickHouseConnectionString);
         return new ClickHouseService(
             ClickHouseConnectionString,
-            NullLogger<ClickHouseService>.Instance);
+            NullLogger<ClickHouseService>.Instance,
+            connectionInfo);
     }
 
     /// <summary>
