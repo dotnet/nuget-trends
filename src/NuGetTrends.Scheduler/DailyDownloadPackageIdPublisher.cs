@@ -95,7 +95,7 @@ public class DailyDownloadPackageIdPublisher(
 
                         if (queueBatch.Count == QueueBatchSize)
                         {
-                            Queue(queueBatch, channel, queueName, properties);
+                            Queue(queueBatch, channel, queueName, properties, queueIdsSpan);
                             queueBatch.Clear();
                         }
                     }
@@ -105,10 +105,7 @@ public class DailyDownloadPackageIdPublisher(
                     // Queue remaining packages
                     if (queueBatch.Count != 0)
                     {
-                        var queueSpan = queueIdsSpan.StartChild("queue.enqueue", "Enqueue final batch");
-                        queueSpan.SetTag("count", queueBatch.Count.ToString());
-                        Queue(queueBatch, channel, queueName, properties);
-                        queueSpan.Finish(SpanStatus.Ok);
+                        Queue(queueBatch, channel, queueName, properties, queueIdsSpan);
                     }
 
                     queueIdsSpan.SetTag("queue-name", queueName);
@@ -157,18 +154,51 @@ public class DailyDownloadPackageIdPublisher(
         }
     }
 
-    private static void Queue(
+    private void Queue(
         List<string> batch,
         IModel channel,
         string queueName,
-        IBasicProperties properties)
+        IBasicProperties properties,
+        ISpan? parentSpan)
     {
         var serializedBatch = MessagePackSerializer.Serialize(batch);
 
-        channel.BasicPublish(
-            exchange: string.Empty,
-            routingKey: queueName,
-            basicProperties: properties,
-            body: serializedBatch);
+        // Create a queue.publish span following Sentry Queues module conventions
+        var publishSpan = parentSpan?.StartChild("queue.publish", queueName)
+                          ?? hub.GetSpan()?.StartChild("queue.publish", queueName);
+
+        if (publishSpan != null)
+        {
+            // Required attributes for Sentry Queues module
+            publishSpan.SetExtra("messaging.system", "rabbitmq");
+            publishSpan.SetExtra("messaging.destination.name", queueName);
+
+            // Optional but useful attributes
+            publishSpan.SetExtra("messaging.message.body.size", serializedBatch.Length);
+
+            // Inject trace context into message headers for distributed tracing
+            properties.Headers ??= new Dictionary<string, object>();
+            properties.Headers["sentry-trace"] = publishSpan.GetTraceHeader().ToString();
+            if (hub.GetBaggage() is { } baggage)
+            {
+                properties.Headers["baggage"] = baggage.ToString();
+            }
+        }
+
+        try
+        {
+            channel.BasicPublish(
+                exchange: string.Empty,
+                routingKey: queueName,
+                basicProperties: properties,
+                body: serializedBatch);
+
+            publishSpan?.Finish(SpanStatus.Ok);
+        }
+        catch (Exception ex)
+        {
+            publishSpan?.Finish(ex);
+            throw;
+        }
     }
 }

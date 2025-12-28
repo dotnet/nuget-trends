@@ -155,9 +155,44 @@ public class DailyDownloadWorker : IHostedService
 
     private async Task OnConsumerOnReceived(object sender, BasicDeliverEventArgs ea)
     {
+        const string queueName = "daily-download";
         using var _ = _logger.BeginScope("OnConsumerOnReceived");
-        var batchProcessSpan = SentrySdk.StartTransaction("daily-download-fetch", "queue.read");
+
+        // Extract distributed trace context from message headers if present
+        SentryTraceHeader? traceHeader = null;
+
+        if (ea.BasicProperties?.Headers != null)
+        {
+            if (ea.BasicProperties.Headers.TryGetValue("sentry-trace", out var traceObj) &&
+                traceObj is byte[] traceBytes)
+            {
+                var traceString = System.Text.Encoding.UTF8.GetString(traceBytes);
+                traceHeader = SentryTraceHeader.Parse(traceString);
+            }
+        }
+
+        // Create queue.process transaction, continuing the trace from the publisher if available
+        var batchProcessSpan = traceHeader != null
+            ? SentrySdk.StartTransaction("daily-download-process", "queue.process", traceHeader)
+            : SentrySdk.StartTransaction("daily-download-process", "queue.process");
+
         SentrySdk.ConfigureScope(s => s.Transaction = batchProcessSpan);
+
+        // Set required Sentry Queues module attributes
+        batchProcessSpan.SetExtra("messaging.system", "rabbitmq");
+        batchProcessSpan.SetExtra("messaging.destination.name", queueName);
+
+        // Set optional attributes
+        if (ea.BasicProperties?.MessageId != null)
+        {
+            batchProcessSpan.SetExtra("messaging.message.id", ea.BasicProperties.MessageId);
+        }
+        batchProcessSpan.SetExtra("messaging.message.body.size", ea.Body.Length);
+        if (ea.Redelivered)
+        {
+            batchProcessSpan.SetExtra("messaging.message.retry.count", 1); // RabbitMQ doesn't track exact retry count
+        }
+
         List<string>? packageIds = null;
         var consumer = (AsyncEventingBasicConsumer)sender;
         try
@@ -165,7 +200,7 @@ public class DailyDownloadWorker : IHostedService
             var body = ea.Body;
             _logger.LogDebug("Received message with body size '{size}'.", body.Length);
             SentrySdk.ConfigureScope(s => s.SetTag("msg_size", body.Length.ToString()));
-            var deserializationSpan = batchProcessSpan.StartChild("json.deserialize");
+            var deserializationSpan = batchProcessSpan.StartChild("serialize.msgpack.deserialize", "Deserialize MessagePack");
             packageIds = MessagePackSerializer.Deserialize<List<string>>(body);
             deserializationSpan.Finish(SpanStatus.Ok);
 
