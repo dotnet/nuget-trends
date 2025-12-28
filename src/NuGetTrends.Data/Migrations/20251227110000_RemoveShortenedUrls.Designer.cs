@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using NuGetTrends.Data;
@@ -13,10 +12,9 @@ using NuGetTrends.Data;
 namespace NuGetTrends.Data.Migrations
 {
     [DbContext(typeof(NuGetTrendsContext))]
-    [Migration("20251227090000_RemoveShortLinks")]
-    partial class RemoveShortLinks
+    [Migration("20251227110000_RemoveShortenedUrls")]
+    partial class RemoveShortenedUrls
     {
-        /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618

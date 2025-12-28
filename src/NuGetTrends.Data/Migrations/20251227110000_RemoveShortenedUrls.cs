@@ -1,4 +1,3 @@
-using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -6,20 +5,17 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace NuGetTrends.Data.Migrations
 {
     /// <inheritdoc />
-    public partial class RemoveShortLinks : Migration
+    public partial class RemoveShortenedUrls : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.Sql("DROP TABLE IF EXISTS short_links");
-            migrationBuilder.Sql("DROP TABLE IF EXISTS shortlinks");
-            migrationBuilder.Sql("DROP TABLE IF EXISTS \"ShortLinks\"");
+            migrationBuilder.Sql("DROP TABLE IF EXISTS shortened_urls");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            // Intentionally left blank. Recreating the Shortr tables is not supported.
         }
     }
 }
