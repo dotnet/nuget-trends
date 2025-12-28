@@ -73,11 +73,19 @@ public class ClickHouseService : IClickHouseService
         CancellationToken ct = default,
         ISpan? parentSpan = null)
     {
-        const string queryDescription =
-            "SELECT toMonday(date) AS week, avg(download_count) AS download_count " +
-            "FROM daily_downloads WHERE package_id = ? AND date >= today() - INTERVAL ? MONTH " +
-            "GROUP BY week ORDER BY week";
+        const string query = """
+            SELECT
+                toMonday(date) AS week,
+                avg(download_count) AS download_count
+            FROM daily_downloads
+            WHERE package_id = {packageId:String}
+              AND date >= today() - INTERVAL {months:Int32} MONTH
+            GROUP BY week
+            ORDER BY week
+            """;
 
+        // Parameterize the query for Sentry (replace ClickHouse {param:Type} with ?)
+        var queryDescription = ParameterizeQuery(query);
         var span = StartDatabaseSpan(parentSpan, queryDescription, "SELECT");
 
         try
@@ -86,16 +94,7 @@ public class ClickHouseService : IClickHouseService
             await connection.OpenAsync(ct);
 
             await using var cmd = connection.CreateCommand();
-            cmd.CommandText = """
-                SELECT
-                    toMonday(date) AS week,
-                    avg(download_count) AS download_count
-                FROM daily_downloads
-                WHERE package_id = {packageId:String}
-                  AND date >= today() - INTERVAL {months:Int32} MONTH
-                GROUP BY week
-                ORDER BY week
-                """;
+            cmd.CommandText = query;
 
             var packageIdParam = cmd.CreateParameter();
             packageIdParam.ParameterName = "packageId";
@@ -130,6 +129,19 @@ public class ClickHouseService : IClickHouseService
             span?.Finish(ex);
             throw;
         }
+    }
+
+    /// <summary>
+    /// Converts ClickHouse parameterized query syntax to Sentry-compatible format.
+    /// Replaces {paramName:Type} with ? placeholder.
+    /// </summary>
+    private static string ParameterizeQuery(string query)
+    {
+        // Replace ClickHouse parameter syntax {name:Type} with ?
+        return System.Text.RegularExpressions.Regex.Replace(
+            query,
+            @"\{[^}]+\}",
+            "?");
     }
 
     /// <summary>
