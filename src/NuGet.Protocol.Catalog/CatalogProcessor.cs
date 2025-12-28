@@ -62,6 +62,9 @@ public class CatalogProcessor
 
         var minCommitTimestamp = await GetMinCommitTimestamp(token);
 
+        // Add the actual cursor value to Sentry context - this is more useful than the static settings
+        SentrySdk.ConfigureScope(s => s.Contexts["CatalogCursor"] = new { CursorValue = minCommitTimestamp });
+
         _logger.LogInformation(
             "Using time bounds '{min:O}' (exclusive) to '{max:O}' (inclusive).",
             minCommitTimestamp,
