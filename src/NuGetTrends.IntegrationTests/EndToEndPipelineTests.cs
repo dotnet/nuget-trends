@@ -188,6 +188,7 @@ public class EndToEndPipelineTests : IAsyncLifetime
             serviceProvider,
             serviceProvider.GetRequiredService<INuGetSearchService>(),
             serviceProvider.GetRequiredService<IClickHouseService>(),
+            serviceProvider.GetRequiredService<NuGetAvailabilityState>(),
             NullLogger<DailyDownloadWorker>.Instance);
 
         await worker.StartAsync(CancellationToken.None);

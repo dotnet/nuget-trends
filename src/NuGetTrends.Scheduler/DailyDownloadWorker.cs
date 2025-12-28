@@ -19,6 +19,7 @@ public class DailyDownloadWorker : IHostedService
     private readonly IServiceProvider _services;
     private readonly INuGetSearchService _nuGetSearchService;
     private readonly IClickHouseService _clickHouseService;
+    private readonly NuGetAvailabilityState _availabilityState;
     private readonly ILogger<DailyDownloadWorker> _logger;
     private readonly CancellationTokenSource _cancellationTokenSource = new();
     private readonly ConcurrentBag<(IModel, IConnection)> _connections = new();
@@ -31,6 +32,7 @@ public class DailyDownloadWorker : IHostedService
         IServiceProvider services,
         INuGetSearchService nuGetSearchService,
         IClickHouseService clickHouseService,
+        NuGetAvailabilityState availabilityState,
         ILogger<DailyDownloadWorker> logger)
     {
         _options = options.Value;
@@ -38,6 +40,7 @@ public class DailyDownloadWorker : IHostedService
         _services = services;
         _nuGetSearchService = nuGetSearchService;
         _clickHouseService = clickHouseService;
+        _availabilityState = availabilityState;
         _logger = logger;
         _workers = new List<Task>(_options.WorkerCount);
     }
@@ -195,6 +198,14 @@ public class DailyDownloadWorker : IHostedService
             consumer.Model.BasicNack(ea.DeliveryTag, multiple: false, requeue: true);
             batchProcessSpan.Finish(SpanStatus.Unavailable);
         }
+        catch (AggregateException ae) when (ae.InnerExceptions.Any(e => e is NuGetUnavailableException))
+        {
+            // Multiple GetPackage calls failed due to NuGet unavailability (Task.WhenAll wraps in AggregateException)
+            // NACK the message so it gets redelivered later
+            _logger.LogWarning(ae, "NuGet unavailable (multiple failures), requeueing batch of {Count} packages.", packageIds?.Count ?? 0);
+            consumer.Model.BasicNack(ea.DeliveryTag, multiple: false, requeue: true);
+            batchProcessSpan.Finish(SpanStatus.Unavailable);
+        }
         catch (Exception e)
         {
             if (packageIds != null)
@@ -212,6 +223,13 @@ public class DailyDownloadWorker : IHostedService
 
     private async Task UpdateDownloadCount(IList<string> packageIds, ISpan parentSpan)
     {
+        // Fail-fast if NuGet is known to be unavailable - no point starting a batch of requests
+        if (!_availabilityState.IsAvailable)
+        {
+            throw new NuGetUnavailableException(
+                $"NuGet API unavailable since {_availabilityState.UnavailableSince} - skipping batch of {packageIds.Count} packages");
+        }
+
         var packageInfoQueue = parentSpan.StartChild("package.info.queue", "Start task to fetch package detail");
         var tasks = new List<Task<IPackageSearchMetadata?>>(packageIds.Count);
         foreach (var id in packageIds)
