@@ -4,6 +4,7 @@ using Hangfire.MemoryStorage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using NuGetTrends.Data;
+using NuGetTrends.Data.ClickHouse;
 using RabbitMQ.Client;
 using Sentry.Extensibility;
 
@@ -23,6 +24,13 @@ public class Startup(
         services.Configure<DailyDownloadWorkerOptions>(configuration.GetSection("DailyDownloadWorker"));
         services.Configure<RabbitMqOptions>(configuration.GetSection("RabbitMq"));
         services.Configure<BackgroundJobServerOptions>(configuration.GetSection("Hangfire"));
+        services.AddSingleton<IClickHouseService>(sp =>
+        {
+            var connString = configuration.GetConnectionString("ClickHouse")
+                ?? throw new InvalidOperationException("ClickHouse connection string not configured.");
+            var logger = sp.GetRequiredService<ILogger<ClickHouseService>>();
+            return new ClickHouseService(connString, logger);
+        });
 
         services.AddSingleton<IConnectionFactory>(c =>
         {

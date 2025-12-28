@@ -11,6 +11,7 @@ on:
     paths:
       - 'src/NuGetTrends.Scheduler/**'
       - 'src/NuGetTrends.Data/**'
+      - 'src/NuGetTrends.Data.Tests/**'
       - 'src/NuGet.Protocol.Catalog/**'
       - 'src/Directory.Build.props'
       - '**/scheduler-workflow.yml'
@@ -18,6 +19,7 @@ on:
     paths:
       - 'src/NuGetTrends.Scheduler/**'
       - 'src/NuGetTrends.Data/**'
+      - 'src/NuGetTrends.Data.Tests/**'
       - 'src/NuGet.Protocol.Catalog/**'
       - 'src/Directory.Build.props'
       - '**/scheduler-workflow.yml'
@@ -70,6 +72,10 @@ jobs:
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         working-directory: src/NuGetTrends.Scheduler/
+
+      - name: Test
+        run: dotnet test -c Release -p:SentryUploadSymbols=false
+        working-directory: src/NuGetTrends.Data.Tests/
 
       - name: Publish
         run: dotnet publish -c Release -o publish --no-build

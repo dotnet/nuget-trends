@@ -6,6 +6,7 @@
     <PackageId>NuGet.Protocol.Catalog</PackageId>
     <PackageVersion>0.2.0-beta</PackageVersion>
     <Description>A .NET library for consuming the NuGet API's catalog resource.</Description>
+    <UseSentryCLI>false</UseSentryCLI>
   </PropertyGroup>
 
   <ItemGroup>

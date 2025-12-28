@@ -1,7 +1,7 @@
+using System.Runtime.CompilerServices;
 using Hangfire;
 using MessagePack;
 using Microsoft.EntityFrameworkCore;
-using Npgsql;
 using NuGetTrends.Data;
 using RabbitMQ.Client;
 using Sentry.Hangfire;
@@ -16,6 +16,12 @@ public class DailyDownloadPackageIdPublisher(
     IHub hub,
     ILogger<DailyDownloadPackageIdPublisher> logger)
 {
+    // Batch size for streaming from PostgreSQL
+    private const int BatchSize = 10_000;
+
+    // Batch size for RabbitMQ messages
+    private const int QueueBatchSize = 25;
+
     [SentryMonitorSlug("DailyDownloadPackageIdPublisher.Import")]
     public async Task Import(IJobCancellationToken token)
     {
@@ -45,54 +51,48 @@ public class DailyDownloadPackageIdPublisher(
             connectionSpan.Finish();
 
             var messageCount = 0;
+
             try
             {
                 var queueIdsSpan = transaction.StartChild("queue.ids");
-                var dbConnectSpan = queueIdsSpan.StartChild("db.connect", "Connect to Postgres");
-                await using var conn = context.Database.GetDbConnection();
-                await conn.OpenAsync();
-                dbConnectSpan.Finish();
 
-                const string queryIds = "SELECT package_id FROM pending_packages_daily_downloads";
-                var dbQuerySpan = queueIdsSpan.StartChild("db.query", queryIds);
-                await using var cmd = new NpgsqlCommand(queryIds, (NpgsqlConnection)conn);
-                await using var reader = await cmd.ExecuteReaderAsync();
-                dbQuerySpan.Finish();
+                // Stream package IDs from PostgreSQL, filtering out those already checked today
+                var dbStreamSpan = queueIdsSpan.StartChild("db.stream", "Stream unprocessed package IDs from PostgreSQL");
 
-                var batchSize = 25; // TODO: Configurable
-                var processBatchSpan = queueIdsSpan.StartChild("db.read",
-                    $"Go through reader and queue in batches of '{batchSize}' ids.");
-                var batch = new List<string>(batchSize);
-                while (await reader.ReadAsync())
+                var queueBatch = new List<string>(QueueBatchSize);
+
+                await foreach (var packageId in GetUnprocessedPackageIdsAsync(token.ShutdownToken))
                 {
                     messageCount++;
-                    batch.Add((string)reader[0]);
+                    queueBatch.Add(packageId);
 
-                    if (batch.Count == batchSize)
+                    if (queueBatch.Count == QueueBatchSize)
                     {
-                        Queue(batch, channel, queueName, properties);
-
-                        batch.Clear();
+                        Queue(queueBatch, channel, queueName, properties);
+                        queueBatch.Clear();
                     }
                 }
-                processBatchSpan.Finish();
 
-                if (batch.Count != 0)
+                dbStreamSpan.Finish();
+
+                // Queue remaining packages
+                if (queueBatch.Count != 0)
                 {
-                    var queueSpan = queueIdsSpan.StartChild("queue.enqueue", "Enqueue incomplete batch.");
-                    queueSpan.SetTag("count", batch.Count.ToString());
-                    Queue(batch, channel, queueName, properties);
+                    var queueSpan = queueIdsSpan.StartChild("queue.enqueue", "Enqueue final batch");
+                    queueSpan.SetTag("count", queueBatch.Count.ToString());
+                    Queue(queueBatch, channel, queueName, properties);
                     queueSpan.Finish();
                 }
 
                 queueIdsSpan.SetTag("queue-name", queueName);
-                queueIdsSpan.SetTag("batch-size", batchSize.ToString());
+                queueIdsSpan.SetTag("batch-size", BatchSize.ToString());
+                queueIdsSpan.SetTag("queue-batch-size", QueueBatchSize.ToString());
                 queueIdsSpan.SetTag("message-count", messageCount.ToString());
                 queueIdsSpan.Finish();
             }
             finally
             {
-                logger.LogInformation("Finished publishing messages. '{count}' messages queued.", messageCount);
+                logger.LogInformation("Finished publishing messages. Queued {QueuedCount} packages for download.", messageCount);
             }
             transaction.Finish(SpanStatus.Ok);
         }
@@ -100,6 +100,22 @@ public class DailyDownloadPackageIdPublisher(
         {
             transaction.Finish(e);
             throw;
+        }
+    }
+
+    /// <summary>
+    /// Streams package IDs from PostgreSQL that haven't been checked today.
+    /// </summary>
+    private async IAsyncEnumerable<string> GetUnprocessedPackageIdsAsync(
+        [EnumeratorCancellation] CancellationToken ct)
+    {
+        var todayUtc = DateTime.UtcNow.Date;
+
+        await foreach (var packageId in context.GetUnprocessedPackageIds(todayUtc)
+                           .AsAsyncEnumerable()
+                           .WithCancellation(ct))
+        {
+            yield return packageId;
         }
     }
 
