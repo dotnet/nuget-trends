@@ -1,12 +1,9 @@
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.OpenApi.Models;
 using NuGetTrends.Data;
 using NuGetTrends.Data.ClickHouse;
 using Serilog;
-using Shortr;
-using Shortr.Npgsql;
 using Swashbuckle.AspNetCore.SwaggerUI;
 using SystemEnvironment = System.Environment;
 
@@ -113,15 +110,6 @@ try
          c.IncludeXmlComments(xmlPath);
      });
 
-     builder.Services.AddShortr();
-     if (environment == Production)
-     {
-         builder.Services.Replace(ServiceDescriptor.Singleton<IShortrStore, NpgsqlShortrStore>());
-         builder.Services.AddSingleton(_ => new NpgsqlShortrOptions
-         {
-             ConnectionString = configuration.GetNuGetTrendsConnectionString()
-         });
-     }
 
     var app = builder.Build();
 
@@ -177,8 +165,6 @@ try
             spa.UseProxyToSpaDevelopmentServer("http://localhost:4200");
         }
     });
-
-    app.UseShortr();
 
     app.Run();
 
