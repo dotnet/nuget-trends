@@ -2,9 +2,11 @@ using Hangfire;
 using Hangfire.Dashboard;
 using Hangfire.MemoryStorage;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
 using NuGetTrends.Data;
 using NuGetTrends.Data.ClickHouse;
+using Polly;
 using RabbitMQ.Client;
 using Sentry.Extensibility;
 
@@ -16,6 +18,9 @@ public class Startup(
 {
     public void ConfigureServices(IServiceCollection services)
     {
+        // NuGet API availability tracking - shared state for all jobs and workers
+        services.AddSingleton<NuGetAvailabilityState>();
+
         services.AddHostedService<DailyDownloadWorker>();
 
         services.AddSingleton<INuGetSearchService, NuGetSearchService>();
@@ -69,7 +74,43 @@ public class Startup(
             .AddSentry();
         services.AddHangfireServer();
 
-        services.AddHttpClient("nuget"); // TODO: typed client? will be shared across all jobs
+        // Configure resilient HttpClient for NuGet API calls
+        services.AddHttpClient("nuget")
+            .AddResilienceHandler("nuget-resilience", builder =>
+            {
+                // Retry with exponential backoff: 2 attempts total (1 initial + 1 retry)
+                builder.AddRetry(new HttpRetryStrategyOptions
+                {
+                    MaxRetryAttempts = 2,
+                    Delay = TimeSpan.FromSeconds(2),
+                    UseJitter = true,
+                    BackoffType = DelayBackoffType.Exponential,
+                    ShouldHandle = static args => ValueTask.FromResult(
+                        args.Outcome.Exception is HttpRequestException or TaskCanceledException
+                        || args.Outcome.Result?.StatusCode is
+                            System.Net.HttpStatusCode.RequestTimeout or
+                            System.Net.HttpStatusCode.TooManyRequests or
+                            >= System.Net.HttpStatusCode.InternalServerError)
+                });
+
+                // Circuit breaker: open after repeated failures
+                builder.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
+                {
+                    FailureRatio = 0.5,
+                    SamplingDuration = TimeSpan.FromSeconds(30),
+                    MinimumThroughput = 3,
+                    BreakDuration = TimeSpan.FromSeconds(30),
+                    ShouldHandle = static args => ValueTask.FromResult(
+                        args.Outcome.Exception is HttpRequestException or TaskCanceledException
+                        || args.Outcome.Result?.StatusCode is
+                            System.Net.HttpStatusCode.RequestTimeout or
+                            System.Net.HttpStatusCode.TooManyRequests or
+                            >= System.Net.HttpStatusCode.InternalServerError)
+                });
+
+                // Overall timeout for a single request attempt
+                builder.AddTimeout(TimeSpan.FromSeconds(10));
+            });
 
         services.AddScoped<CatalogCursorStore>();
         services.AddScoped<CatalogLeafProcessor>();

@@ -44,6 +44,17 @@ try
         {
             o.SetBeforeSend(e =>
             {
+                // Ignore SPA default page middleware errors for POST requests
+                // The SPA middleware doesn't support POST requests to index.html and this is expected behavior
+                // See: https://nugettrends.sentry.io/issues/4968360400/
+                if (e.Exception is InvalidOperationException &&
+                    e.Message?.Formatted is { } message &&
+                    message.Contains("The SPA default page middleware could not return the default page") &&
+                    e.Request?.Method == "POST")
+                {
+                    return null;
+                }
+
                 if (e.Message?.Formatted is { } msg && msg.Contains(
                         "An error occurred using the connection to database '\"nugettrends\"' on server"))
                 {

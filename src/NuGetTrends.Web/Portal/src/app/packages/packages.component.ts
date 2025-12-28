@@ -75,6 +75,21 @@ export class PackagesComponent implements OnInit, OnDestroy {
 
     if (this.trendChart) {
       this.trendChart.destroy();
+      this.trendChart = null!;
+    }
+  }
+
+  /**
+   * Safely updates the chart, clearing active elements first to prevent
+   * tooltip errors when datasets are modified during user interaction.
+   * This prevents "Cannot read properties of null (reading 'getLabelAndValue')"
+   * errors that occur when Chart.js tries to render tooltips for datasets
+   * that were just modified or removed.
+   */
+  private safeChartUpdate(): void {
+    if (this.trendChart?.canvas) {
+      this.trendChart.setActiveElements([]);
+      this.trendChart.update();
     }
   }
 
@@ -112,7 +127,7 @@ export class PackagesComponent implements OnInit, OnDestroy {
           this.initializeChart(packageHistory);
         } else {
           this.chartData.datasets!.push(dataset);
-          this.trendChart.update();
+          this.safeChartUpdate();
         }
         this.addPackageToUrl(packageHistory.id);
       }, 0);
@@ -124,7 +139,7 @@ export class PackagesComponent implements OnInit, OnDestroy {
    */
   private removePackage(packageId: string): void {
     this.chartData.datasets = this.chartData.datasets!.filter(d => d.label !== packageId);
-    this.trendChart.update();
+    this.safeChartUpdate();
     this.removePackageFromUrl(packageId);
 
     if (!this.chartData.datasets.length) {
