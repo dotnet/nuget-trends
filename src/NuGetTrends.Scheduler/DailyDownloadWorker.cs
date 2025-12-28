@@ -311,21 +311,13 @@ public class DailyDownloadWorker : IHostedService
             }
         }
 
-        // Batch insert to ClickHouse
+        // Batch insert to ClickHouse (span created inside ClickHouseService for Sentry Queries module)
         if (clickHouseDownloads.Count > 0)
         {
-            var chInsertSpan = parentSpan.StartChild("clickhouse.insert", "Batch insert daily downloads");
-            chInsertSpan.SetTag("count", clickHouseDownloads.Count.ToString());
-            try
-            {
-                await _clickHouseService.InsertDailyDownloadsAsync(clickHouseDownloads, _cancellationTokenSource.Token);
-                chInsertSpan.Finish(SpanStatus.Ok);
-            }
-            catch (Exception e)
-            {
-                chInsertSpan.Finish(e);
-                throw;
-            }
+            await _clickHouseService.InsertDailyDownloadsAsync(
+                clickHouseDownloads,
+                _cancellationTokenSource.Token,
+                parentSpan);
         }
 
         // Save PostgreSQL changes (PackageDownloads updates only)
