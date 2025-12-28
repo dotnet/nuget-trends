@@ -164,6 +164,11 @@ public class Startup(
         if (hostingEnvironment.IsDevelopment())
         {
             app.UseDeveloperExceptionPage();
+
+            // Auto-apply EF Core migrations in development (for Aspire local dev)
+            using var scope = app.ApplicationServices.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<NuGetTrendsContext>();
+            db.Database.Migrate();
         }
 
         app.UseHangfireDashboard(

@@ -23,10 +23,9 @@ var clickhouse = builder.AddContainer("clickhouse", "clickhouse/clickhouse-serve
     .WithBindMount("../NuGetTrends.Data/ClickHouse/migrations", "/docker-entrypoint-initdb.d", isReadOnly: true)
     .WithVolume("nugettrends-clickhouse", "/var/lib/clickhouse");
 
-// Angular Portal dev server
+// Angular Portal dev server (Web app proxies to this, no need to expose externally)
 var portal = builder.AddNpmApp("portal", "../NuGetTrends.Web/Portal", "start")
-    .WithHttpEndpoint(targetPort: 4200, env: "PORT")
-    .WithExternalHttpEndpoints();
+    .WithHttpEndpoint(targetPort: 4200, env: "PORT");
 
 // Application services
 var web = builder.AddProject<Projects.NuGetTrends_Web>("web")
@@ -42,6 +41,7 @@ var scheduler = builder.AddProject<Projects.NuGetTrends_Scheduler>("scheduler")
     .WithReference(clickhouse.GetEndpoint("http"))
     .WaitFor(postgresDb)
     .WaitFor(rabbitmq)
-    .WaitFor(clickhouse);
+    .WaitFor(clickhouse)
+    .WithExternalHttpEndpoints();
 
 builder.Build().Run();
