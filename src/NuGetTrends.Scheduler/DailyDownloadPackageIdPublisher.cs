@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using Hangfire;
+using Hangfire.Server;
 using MessagePack;
 using Microsoft.EntityFrameworkCore;
 using NuGetTrends.Data;
@@ -13,7 +14,7 @@ namespace NuGetTrends.Scheduler;
 // ReSharper disable once ClassNeverInstantiated.Global - DI
 public class DailyDownloadPackageIdPublisher(
     IConnectionFactory connectionFactory,
-    NuGetTrendsContext context,
+    NuGetTrendsContext dbContext,
     IHub hub,
     ILogger<DailyDownloadPackageIdPublisher> logger)
 {
@@ -30,23 +31,29 @@ public class DailyDownloadPackageIdPublisher(
     private const int QueueBatchSize = 25;
 
     [SentryMonitorSlug("DailyDownloadPackageIdPublisher.Import")]
-    public async Task Import(IJobCancellationToken token)
+    public async Task Import(IJobCancellationToken token, PerformContext? context)
     {
-        var jobId = token.ShutdownToken.GetHashCode().ToString("X8"); // Use token hash as a pseudo job ID for logging
+        var jobId = context?.BackgroundJob?.Id ?? "unknown";
 
-        if (!await ImportLock.WaitAsync(TimeSpan.Zero))
+        // Start transaction immediately - wraps entire job execution for full observability
+        using var _ = hub.PushScope();
+        var transaction = hub.StartTransaction("daily-download-pkg-id-publisher", "queue.write",
+            "queues package ids to fetch download numbers");
+        hub.ConfigureScope(s =>
         {
-            logger.LogWarning("Job {JobId}: Skipping daily download publisher - another instance is already in progress", jobId);
-            throw new ConcurrentExecutionSkippedException(
-                $"Job {jobId}: Daily download publisher skipped - another instance is already in progress");
-        }
+            s.Transaction = transaction;
+            s.SetTag("jobId", jobId);
+        });
 
         try
         {
-            using var _ = hub.PushScope();
-            var transaction = hub.StartTransaction("daily-download-pkg-id-publisher", "queue.write",
-                "queues package ids to fetch download numbers");
-            hub.ConfigureScope(s => s.SetTag("jobId", jobId));
+            if (!await ImportLock.WaitAsync(TimeSpan.Zero))
+            {
+                logger.LogWarning("Job {JobId}: Skipping daily download publisher - another instance is already in progress", jobId);
+                transaction.Finish(SpanStatus.Aborted);
+                throw new ConcurrentExecutionSkippedException(
+                    $"Job {jobId}: Daily download publisher skipped - another instance is already in progress");
+            }
 
             try
             {
@@ -68,7 +75,7 @@ public class DailyDownloadPackageIdPublisher(
                 var properties = channel.CreateBasicProperties();
                 properties.Persistent = true;
                 properties.Expiration = "43200000";
-                connectionSpan.Finish();
+                connectionSpan.Finish(SpanStatus.Ok);
 
                 var messageCount = 0;
 
@@ -93,7 +100,7 @@ public class DailyDownloadPackageIdPublisher(
                         }
                     }
 
-                    dbStreamSpan.Finish();
+                    dbStreamSpan.Finish(SpanStatus.Ok);
 
                     // Queue remaining packages
                     if (queueBatch.Count != 0)
@@ -101,14 +108,14 @@ public class DailyDownloadPackageIdPublisher(
                         var queueSpan = queueIdsSpan.StartChild("queue.enqueue", "Enqueue final batch");
                         queueSpan.SetTag("count", queueBatch.Count.ToString());
                         Queue(queueBatch, channel, queueName, properties);
-                        queueSpan.Finish();
+                        queueSpan.Finish(SpanStatus.Ok);
                     }
 
                     queueIdsSpan.SetTag("queue-name", queueName);
                     queueIdsSpan.SetTag("batch-size", BatchSize.ToString());
                     queueIdsSpan.SetTag("queue-batch-size", QueueBatchSize.ToString());
                     queueIdsSpan.SetTag("message-count", messageCount.ToString());
-                    queueIdsSpan.Finish();
+                    queueIdsSpan.Finish(SpanStatus.Ok);
                 }
                 finally
                 {
@@ -123,10 +130,14 @@ public class DailyDownloadPackageIdPublisher(
                 transaction.Finish(e);
                 throw;
             }
+            finally
+            {
+                ImportLock.Release();
+            }
         }
         finally
         {
-            ImportLock.Release();
+            await SentrySdk.FlushAsync(TimeSpan.FromSeconds(2));
         }
     }
 
@@ -138,7 +149,7 @@ public class DailyDownloadPackageIdPublisher(
     {
         var todayUtc = DateTime.UtcNow.Date;
 
-        await foreach (var packageId in context.GetUnprocessedPackageIds(todayUtc)
+        await foreach (var packageId in dbContext.GetUnprocessedPackageIds(todayUtc)
                            .AsAsyncEnumerable()
                            .WithCancellation(ct))
         {

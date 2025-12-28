@@ -1,4 +1,5 @@
 using Hangfire;
+using Hangfire.Server;
 using NuGet.Protocol.Catalog;
 using Sentry.Hangfire;
 
@@ -23,83 +24,94 @@ public class NuGetCatalogImporter(
     private readonly ILogger<NuGetCatalogImporter> _logger = loggerFactory.CreateLogger<NuGetCatalogImporter>();
 
     [SentryMonitorSlug("NuGetCatalogImporter.Import")]
-    public async Task Import(IJobCancellationToken token)
+    public async Task Import(IJobCancellationToken token, PerformContext? context)
     {
-        var jobId = token.ShutdownToken.GetHashCode().ToString("X8"); // Use token hash as a pseudo job ID for logging
+        var jobId = context?.BackgroundJob?.Id ?? "unknown";
 
-        if (!await ImportLock.WaitAsync(TimeSpan.Zero))
+        // Start transaction immediately - wraps entire job execution for full observability
+        using var _ = hub.PushScope();
+        var transaction = hub.StartTransaction("import-catalog", "catalog.import");
+        hub.ConfigureScope(s =>
         {
-            _logger.LogWarning("Job {JobId}: Skipping catalog import - another import is already in progress", jobId);
-            throw new ConcurrentExecutionSkippedException(
-                $"Job {jobId}: Catalog import skipped - another import is already in progress");
-        }
+            s.Transaction = transaction;
+            s.SetTag("jobId", jobId);
+        });
 
         try
         {
-            // Check NuGet availability before starting - skip if recently unavailable
-            if (!availabilityState.IsAvailable)
+            if (!await ImportLock.WaitAsync(TimeSpan.Zero))
             {
-                _logger.LogWarning(
-                    "Job {JobId}: Skipping catalog import - NuGet API marked unavailable since {UnavailableSince}. Will retry after cooldown.",
-                    jobId, availabilityState.UnavailableSince);
-                return;
+                _logger.LogWarning("Job {JobId}: Skipping catalog import - another import is already in progress", jobId);
+                transaction.Finish(SpanStatus.Aborted);
+                throw new ConcurrentExecutionSkippedException(
+                    $"Job {jobId}: Catalog import skipped - another import is already in progress");
             }
 
-            using var _ = hub.PushScope();
-            var transaction = hub.StartTransaction("import-catalog", "catalog.import");
-            hub.ConfigureScope(s =>
-            {
-                s.Transaction = transaction;
-                s.SetTag("jobId", jobId);
-            });
-
-            _logger.LogInformation("Job {JobId}: Starting importing catalog.", jobId);
             try
             {
-                var httpClient = httpClientFactory.CreateClient("nuget");
-                var catalogClient = new CatalogClient(httpClient, loggerFactory.CreateLogger<CatalogClient>());
-                var settings = new CatalogProcessorSettings
+                // Check NuGet availability before starting - skip if recently unavailable
+                if (!availabilityState.IsAvailable)
                 {
-                    DefaultMinCommitTimestamp = DateTimeOffset.MinValue, // Read everything
-                    ExcludeRedundantLeaves = false,
-                };
+                    _logger.LogWarning(
+                        "Job {JobId}: Skipping catalog import - NuGet API marked unavailable since {UnavailableSince}. Will retry after cooldown.",
+                        jobId, availabilityState.UnavailableSince);
+                    transaction.Finish(SpanStatus.Unavailable);
+                    return;
+                }
 
-                var catalogProcessor = new CatalogProcessor(
-                    cursorStore,
-                    catalogClient,
-                    catalogLeafProcessor,
-                    settings,
-                    loggerFactory.CreateLogger<CatalogProcessor>());
+                _logger.LogInformation("Job {JobId}: Starting importing catalog.", jobId);
 
-                await catalogProcessor.ProcessAsync(token.ShutdownToken);
+                var processingSpan = transaction.StartChild("catalog.process", "Process NuGet catalog");
+                try
+                {
+                    var httpClient = httpClientFactory.CreateClient("nuget");
+                    var catalogClient = new CatalogClient(httpClient, loggerFactory.CreateLogger<CatalogClient>());
+                    var settings = new CatalogProcessorSettings
+                    {
+                        DefaultMinCommitTimestamp = DateTimeOffset.MinValue, // Read everything
+                        ExcludeRedundantLeaves = false,
+                    };
 
-                // Success - ensure availability state is marked as available
-                availabilityState.MarkAvailable();
+                    var catalogProcessor = new CatalogProcessor(
+                        cursorStore,
+                        catalogClient,
+                        catalogLeafProcessor,
+                        settings,
+                        loggerFactory.CreateLogger<CatalogProcessor>());
 
-                _logger.LogInformation("Job {JobId}: Finished importing catalog.", jobId);
-                transaction.Finish(SpanStatus.Ok);
-            }
-            catch (HttpRequestException e)
-            {
-                // HTTP failure after resilience retries exhausted - mark NuGet as unavailable
-                availabilityState.MarkUnavailable(e);
-                transaction.Finish(e);
-                throw;
-            }
-            catch (Exception e)
-            {
-                transaction.Finish(e);
-                SentrySdk.CaptureException(e);
-                throw;
+                    await catalogProcessor.ProcessAsync(token.ShutdownToken);
+
+                    // Success - ensure availability state is marked as available
+                    availabilityState.MarkAvailable();
+
+                    _logger.LogInformation("Job {JobId}: Finished importing catalog.", jobId);
+                    processingSpan.Finish(SpanStatus.Ok);
+                    transaction.Finish(SpanStatus.Ok);
+                }
+                catch (HttpRequestException e)
+                {
+                    // HTTP failure after resilience retries exhausted - mark NuGet as unavailable
+                    availabilityState.MarkUnavailable(e);
+                    processingSpan.Finish(e);
+                    transaction.Finish(e);
+                    throw;
+                }
+                catch (Exception e)
+                {
+                    processingSpan.Finish(e);
+                    transaction.Finish(e);
+                    SentrySdk.CaptureException(e);
+                    throw;
+                }
             }
             finally
             {
-                await SentrySdk.FlushAsync(TimeSpan.FromSeconds(2));
+                ImportLock.Release();
             }
         }
         finally
         {
-            ImportLock.Release();
+            await SentrySdk.FlushAsync(TimeSpan.FromSeconds(2));
         }
     }
 }

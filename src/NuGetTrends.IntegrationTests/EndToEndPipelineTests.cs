@@ -206,7 +206,7 @@ public class EndToEndPipelineTests : IAsyncLifetime
             NullLogger<DailyDownloadPackageIdPublisher>.Instance);
 
         _output.WriteLine("Publishing package IDs to queue...");
-        await publisher.Import(new TestJobCancellationToken());
+        await publisher.Import(new TestJobCancellationToken(), context: null);
 
         // Wait for queue to drain
         await WaitForQueueDrain(connectionFactory, TimeSpan.FromMinutes(3));
