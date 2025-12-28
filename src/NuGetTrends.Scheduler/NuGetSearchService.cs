@@ -4,7 +4,9 @@ using ILogger = NuGet.Common.ILogger;
 
 namespace NuGetTrends.Scheduler;
 
-public class NuGetSearchService(ILogger<NuGetSearchService> logger) : INuGetSearchService
+public class NuGetSearchService(
+    NuGetAvailabilityState availabilityState,
+    ILogger<NuGetSearchService> logger) : INuGetSearchService
 {
     private static readonly ILogger NugetLogger = new NuGet.Common.NullLogger();
     private static readonly SearchFilter SearchFilter = new(true);
@@ -21,8 +23,19 @@ public class NuGetSearchService(ILogger<NuGetSearchService> logger) : INuGetSear
     /// <param name="packageId"></param>
     /// <param name="token"></param>
     /// <returns></returns>
+    /// <exception cref="NuGetUnavailableException">Thrown when NuGet API is marked unavailable.</exception>
     public async Task<IPackageSearchMetadata?> GetPackage(string packageId, CancellationToken token)
     {
+        // Throw if NuGet is marked unavailable - caller should handle this differently from null (package not found)
+        if (!availabilityState.IsAvailable)
+        {
+            logger.LogDebug(
+                "Skipping NuGet API call for '{PackageId}' - NuGet marked unavailable since {UnavailableSince}",
+                packageId, availabilityState.UnavailableSince);
+            throw new NuGetUnavailableException(
+                $"NuGet API unavailable since {availabilityState.UnavailableSince}. Skipping request for package '{packageId}'.");
+        }
+
         if (_packageSearchResource == null)
         {
             // Yeah, it could get called it more than once
@@ -40,12 +53,21 @@ public class NuGetSearchService(ILogger<NuGetSearchService> logger) : INuGetSear
                 logger.LogDebug("Package with id '{packageId}' not found.", packageId);
             }
 
-            return package;
+            // Success - mark NuGet as available
+            availabilityState.MarkAvailable();
 
+            return package;
+        }
+        catch (HttpRequestException e)
+        {
+            // HTTP failure - mark NuGet as unavailable
+            e.AddSentryTag("packageId", packageId);
+            availabilityState.MarkUnavailable(e);
+            throw;
         }
         catch (Exception e)
         {
-            e.Data["PackageId"] = packageId;
+            e.AddSentryTag("packageId", packageId);
             throw;
         }
     }

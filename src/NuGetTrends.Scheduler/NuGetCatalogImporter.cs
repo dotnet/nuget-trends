@@ -1,29 +1,40 @@
 using Hangfire;
 using NuGet.Protocol.Catalog;
-using Sentry;
 using Sentry.Hangfire;
 
 namespace NuGetTrends.Scheduler;
 
 [DisableConcurrentExecution(timeoutInSeconds: 48 * 60 * 60)]
+[AutomaticRetry(Attempts = 1, OnAttemptsExceeded = AttemptsExceededAction.Delete)]
 public class NuGetCatalogImporter(
     IHttpClientFactory httpClientFactory,
     CatalogCursorStore cursorStore,
     CatalogLeafProcessor catalogLeafProcessor,
+    NuGetAvailabilityState availabilityState,
     IHub hub,
     ILoggerFactory loggerFactory)
 {
+    private readonly ILogger<NuGetCatalogImporter> _logger = loggerFactory.CreateLogger<NuGetCatalogImporter>();
+
     [SentryMonitorSlug("NuGetCatalogImporter.Import")]
     public async Task Import(IJobCancellationToken token)
     {
+        // Check NuGet availability before starting - skip if recently unavailable
+        if (!availabilityState.IsAvailable)
+        {
+            _logger.LogWarning(
+                "Skipping catalog import - NuGet API marked unavailable since {UnavailableSince}. Will retry after cooldown.",
+                availabilityState.UnavailableSince);
+            return;
+        }
+
         using var _ = hub.PushScope();
         var transaction = hub.StartTransaction("import-catalog", "catalog.import");
         hub.ConfigureScope(s => s.Transaction = transaction);
-        var logger = loggerFactory.CreateLogger<NuGetCatalogImporter>();
-        logger.LogInformation("Starting importing catalog.");
+
+        _logger.LogInformation("Starting importing catalog.");
         try
         {
-
             var httpClient = httpClientFactory.CreateClient("nuget");
             var catalogClient = new CatalogClient(httpClient, loggerFactory.CreateLogger<CatalogClient>());
             var settings = new CatalogProcessorSettings
@@ -41,8 +52,18 @@ public class NuGetCatalogImporter(
 
             await catalogProcessor.ProcessAsync(token.ShutdownToken);
 
-            logger.LogInformation("Finished importing catalog.");
+            // Success - ensure availability state is marked as available
+            availabilityState.MarkAvailable();
+
+            _logger.LogInformation("Finished importing catalog.");
             transaction.Finish(SpanStatus.Ok);
+        }
+        catch (HttpRequestException e)
+        {
+            // HTTP failure after resilience retries exhausted - mark NuGet as unavailable
+            availabilityState.MarkUnavailable(e);
+            transaction.Finish(e);
+            throw;
         }
         catch (Exception e)
         {
