@@ -1,12 +1,19 @@
 using Microsoft.EntityFrameworkCore;
 using NuGet.Protocol.Catalog;
 using NuGet.Protocol.Catalog.Models;
+using Npgsql;
 using NuGetTrends.Data;
 
 namespace NuGetTrends.Scheduler;
 
 public class CatalogLeafProcessor : ICatalogLeafProcessor
 {
+    /// <summary>
+    /// PostgreSQL error code for unique_violation (duplicate key).
+    /// See: https://www.postgresql.org/docs/current/errcodes-appendix.html
+    /// </summary>
+    private const string PostgresUniqueViolationCode = "23505";
+
     private readonly IServiceProvider _provider;
     private readonly ILogger<CatalogLeafProcessor> _logger;
     private int _counter;
@@ -76,7 +83,27 @@ public class CatalogLeafProcessor : ICatalogLeafProcessor
         if (!exists)
         {
             _context.PackageDetailsCatalogLeafs.Add(leaf);
-            await Save(token);
+            try
+            {
+                await Save(token);
+            }
+            catch (DbUpdateException ex) when (IsDuplicateKeyException(ex))
+            {
+                // Race condition: another process inserted the same package between our AnyAsync check
+                // and SaveChangesAsync. This is harmless - the package exists, which is what we wanted.
+                // Detach the entity to prevent cascading failures on subsequent saves.
+                _context.Entry(leaf).State = EntityState.Detached;
+
+                _logger.LogDebug(
+                    "Package {PackageId} v{PackageVersion} already exists (concurrent insert), skipping.",
+                    leaf.PackageId,
+                    leaf.PackageVersion);
+            }
         }
+    }
+
+    private static bool IsDuplicateKeyException(DbUpdateException ex)
+    {
+        return ex.InnerException is PostgresException { SqlState: PostgresUniqueViolationCode };
     }
 }
