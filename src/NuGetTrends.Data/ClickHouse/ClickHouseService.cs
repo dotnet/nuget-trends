@@ -18,29 +18,36 @@ public sealed class ClickHouseConnectionInfo
 
     /// <summary>
     /// Parses a ClickHouse connection string to extract host, port, and database.
-    /// Supports both URI format (http://host:port/db) and Key=Value format (Host=x;Port=y;Database=z).
+    /// Supports URI formats (http://, https://, clickhouse://, tcp://) and Key=Value format.
     /// </summary>
     public static ClickHouseConnectionInfo Parse(string connectionString)
     {
         // ClickHouse connection strings can be in different formats:
         // 1. Key=Value format: "Host=localhost;Port=8123;Database=default"
-        // 2. URI format: "http://localhost:8123/default"
+        // 2. HTTP URI format: "http://localhost:8123/default" or "https://..."
+        // 3. Binary protocol URI: "clickhouse://localhost:9000/default" or "tcp://..."
 
-        if (connectionString.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
-            connectionString.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        // Try URI parsing for any scheme
+        if (Uri.TryCreate(connectionString, UriKind.Absolute, out var uri) &&
+            !string.IsNullOrEmpty(uri.Host))
         {
-            // URI format
-            if (Uri.TryCreate(connectionString, UriKind.Absolute, out var uri))
+            // Extract database from path (e.g., /default -> default)
+            var uriDatabase = !string.IsNullOrEmpty(uri.AbsolutePath) && uri.AbsolutePath != "/"
+                ? uri.AbsolutePath.TrimStart('/').Split('?')[0] // Remove query string if present
+                : null;
+
+            // Handle empty database after trimming
+            if (string.IsNullOrEmpty(uriDatabase))
             {
-                return new ClickHouseConnectionInfo
-                {
-                    Host = uri.Host,
-                    Port = uri.Port.ToString(),
-                    Database = !string.IsNullOrEmpty(uri.AbsolutePath) && uri.AbsolutePath != "/"
-                        ? uri.AbsolutePath.TrimStart('/')
-                        : null
-                };
+                uriDatabase = null;
             }
+
+            return new ClickHouseConnectionInfo
+            {
+                Host = uri.Host,
+                Port = uri.Port > 0 ? uri.Port.ToString() : null,
+                Database = uriDatabase
+            };
         }
 
         // Key=Value format
@@ -103,8 +110,9 @@ public class ClickHouseService : IClickHouseService
             return;
         }
 
-        const string queryDescription = "INSERT INTO daily_downloads (package_id, date, download_count) VALUES (?, ?, ?)";
-        var span = StartDatabaseSpan(parentSpan, queryDescription, "INSERT");
+        // Bulk copy operation - describe the table and columns being inserted
+        const string bulkInsertDescription = "INSERT INTO daily_downloads (package_id, date, download_count)";
+        var span = StartDatabaseSpan(parentSpan, bulkInsertDescription, "INSERT");
 
         try
         {
