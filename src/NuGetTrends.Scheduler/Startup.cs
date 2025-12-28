@@ -115,9 +115,9 @@ public class Startup(
                             >= System.Net.HttpStatusCode.InternalServerError)
                 });
 
-                // Per-attempt timeout: retries use extended timeout (base × multiplier)
+                // Per-attempt timeout: retries use extended timeout
                 var baseTimeout = resilienceOptions.Timeout;
-                var retryTimeout = baseTimeout * resilienceOptions.TimeoutRetryMultiplier;
+                var retryTimeout = resilienceOptions.RetryTimeout;
                 builder.AddTimeout(new HttpTimeoutStrategyOptions
                 {
                     Timeout = baseTimeout,
