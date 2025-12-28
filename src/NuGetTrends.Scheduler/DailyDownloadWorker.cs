@@ -156,6 +156,7 @@ public class DailyDownloadWorker : IHostedService
         var batchProcessSpan = SentrySdk.StartTransaction("daily-download-fetch", "queue.read");
         SentrySdk.ConfigureScope(s => s.Transaction = batchProcessSpan);
         List<string>? packageIds = null;
+        var consumer = (AsyncEventingBasicConsumer)sender;
         try
         {
             var body = ea.Body;
@@ -183,9 +184,16 @@ public class DailyDownloadWorker : IHostedService
                 throw;
             }
 
-            var consumer = (AsyncEventingBasicConsumer)sender;
             consumer.Model.BasicAck(ea.DeliveryTag, false);
             batchProcessSpan.Finish(SpanStatus.Ok);
+        }
+        catch (NuGetUnavailableException e)
+        {
+            // NuGet is unavailable - NACK the message so it gets redelivered later
+            // Don't report to Sentry as this is expected during outages
+            _logger.LogWarning(e, "NuGet unavailable, requeueing batch of {Count} packages.", packageIds?.Count ?? 0);
+            consumer.Model.BasicNack(ea.DeliveryTag, multiple: false, requeue: true);
+            batchProcessSpan.Finish(SpanStatus.Unavailable);
         }
         catch (Exception e)
         {

@@ -109,7 +109,7 @@ public class Startup(
                 });
 
                 // Overall timeout for a single request attempt
-                builder.AddTimeout(TimeSpan.FromSeconds(30));
+                builder.AddTimeout(TimeSpan.FromSeconds(10));
             });
 
         services.AddScoped<CatalogCursorStore>();
