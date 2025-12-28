@@ -13,8 +13,6 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.SpaServices.Extensions" />
-    <PackageReference Include="Shortr.AspNetCore" />
-    <PackageReference Include="Shortr.Npgsql" />
     <PackageReference Include="Swashbuckle.AspNetCore" />
     <PackageReference Include="Sentry.AspNetCore" />
     <PackageReference Include="Sentry.Serilog" />

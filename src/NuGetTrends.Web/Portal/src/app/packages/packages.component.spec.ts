@@ -10,7 +10,7 @@ import { of, Observable, throwError } from 'rxjs';
 
 import { PackagesService, PackageInteractionService } from '../core';
 import { MockedRouter, ToastrMock, MockedActivatedRoute } from '../mocks';
-import { PackageListComponent, SearchPeriodComponent, SharePopoverComponent } from '../shared/components';
+import { PackageListComponent, SearchPeriodComponent } from '../shared/components';
 import { IPackageDownloadHistory } from '../shared/models/package-models';
 import { PackagesComponent } from './packages.component';
 
@@ -52,7 +52,7 @@ describe('PackagesComponent', () => {
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       declarations: [
-        PackagesComponent, PackageListComponent, SearchPeriodComponent, SharePopoverComponent
+        PackagesComponent, PackageListComponent, SearchPeriodComponent
       ],
       imports: [
         CommonModule,
