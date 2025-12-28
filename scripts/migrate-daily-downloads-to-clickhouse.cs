@@ -111,14 +111,24 @@ public static class Console2
 
     public static void WriteProgress(long current, long total, double rowsPerSec)
     {
-        var percent = total > 0 ? (double)current / total * 100 : 0;
-        var barWidth = 30;
-        var filled = (int)(percent / 100 * barWidth);
-        var bar = new string('#', filled) + new string('-', barWidth - filled);
+        try
+        {
+            var percent = total > 0 ? (double)current / total * 100 : 0;
+            var barWidth = 30;
+            var filled = Math.Clamp((int)(percent / 100 * barWidth), 0, barWidth);
+            var bar = new string('#', filled) + new string('-', barWidth - filled);
 
-        var eta = rowsPerSec > 0 ? TimeSpan.FromSeconds((total - current) / rowsPerSec) : TimeSpan.Zero;
+            var remaining = Math.Max(0, total - current);
+            var eta = rowsPerSec > 0 ? TimeSpan.FromSeconds(remaining / rowsPerSec) : TimeSpan.Zero;
 
-        Console.Write($"\r  [{bar}] {FormatNumber(current)} / {FormatNumber(total)} ({percent:F1}%) | {FormatNumber((long)rowsPerSec)}/sec | ETA: {FormatDuration(eta)}   ");
+            Console.Write($"\r  [{bar}] {FormatNumber(current)} / {FormatNumber(total)} ({percent:F1}%) | {FormatNumber((long)rowsPerSec)}/sec | ETA: {FormatDuration(eta)}   ");
+        }
+        catch (Exception ex)
+        {
+            // Log error details but don't crash - data migration is more important than display
+            Console.WriteLine();
+            Console.WriteLine($"  [Progress display error: {ex.GetType().Name} - current={current}, total={total}, rowsPerSec={rowsPerSec:F1}]");
+        }
     }
 
     public static string FormatNumber(long n)
