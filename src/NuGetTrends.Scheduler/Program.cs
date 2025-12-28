@@ -1,6 +1,5 @@
 using Sentry.Extensions.Logging;
 using Serilog;
-using Sentry;
 using SystemEnvironment = System.Environment;
 
 namespace NuGetTrends.Scheduler;
@@ -55,7 +54,6 @@ public class Program
             {
                 webBuilder
                     .UseKestrel()
-                    .UseConfiguration(Configuration)
                     .UseSentry(o =>
                     {
                         // Disable stacktrace attachment for log events - they only contain

@@ -30,43 +30,65 @@ public class Startup(
         services.Configure<DailyDownloadWorkerOptions>(configuration.GetSection("DailyDownloadWorker"));
         services.Configure<RabbitMqOptions>(configuration.GetSection("RabbitMq"));
         services.Configure<BackgroundJobServerOptions>(configuration.GetSection("Hangfire"));
+
+        // ClickHouse connection string - supports both Aspire service discovery and manual config
         services.AddSingleton<IClickHouseService>(sp =>
         {
-            var connString = configuration.GetConnectionString("ClickHouse")
+            var config = sp.GetRequiredService<IConfiguration>();
+            // Aspire injects connection strings via ConnectionStrings__<name> environment variables
+            var connString = config.GetConnectionString("clickhouse")
+                ?? config.GetConnectionString("ClickHouse")
                 ?? throw new InvalidOperationException("ClickHouse connection string not configured.");
             var logger = sp.GetRequiredService<ILogger<ClickHouseService>>();
             return new ClickHouseService(connString, logger);
         });
 
-        services.AddSingleton<IConnectionFactory>(c =>
+        // RabbitMQ connection factory - supports both Aspire service discovery and manual config
+        services.AddSingleton<IConnectionFactory>(sp =>
         {
-            var options = c.GetRequiredService<IOptions<RabbitMqOptions>>().Value;
-            var factory = new ConnectionFactory
+            var config = sp.GetRequiredService<IConfiguration>();
+
+            // Check for Aspire-injected connection string first (format: amqp://user:pass@host:port)
+            var connectionString = config.GetConnectionString("rabbitmq");
+            if (!string.IsNullOrEmpty(connectionString))
+            {
+                var factory = new ConnectionFactory
+                {
+                    Uri = new Uri(connectionString),
+                    // For some reason you have to opt-in to have async code:
+                    // If you don't set this, subscribing to Received with AsyncEventingBasicConsumer will silently fail.
+                    DispatchConsumersAsync = true
+                };
+                return factory;
+            }
+
+            // Fall back to manual configuration
+            var options = sp.GetRequiredService<IOptions<RabbitMqOptions>>().Value;
+            return new ConnectionFactory
             {
                 HostName = options.Hostname,
                 Port = options.Port,
                 Password = options.Password,
                 UserName = options.Username,
-                // For some reason you have to opt-in to have async code:
-                // If you don't set this, subscribing to Received with AsyncEventingBasicConsumer will silently fail.
-                // DefaultConsumer doesn't fire either!
                 DispatchConsumersAsync = true
             };
-
-            return factory;
         });
 
-        services
-            .AddDbContext<NuGetTrendsContext>(options =>
-            {
-                options
-                    .UseNpgsql(configuration.GetNuGetTrendsConnectionString());
+        // PostgreSQL - supports both Aspire service discovery and manual config
+        services.AddDbContext<NuGetTrendsContext>((sp, options) =>
+        {
+            var config = sp.GetRequiredService<IConfiguration>();
+            // Aspire injects as "nugettrends" (database name), fallback to "NuGetTrends" for manual config
+            var connString = config.GetConnectionString("nugettrends")
+                ?? config.GetNuGetTrendsConnectionString();
 
-                if (hostingEnvironment.IsDevelopment())
-                {
-                    options.EnableSensitiveDataLogging();
-                }
-            });
+            options.UseNpgsql(connString);
+
+            if (hostingEnvironment.IsDevelopment())
+            {
+                options.EnableSensitiveDataLogging();
+            }
+        });
 
         // TODO: Use Postgres storage instead:
         // Install: Hangfire.PostgreSql
@@ -142,6 +164,11 @@ public class Startup(
         if (hostingEnvironment.IsDevelopment())
         {
             app.UseDeveloperExceptionPage();
+
+            // Auto-apply EF Core migrations in development (for Aspire local dev)
+            using var scope = app.ApplicationServices.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<NuGetTrendsContext>();
+            db.Database.Migrate();
         }
 
         app.UseHangfireDashboard(
