@@ -1,5 +1,4 @@
 using System.Reflection;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using NuGetTrends.Data;
 using NuGetTrends.Data.ClickHouse;
@@ -38,6 +37,10 @@ try
     Log.Information("Starting.");
 
     var builder = WebApplication.CreateBuilder(args);
+
+    // Add Aspire service defaults (OpenTelemetry, health checks, service discovery)
+    builder.AddServiceDefaults();
+
     builder.Host.UseSerilog();
     builder.WebHost.UseConfiguration(configuration)
         .UseSentry(o =>
@@ -84,9 +87,9 @@ try
          builder.Services.AddCors(options =>
          {
              options.AddPolicy("AllowAll",
-                 builder =>
+                 corsPolicyBuilder =>
                  {
-                     builder
+                     corsPolicyBuilder
                          .AllowAnyOrigin()
                          .AllowAnyMethod()
                          .AllowAnyHeader()
@@ -95,19 +98,22 @@ try
          });
      }
 
-     builder.Services.AddDbContext<NuGetTrendsContext>(options =>
+     // Use Aspire's PostgreSQL integration for automatic connection string injection and health checks
+     builder.AddNpgsqlDbContext<NuGetTrendsContext>("nugettrends", configureDbContextOptions: options =>
      {
-         var connString = configuration.GetNuGetTrendsConnectionString();
-         options.UseNpgsql(connString);
          if (environment != Production)
          {
              options.EnableSensitiveDataLogging();
          }
      });
 
+     // ClickHouse connection string comes from Aspire service discovery or fallback to config
      builder.Services.AddSingleton<IClickHouseService>(sp =>
      {
-         var connString = configuration.GetConnectionString("ClickHouse")
+         var config = sp.GetRequiredService<IConfiguration>();
+         // Aspire injects the connection string via ConnectionStrings__clickhouse environment variable
+         var connString = config.GetConnectionString("clickhouse")
+             ?? config.GetConnectionString("ClickHouse")
              ?? throw new InvalidOperationException("ClickHouse connection string not configured.");
          var logger = sp.GetRequiredService<ILogger<ClickHouseService>>();
          return new ClickHouseService(connString, logger);
@@ -123,6 +129,9 @@ try
 
 
     var app = builder.Build();
+
+    // Map Aspire health check endpoints
+    app.MapDefaultEndpoints();
 
     app.Use(async (context, next) => {
         context.Response.OnStarting(() => {

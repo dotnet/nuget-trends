@@ -41,6 +41,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\NuGetTrends.Data\NuGetTrends.Data.csproj" />
+    <ProjectReference Include="..\NuGetTrends.ServiceDefaults\NuGetTrends.ServiceDefaults.csproj" />
   </ItemGroup>
 
 </Project>

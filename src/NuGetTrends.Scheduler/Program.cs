@@ -1,6 +1,5 @@
 using Sentry.Extensions.Logging;
 using Serilog;
-using Sentry;
 using SystemEnvironment = System.Environment;
 
 namespace NuGetTrends.Scheduler;
