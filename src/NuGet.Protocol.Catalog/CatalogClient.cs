@@ -111,8 +111,8 @@ public class CatalogClient(HttpClient httpClient, ILogger<CatalogClient> logger)
         }
         catch (HttpRequestException e)
         {
-            // Add URL to exception data for better Sentry context and grouping
-            e.Data["documentUrl"] = documentUrl;
+            // Add URL as a Sentry tag for better context and grouping
+            e.AddSentryTag("documentUrl", documentUrl);
             throw;
         }
 

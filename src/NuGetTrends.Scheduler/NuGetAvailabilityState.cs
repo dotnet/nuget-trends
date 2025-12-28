@@ -7,9 +7,7 @@ namespace NuGetTrends.Scheduler;
 /// </summary>
 public class NuGetAvailabilityState
 {
-    private volatile bool _isAvailable = true;
-    private DateTimeOffset _unavailableSince = DateTimeOffset.MinValue;
-    private readonly object _lock = new();
+    private long _unavailableSinceTicks = 0; // 0 means available
 
     /// <summary>
     /// How long to wait before allowing retry after NuGet becomes unavailable.
@@ -24,31 +22,36 @@ public class NuGetAvailabilityState
     {
         get
         {
-            if (_isAvailable)
+            var ticks = Interlocked.Read(ref _unavailableSinceTicks);
+            if (ticks == 0)
             {
                 return true;
             }
 
             // Auto-reset after cooldown to allow retry
-            if (DateTimeOffset.UtcNow - _unavailableSince > CooldownPeriod)
+            var unavailableSince = new DateTimeOffset(ticks, TimeSpan.Zero);
+            if (DateTimeOffset.UtcNow - unavailableSince > CooldownPeriod)
             {
-                lock (_lock)
-                {
-                    if (!_isAvailable && DateTimeOffset.UtcNow - _unavailableSince > CooldownPeriod)
-                    {
-                        _isAvailable = true;
-                    }
-                }
+                // Try to reset - if someone else already did, that's fine
+                Interlocked.CompareExchange(ref _unavailableSinceTicks, 0, ticks);
+                return true;
             }
 
-            return _isAvailable;
+            return false;
         }
     }
 
     /// <summary>
     /// Gets when NuGet was marked as unavailable. Returns null if currently available.
     /// </summary>
-    public DateTimeOffset? UnavailableSince => _isAvailable ? null : _unavailableSince;
+    public DateTimeOffset? UnavailableSince
+    {
+        get
+        {
+            var ticks = Interlocked.Read(ref _unavailableSinceTicks);
+            return ticks == 0 ? null : new DateTimeOffset(ticks, TimeSpan.Zero);
+        }
+    }
 
     /// <summary>
     /// Marks NuGet API as unavailable. Only captures a Sentry event on the first transition
@@ -57,36 +60,32 @@ public class NuGetAvailabilityState
     /// <param name="exception">The exception that caused the unavailability.</param>
     public void MarkUnavailable(Exception? exception = null)
     {
-        if (_isAvailable)
+        var newTicks = DateTimeOffset.UtcNow.UtcTicks;
+
+        // Only transition if currently available (ticks == 0)
+        var previousTicks = Interlocked.CompareExchange(ref _unavailableSinceTicks, newTicks, 0);
+
+        // If we were the one to transition from available to unavailable, capture Sentry event
+        if (previousTicks == 0)
         {
-            lock (_lock)
+            SentrySdk.ConfigureScope(scope =>
             {
-                if (_isAvailable)
+                scope.SetTag("nuget.availability", "unavailable");
+                scope.SetExtra("cooldownMinutes", CooldownPeriod.TotalMinutes);
+            });
+
+            if (exception != null)
+            {
+                SentrySdk.CaptureException(exception, scope =>
                 {
-                    _isAvailable = false;
-                    _unavailableSince = DateTimeOffset.UtcNow;
-
-                    // Capture a single Sentry event for the outage
-                    SentrySdk.ConfigureScope(scope =>
-                    {
-                        scope.SetTag("nuget.availability", "unavailable");
-                        scope.SetExtra("cooldownMinutes", CooldownPeriod.TotalMinutes);
-                    });
-
-                    if (exception != null)
-                    {
-                        SentrySdk.CaptureException(exception, scope =>
-                        {
-                            scope.SetTag("nuget.outage", "true");
-                        });
-                    }
-                    else
-                    {
-                        SentrySdk.CaptureMessage(
-                            "NuGet API unavailable - skipping jobs until cooldown expires",
-                            SentryLevel.Warning);
-                    }
-                }
+                    scope.SetTag("nuget.outage", "true");
+                });
+            }
+            else
+            {
+                SentrySdk.CaptureMessage(
+                    "NuGet API unavailable - skipping jobs until cooldown expires",
+                    SentryLevel.Warning);
             }
         }
     }
@@ -96,13 +95,7 @@ public class NuGetAvailabilityState
     /// </summary>
     public void MarkAvailable()
     {
-        if (!_isAvailable)
-        {
-            lock (_lock)
-            {
-                _isAvailable = true;
-            }
-        }
+        Interlocked.Exchange(ref _unavailableSinceTicks, 0);
     }
 
     /// <summary>
@@ -110,10 +103,6 @@ public class NuGetAvailabilityState
     /// </summary>
     internal void Reset()
     {
-        lock (_lock)
-        {
-            _isAvailable = true;
-            _unavailableSince = DateTimeOffset.MinValue;
-        }
+        Interlocked.Exchange(ref _unavailableSinceTicks, 0);
     }
 }
