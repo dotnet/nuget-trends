@@ -165,6 +165,7 @@ public class EndToEndPipelineTests : IAsyncLifetime
         // Create services for the worker
         var services = new ServiceCollection();
         services.AddSingleton<IConnectionFactory>(connectionFactory);
+        services.AddSingleton<NuGetAvailabilityState>();
         services.AddSingleton<INuGetSearchService, NuGetSearchService>();
         services.AddSingleton<IClickHouseService>(clickHouseService);
         services.AddSingleton<ILoggerFactory, NullLoggerFactory>();

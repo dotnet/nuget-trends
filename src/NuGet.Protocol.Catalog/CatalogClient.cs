@@ -104,23 +104,37 @@ public class CatalogClient(HttpClient httpClient, ILogger<CatalogClient> logger)
     {
         _logger.LogDebug("Downloading '{documentUrl}' as a stream.", documentUrl);
 
-        using var response = await _httpClient.GetAsync(documentUrl, token);
-        await using var stream = await response.Content.ReadAsStreamAsync();
-        using var textReader = new StreamReader(stream);
-        using var jsonReader = new JsonTextReader(textReader);
-        var deserializingSpan = SentrySdk.GetSpan()
-            ?.StartChild("json.deserialize", "Deserializing response: " + documentUrl);
+        HttpResponseMessage response;
         try
         {
-            var responseOfT = JsonSerializer.Deserialize<T?>(jsonReader);
-            deserializingSpan?.Finish(SpanStatus.Ok);
-            return responseOfT;
+            response = await _httpClient.GetAsync(documentUrl, token);
         }
-        catch (JsonReaderException e)
+        catch (HttpRequestException e)
         {
-            _logger.LogError(new EventId(0, documentUrl), e, "Failed to deserialize.");
-            deserializingSpan?.Finish(e);
-            return default!;
+            // Add URL to exception data for better Sentry context and grouping
+            e.Data["documentUrl"] = documentUrl;
+            throw;
+        }
+
+        using (response)
+        {
+            await using var stream = await response.Content.ReadAsStreamAsync(token);
+            using var textReader = new StreamReader(stream);
+            using var jsonReader = new JsonTextReader(textReader);
+            var deserializingSpan = SentrySdk.GetSpan()
+                ?.StartChild("json.deserialize", "Deserializing response: " + documentUrl);
+            try
+            {
+                var responseOfT = JsonSerializer.Deserialize<T?>(jsonReader);
+                deserializingSpan?.Finish(SpanStatus.Ok);
+                return responseOfT;
+            }
+            catch (JsonReaderException e)
+            {
+                _logger.LogError(new EventId(0, documentUrl), e, "Failed to deserialize.");
+                deserializingSpan?.Finish(e);
+                return default!;
+            }
         }
     }
 }

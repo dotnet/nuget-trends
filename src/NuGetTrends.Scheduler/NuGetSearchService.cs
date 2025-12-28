@@ -4,7 +4,9 @@ using ILogger = NuGet.Common.ILogger;
 
 namespace NuGetTrends.Scheduler;
 
-public class NuGetSearchService(ILogger<NuGetSearchService> logger) : INuGetSearchService
+public class NuGetSearchService(
+    NuGetAvailabilityState availabilityState,
+    ILogger<NuGetSearchService> logger) : INuGetSearchService
 {
     private static readonly ILogger NugetLogger = new NuGet.Common.NullLogger();
     private static readonly SearchFilter SearchFilter = new(true);
@@ -23,6 +25,15 @@ public class NuGetSearchService(ILogger<NuGetSearchService> logger) : INuGetSear
     /// <returns></returns>
     public async Task<IPackageSearchMetadata?> GetPackage(string packageId, CancellationToken token)
     {
+        // Skip if NuGet is marked unavailable
+        if (!availabilityState.IsAvailable)
+        {
+            logger.LogDebug(
+                "Skipping NuGet API call for '{PackageId}' - NuGet marked unavailable since {UnavailableSince}",
+                packageId, availabilityState.UnavailableSince);
+            return null;
+        }
+
         if (_packageSearchResource == null)
         {
             // Yeah, it could get called it more than once
@@ -40,8 +51,17 @@ public class NuGetSearchService(ILogger<NuGetSearchService> logger) : INuGetSear
                 logger.LogDebug("Package with id '{packageId}' not found.", packageId);
             }
 
-            return package;
+            // Success - mark NuGet as available
+            availabilityState.MarkAvailable();
 
+            return package;
+        }
+        catch (HttpRequestException e)
+        {
+            // HTTP failure - mark NuGet as unavailable
+            e.Data["PackageId"] = packageId;
+            availabilityState.MarkUnavailable(e);
+            throw;
         }
         catch (Exception e)
         {
