@@ -58,6 +58,9 @@ public class Program
                     .UseConfiguration(Configuration)
                     .UseSentry(o =>
                     {
+                        // Disable stacktrace attachment for log events - they only contain
+                        // system frames when logged from libraries like Polly/EF Core
+                        o.AttachStacktrace = false;
                         o.SetBeforeSend(e =>
                         {
                             if (e.Message?.Formatted is {} msg && msg.Contains(
@@ -76,6 +79,20 @@ public class Program
                                && string.Equals(
                                    category,
                                    "Microsoft.EntityFrameworkCore.Model.Validation",
+                                   StringComparison.Ordinal));
+                        // Filter out EF Core transaction and command error logs - these are duplicates
+                        // of the actual DbUpdateException which is captured separately.
+                        // TransactionError (20205) and CommandError (20102) are logged by EF Core
+                        // but don't include the exception, making them noise in Sentry.
+                        o.AddLogEntryFilter((category, _, eventId, _)
+                            => eventId.Id == 20205 && string.Equals(
+                                   category,
+                                   "Microsoft.EntityFrameworkCore.Database.Transaction",
+                                   StringComparison.Ordinal));
+                        o.AddLogEntryFilter((category, _, eventId, _)
+                            => eventId.Id == 20102 && string.Equals(
+                                   category,
+                                   "Microsoft.EntityFrameworkCore.Database.Command",
                                    StringComparison.Ordinal));
                     })
                     .UseStartup<Startup>();

@@ -94,13 +94,14 @@ public class NuGetCatalogImporter(
                     availabilityState.MarkUnavailable(e);
                     processingSpan.Finish(e);
                     transaction.Finish(e);
+                    hub.CaptureException(e);
                     throw;
                 }
                 catch (Exception e)
                 {
                     processingSpan.Finish(e);
                     transaction.Finish(e);
-                    SentrySdk.CaptureException(e);
+                    hub.CaptureException(e);
                     throw;
                 }
             }
@@ -111,7 +112,7 @@ public class NuGetCatalogImporter(
         }
         finally
         {
-            await SentrySdk.FlushAsync(TimeSpan.FromSeconds(2));
+            await hub.FlushAsync(TimeSpan.FromSeconds(2));
         }
     }
 }
