@@ -19,7 +19,6 @@ public class CatalogCursorStore(NuGetTrendsContext context) : ICursor
             throw new InvalidOperationException($"Expected to find a cursor named '{CursorId}'.");
         }
         cursor.Value = value;
-        context.Update(cursor);
         await context.SaveChangesAsync(token);
 
     }
