@@ -270,6 +270,74 @@ describe('PackagesComponent', () => {
     }));
   });
 
+  describe('Chart Safety', () => {
+
+    it('should clear active chart elements before updating to prevent tooltip errors', fakeAsync(() => {
+      // Arrange - Initialize with a package to create the chart
+      const packages = ['EntityFramework'];
+      activatedRoute.testParamMap = { months: 12, ids: packages };
+      fixture.detectChanges();
+      tick();
+      fixture.detectChanges();
+
+      // Access the chart instance via the component
+      const chart = (component as any).trendChart;
+      expect(chart).toBeTruthy();
+
+      // Spy on setActiveElements to verify it's called before update
+      const setActiveElementsSpy = spyOn(chart, 'setActiveElements').and.callThrough();
+      const updateSpy = spyOn(chart, 'update').and.callThrough();
+
+      // Act - Add a second package which triggers chart update
+      packageInteractionService.plotPackage(PackagesServiceMock.mockedDownloadHistory[1]);
+      tick();
+      fixture.detectChanges();
+
+      // Assert - setActiveElements should be called before update
+      expect(setActiveElementsSpy).toHaveBeenCalledWith([]);
+      expect(updateSpy).toHaveBeenCalled();
+    }));
+
+    it('should clear active chart elements when removing a package', fakeAsync(() => {
+      // Arrange - Initialize with two packages
+      const packages = ['EntityFramework', 'Dapper'];
+      activatedRoute.testParamMap = { months: 12, ids: packages };
+      fixture.detectChanges();
+      tick();
+      fixture.detectChanges();
+
+      const chart = (component as any).trendChart;
+      const setActiveElementsSpy = spyOn(chart, 'setActiveElements').and.callThrough();
+
+      // Act - Remove one package
+      packageInteractionService.removePackage('Dapper');
+      tick();
+      fixture.detectChanges();
+
+      // Assert - setActiveElements should be called to clear tooltip state
+      expect(setActiveElementsSpy).toHaveBeenCalledWith([]);
+    }));
+
+    it('should nullify chart reference on destroy to prevent stale access', fakeAsync(() => {
+      // Arrange - Initialize with a package to create the chart
+      const packages = ['EntityFramework'];
+      activatedRoute.testParamMap = { months: 12, ids: packages };
+      fixture.detectChanges();
+      tick();
+      fixture.detectChanges();
+
+      // Verify chart exists
+      expect((component as any).trendChart).toBeTruthy();
+
+      // Act - Destroy the component
+      component.ngOnDestroy();
+
+      // Assert - Chart reference should be null
+      expect((component as any).trendChart).toBeNull();
+    }));
+
+  });
+
   describe('Plot Package', () => {
 
     it('should react to package plotted event by adding it to the chart', fakeAsync(() => {
