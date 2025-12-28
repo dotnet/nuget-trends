@@ -34,11 +34,9 @@ public class CatalogLeafProcessor : ICatalogLeafProcessor
 
     private async Task Save(CancellationToken token)
     {
-        _counter++;
-
         await _context.SaveChangesAsync(token);
 
-        if (_counter == 100) // recycle the DbContext
+        if (++_counter == 100) // recycle the DbContext
         {
             _scope.Dispose();
             _scope = _provider.CreateScope();
