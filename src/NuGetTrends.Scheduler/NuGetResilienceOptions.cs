@@ -5,13 +5,13 @@ public class NuGetResilienceOptions
     public const string SectionName = "NuGetResilience";
 
     /// <summary>
-    /// Default timeout for HTTP requests in seconds.
+    /// Default timeout for HTTP requests.
     /// </summary>
-    public int TimeoutSeconds { get; set; } = 10;
+    public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(10);
 
     /// <summary>
-    /// Timeout multiplier for retry attempts after a timeout.
-    /// The retry timeout will be TimeoutSeconds * TimeoutRetryMultiplier.
+    /// Multiplier applied to <see cref="Timeout"/> for retry attempts after a timeout.
+    /// For example, with Timeout=10s and multiplier=2.0, retries will use a 20s timeout.
     /// </summary>
     public double TimeoutRetryMultiplier { get; set; } = 2.0;
 
@@ -21,7 +21,7 @@ public class NuGetResilienceOptions
     public int MaxRetryAttempts { get; set; } = 2;
 
     /// <summary>
-    /// Base delay between retries in seconds.
+    /// Base delay between retries.
     /// </summary>
-    public int RetryDelaySeconds { get; set; } = 2;
+    public TimeSpan RetryDelay { get; set; } = TimeSpan.FromSeconds(2);
 }

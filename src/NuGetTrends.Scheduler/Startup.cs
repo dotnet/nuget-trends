@@ -89,7 +89,7 @@ public class Startup(
                 builder.AddRetry(new HttpRetryStrategyOptions
                 {
                     MaxRetryAttempts = resilienceOptions.MaxRetryAttempts,
-                    Delay = TimeSpan.FromSeconds(resilienceOptions.RetryDelaySeconds),
+                    Delay = resilienceOptions.RetryDelay,
                     UseJitter = true,
                     BackoffType = DelayBackoffType.Exponential,
                     ShouldHandle = static args => ValueTask.FromResult(
@@ -115,9 +115,9 @@ public class Startup(
                             >= System.Net.HttpStatusCode.InternalServerError)
                 });
 
-                // Per-attempt timeout: doubles on retry after a timeout
-                var baseTimeout = TimeSpan.FromSeconds(resilienceOptions.TimeoutSeconds);
-                var retryTimeout = TimeSpan.FromSeconds(resilienceOptions.TimeoutSeconds * resilienceOptions.TimeoutRetryMultiplier);
+                // Per-attempt timeout: retries use extended timeout (base × multiplier)
+                var baseTimeout = resilienceOptions.Timeout;
+                var retryTimeout = baseTimeout * resilienceOptions.TimeoutRetryMultiplier;
                 builder.AddTimeout(new HttpTimeoutStrategyOptions
                 {
                     Timeout = baseTimeout,
