@@ -31,7 +31,16 @@ public class Startup(
         services.Configure<RabbitMqOptions>(configuration.GetSection("RabbitMq"));
         services.Configure<BackgroundJobServerOptions>(configuration.GetSection("Hangfire"));
 
-        // ClickHouse connection string - supports both Aspire service discovery and manual config
+        // ClickHouse connection - parse connection info once as singleton
+        services.AddSingleton(sp =>
+        {
+            var config = sp.GetRequiredService<IConfiguration>();
+            var connString = config.GetConnectionString("clickhouse")
+                ?? config.GetConnectionString("ClickHouse")
+                ?? throw new InvalidOperationException("ClickHouse connection string not configured.");
+            return ClickHouseConnectionInfo.Parse(connString);
+        });
+
         services.AddSingleton<IClickHouseService>(sp =>
         {
             var config = sp.GetRequiredService<IConfiguration>();
@@ -40,7 +49,8 @@ public class Startup(
                 ?? config.GetConnectionString("ClickHouse")
                 ?? throw new InvalidOperationException("ClickHouse connection string not configured.");
             var logger = sp.GetRequiredService<ILogger<ClickHouseService>>();
-            return new ClickHouseService(connString, logger);
+            var connectionInfo = sp.GetRequiredService<ClickHouseConnectionInfo>();
+            return new ClickHouseService(connString, logger, connectionInfo);
         });
 
         // RabbitMQ connection factory - supports both Aspire service discovery and manual config

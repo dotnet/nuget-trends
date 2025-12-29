@@ -107,7 +107,16 @@ try
          }
      });
 
-     // ClickHouse connection string comes from Aspire service discovery or fallback to config
+     // ClickHouse connection - parse connection info once as singleton
+     builder.Services.AddSingleton(sp =>
+     {
+         var config = sp.GetRequiredService<IConfiguration>();
+         var connString = config.GetConnectionString("clickhouse")
+             ?? config.GetConnectionString("ClickHouse")
+             ?? throw new InvalidOperationException("ClickHouse connection string not configured.");
+         return ClickHouseConnectionInfo.Parse(connString);
+     });
+
      builder.Services.AddSingleton<IClickHouseService>(sp =>
      {
          var config = sp.GetRequiredService<IConfiguration>();
@@ -116,7 +125,8 @@ try
              ?? config.GetConnectionString("ClickHouse")
              ?? throw new InvalidOperationException("ClickHouse connection string not configured.");
          var logger = sp.GetRequiredService<ILogger<ClickHouseService>>();
-         return new ClickHouseService(connString, logger);
+         var connectionInfo = sp.GetRequiredService<ClickHouseConnectionInfo>();
+         return new ClickHouseService(connString, logger, connectionInfo);
      });
 
      builder.Services.AddSwaggerGen(c =>

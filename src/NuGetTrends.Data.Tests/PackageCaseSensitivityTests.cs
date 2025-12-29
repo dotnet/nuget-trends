@@ -21,7 +21,8 @@ public class PackageCaseSensitivityTests : IAsyncLifetime
     public PackageCaseSensitivityTests(ClickHouseFixture fixture)
     {
         _fixture = fixture;
-        _sut = new ClickHouseService(fixture.ConnectionString, NullLogger<ClickHouseService>.Instance);
+        var connectionInfo = ClickHouseConnectionInfo.Parse(fixture.ConnectionString);
+        _sut = new ClickHouseService(fixture.ConnectionString, NullLogger<ClickHouseService>.Instance, connectionInfo);
     }
 
     public async Task InitializeAsync()

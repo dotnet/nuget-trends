@@ -31,14 +31,23 @@ public class PackageController(
             .ToListAsync(cancellationToken);
     }
 
+    private const int MaxMonthsAllowed = 240;
+
     [HttpGet("history/{id}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> GetDownloadHistory(
         [FromRoute] string id,
         CancellationToken cancellationToken,
         [FromQuery] int months = 3)
     {
+        // Validate months parameter to prevent memory-intensive queries
+        if (months < 1 || months > MaxMonthsAllowed)
+        {
+            return BadRequest($"The 'months' parameter must be between 1 and {MaxMonthsAllowed}.");
+        }
+
         // Query ClickHouse first (happy path: 1 query instead of 2)
         var downloads = await clickHouseService.GetWeeklyDownloadsAsync(id, months, cancellationToken);
 

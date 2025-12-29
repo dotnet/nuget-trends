@@ -28,9 +28,17 @@ public class NuGetCatalogImporter(
     {
         var jobId = context?.BackgroundJob?.Id ?? "unknown";
 
-        // Start transaction immediately - wraps entire job execution for full observability
+        // Start a new, independent transaction with its own trace ID
+        // This ensures catalog imports are not linked to other jobs' traces
         using var _ = hub.PushScope();
-        var transaction = hub.StartTransaction("import-catalog", "catalog.import");
+        var transactionContext = new TransactionContext(
+            name: "import-catalog",
+            operation: "catalog.import",
+            traceId: SentryId.Create(),
+            spanId: SpanId.Create(),
+            parentSpanId: null,
+            isSampled: true);
+        var transaction = hub.StartTransaction(transactionContext);
         hub.ConfigureScope(s =>
         {
             s.Transaction = transaction;

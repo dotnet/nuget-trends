@@ -64,10 +64,12 @@ public class NuGetTrendsWebApplicationFactory : WebApplicationFactory<Program>
             });
 
             // Re-add ClickHouseService with Testcontainer connection string
+            var connectionInfo = ClickHouseConnectionInfo.Parse(_fixture.ClickHouseConnectionString);
             services.AddSingleton<IClickHouseService>(sp =>
                 new ClickHouseService(
                     _fixture.ClickHouseConnectionString,
-                    NullLogger<ClickHouseService>.Instance));
+                    NullLogger<ClickHouseService>.Instance,
+                    connectionInfo));
         });
     }
 }

@@ -35,10 +35,17 @@ public class DailyDownloadPackageIdPublisher(
     {
         var jobId = context?.BackgroundJob?.Id ?? "unknown";
 
-        // Start transaction immediately - wraps entire job execution for full observability
+        // Start a new, independent transaction with its own trace ID
+        // This ensures daily download publishing is not linked to other jobs' traces
         using var _ = hub.PushScope();
-        var transaction = hub.StartTransaction("daily-download-pkg-id-publisher", "queue.write",
-            "queues package ids to fetch download numbers");
+        var transactionContext = new TransactionContext(
+            name: "daily-download-pkg-id-publisher",
+            operation: "queue.publish",
+            traceId: SentryId.Create(),
+            spanId: SpanId.Create(),
+            parentSpanId: null,
+            isSampled: true);
+        var transaction = hub.StartTransaction(transactionContext);
         hub.ConfigureScope(s =>
         {
             s.Transaction = transaction;
@@ -95,7 +102,7 @@ public class DailyDownloadPackageIdPublisher(
 
                         if (queueBatch.Count == QueueBatchSize)
                         {
-                            Queue(queueBatch, channel, queueName, properties);
+                            Queue(queueBatch, channel, queueName, properties, queueIdsSpan);
                             queueBatch.Clear();
                         }
                     }
@@ -105,10 +112,7 @@ public class DailyDownloadPackageIdPublisher(
                     // Queue remaining packages
                     if (queueBatch.Count != 0)
                     {
-                        var queueSpan = queueIdsSpan.StartChild("queue.enqueue", "Enqueue final batch");
-                        queueSpan.SetTag("count", queueBatch.Count.ToString());
-                        Queue(queueBatch, channel, queueName, properties);
-                        queueSpan.Finish(SpanStatus.Ok);
+                        Queue(queueBatch, channel, queueName, properties, queueIdsSpan);
                     }
 
                     queueIdsSpan.SetTag("queue-name", queueName);
@@ -157,18 +161,56 @@ public class DailyDownloadPackageIdPublisher(
         }
     }
 
-    private static void Queue(
+    private void Queue(
         List<string> batch,
         IModel channel,
         string queueName,
-        IBasicProperties properties)
+        IBasicProperties properties,
+        ISpan? parentSpan)
     {
         var serializedBatch = MessagePackSerializer.Serialize(batch);
 
-        channel.BasicPublish(
-            exchange: string.Empty,
-            routingKey: queueName,
-            basicProperties: properties,
-            body: serializedBatch);
+        // Create a queue.publish span following Sentry Queues module conventions
+        var publishSpan = parentSpan?.StartChild("queue.publish", queueName)
+                          ?? hub.GetSpan()?.StartChild("queue.publish", queueName);
+
+        if (publishSpan != null)
+        {
+            // Generate a unique message ID using the span ID
+            var messageId = publishSpan.SpanId.ToString();
+
+            // Required attributes for Sentry Queues module
+            publishSpan.SetExtra("messaging.message.id", messageId);
+            publishSpan.SetExtra("messaging.destination.name", queueName);
+            publishSpan.SetExtra("messaging.system", "rabbitmq");
+
+            // Optional but useful attributes
+            publishSpan.SetExtra("messaging.message.body.size", serializedBatch.Length);
+
+            // Inject trace context into message headers for distributed tracing
+            properties.Headers ??= new Dictionary<string, object>();
+            properties.Headers["sentry-trace"] = publishSpan.GetTraceHeader().ToString();
+            properties.Headers["message-id"] = messageId; // Pass message ID to consumer
+            if (hub.GetBaggage() is { } baggage)
+            {
+                properties.Headers["baggage"] = baggage.ToString();
+            }
+        }
+
+        try
+        {
+            channel.BasicPublish(
+                exchange: string.Empty,
+                routingKey: queueName,
+                basicProperties: properties,
+                body: serializedBatch);
+
+            publishSpan?.Finish(SpanStatus.Ok);
+        }
+        catch (Exception ex)
+        {
+            publishSpan?.Finish(ex);
+            throw;
+        }
     }
 }
