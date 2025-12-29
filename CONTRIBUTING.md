@@ -2,77 +2,116 @@
 
 Please raise an issue to discuss changes before raising large PRs.
 
-### Requirements
+## Requirements
 
 - .NET SDK 10
-- Docker, Compose (for the dependencies, PostgreSQL, RabbitMQ, ClickHouse)
+- Docker (for Aspire-managed containers: PostgreSQL, RabbitMQ, ClickHouse)
 - Node.js 20.10.0 (might also work with higher versions)
 - NPM
 
+## Running Locally with .NET Aspire
 
-### Run dependant services
+The project uses [.NET Aspire](https://learn.microsoft.com/en-us/dotnet/aspire/) for local development orchestration. A single command starts all services:
 
-We want to get a script to bootstrap the development environment but it's not here yet.
-That means now you'll need to:
+```bash
+dotnet run --project src/NuGetTrends.AppHost
+```
 
-1. Run `docker-compose up` to get the services.
+This starts:
+- **PostgreSQL** with PgAdmin
+- **RabbitMQ** with Management UI
+- **ClickHouse** (with migrations auto-applied)
+- **Angular dev server** (Portal)
+- **NuGetTrends.Web** (API)
+- **NuGetTrends.Scheduler** (Hangfire jobs)
 
-And either:
+### Aspire Dashboard
 
-2. Restore a [DB backup to get some data](#database-backup-for-contributors), like the packages and some download number.
+The Aspire dashboard opens automatically at `https://localhost:17183` and provides:
+- Real-time view of all services and their status
+- Centralized logs from all services
+- Distributed traces
+- Metrics
 
-**Or:**
+Click on any service URL in the Resources table to open it.
 
-2. Run _Entity Framework_ migrations to get the database schema in place.
-3. Run the _catalog importer_ from scratch.
-4. Run the _daily download importer_ for a few days to get some data in.
+### Key URLs (via Aspire Dashboard)
 
-### Run the jobs
+| Service | Description |
+|---------|-------------|
+| Web | Main API and Angular SPA |
+| Scheduler | Hangfire dashboard for background jobs |
+| PgAdmin | PostgreSQL administration |
+| RabbitMQ Management | Message queue management |
 
-Background jobs are done using [_Hangfire_](https://github.com/HangfireIO/Hangfire). It lives in the
-_NuGetTrends.Scheduler_ project. Once you run it (i.e: `dotnet run`) its dashboard will be made available through [http://localhost:5003/](http://localhost:5003/).
+> Note: Ports are dynamically assigned by Aspire. Check the dashboard's Resources table for actual URLs.
 
-The jobs are scheduled to run at an interval. You can browse the dashboard and trigger the jobs on demand though.
+### Database Migrations
 
-One of the jobs is to download the [NuGet's catalog](https://docs.microsoft.com/en-us/nuget/api/catalog-resource).
-The second is to hit the nuget.org's API and get the current number of downloads for each package and store in the database.
+EF Core migrations are **automatically applied** when the Scheduler starts in Development mode. No manual migration steps needed.
+
+### Getting Data
+
+After starting the services, you can either:
+
+1. Run the _catalog importer_ job from the Hangfire dashboard to import the NuGet catalog
+2. Run the _daily download importer_ for a few days to get download statistics
+
+### Debugging
+
+When running from an IDE (Rider, Visual Studio, VS Code):
+
+1. Set `NuGetTrends.AppHost` as the startup project
+2. Press F5 to start debugging
+3. Breakpoints in any project (Web, Scheduler, Data) will work automatically
+
+To attach to a running instance:
+1. Start the AppHost from terminal: `dotnet run --project src/NuGetTrends.AppHost`
+2. Use your IDE's "Attach to Process" feature
+3. Select `NuGetTrends.Web` or `NuGetTrends.Scheduler`
+
+## Background Jobs
+
+Background jobs are managed using [Hangfire](https://github.com/HangfireIO/Hangfire) in the `NuGetTrends.Scheduler` project. Access the dashboard by clicking the Scheduler URL in the Aspire dashboard.
+
+Jobs are scheduled to run at intervals, but you can trigger them on demand from the Hangfire dashboard.
 
 ### Daily Download Pipeline Architecture
 
 The system collects daily download statistics for all NuGet packages (~400K+) using a distributed pipeline:
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              PUBLISHER JOB                                  │
-│                     (DailyDownloadPackageIdPublisher)                       │
-│                                                                             │
-│  1. Query PostgreSQL: packages not yet checked today                        │
-│     - JOIN package_details_catalog_leafs with package_downloads             │
-│     - Filter: LatestDownloadCountCheckedUtc < today                         │
-│  2. Stream results (avoid loading 400K+ IDs into memory)                    │
-│  3. Batch into groups of 25, serialize with MessagePack                     │
-│  4. Publish to RabbitMQ queue: "daily-download"                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                      │
-                                      ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              RABBITMQ                                       │
-│                                                                             │
-│  Queue: daily-download (durable, 12h message TTL)                           │
-│  Messages: batches of 25 package IDs (MessagePack serialized)               │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                      │
-                                      ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              WORKER(S)                                      │
-│                         (DailyDownloadWorker)                               │
-│                                                                             │
-│  1. Consume batch from RabbitMQ                                             │
-│  2. Parallel async requests to nuget.org API (fetch download counts)        │
-│  3. Dual write:                                                             │
-│     - ClickHouse: bulk insert to daily_downloads (time-series history)      │
-│     - PostgreSQL: update package_downloads (latest count + timestamp)       │
-└─────────────────────────────────────────────────────────────────────────────┘
++---------------------------------------------------------------------------+
+|                              PUBLISHER JOB                                |
+|                     (DailyDownloadPackageIdPublisher)                     |
+|                                                                           |
+|  1. Query PostgreSQL: packages not yet checked today                      |
+|     - JOIN package_details_catalog_leafs with package_downloads           |
+|     - Filter: LatestDownloadCountCheckedUtc < today                       |
+|  2. Stream results (avoid loading 400K+ IDs into memory)                  |
+|  3. Batch into groups of 25, serialize with MessagePack                   |
+|  4. Publish to RabbitMQ queue: "daily-download"                           |
++---------------------------------------------------------------------------+
+                                      |
+                                      v
++---------------------------------------------------------------------------+
+|                              RABBITMQ                                     |
+|                                                                           |
+|  Queue: daily-download (durable, 12h message TTL)                         |
+|  Messages: batches of 25 package IDs (MessagePack serialized)             |
++---------------------------------------------------------------------------+
+                                      |
+                                      v
++---------------------------------------------------------------------------+
+|                              WORKER(S)                                    |
+|                         (DailyDownloadWorker)                             |
+|                                                                           |
+|  1. Consume batch from RabbitMQ                                           |
+|  2. Parallel async requests to nuget.org API (fetch download counts)      |
+|  3. Dual write:                                                           |
+|     - ClickHouse: bulk insert to daily_downloads (time-series history)    |
+|     - PostgreSQL: update package_downloads (latest count + timestamp)     |
++---------------------------------------------------------------------------+
 ```
 
 **Key files:**
@@ -89,30 +128,30 @@ The system collects daily download statistics for all NuGet packages (~400K+) us
 - Worker count: `DailyDownloadWorker:WorkerCount` in appsettings.json
 - ClickHouse connection: `ConnectionStrings:ClickHouse` in appsettings.json
 
-### Website
+## Website
 
-The website is composed by two parts: An Angular SPA and an ASP.NET Core API. The API is at the root of `src/NuGetTrends.Web/` and the SPA is in the `Portal` sub-folder.
+The website is composed of two parts: An Angular SPA and an ASP.NET Core API.
 
-To run it locally:
+- **API**: `src/NuGetTrends.Web/`
+- **SPA**: `src/NuGetTrends.Web/Portal/`
 
-**SPA** (src/NuGetTrends.Web/Portal)
-1. Install the SPA dependencies: `npm install` (only the first time)
-2. Run the SPA: `ng serve`
+When running via Aspire, both are started automatically. The Web API proxies requests to the Angular dev server.
 
-**API** (src/NuGetTrends.Web)
-2. Run the API with `dotnet run`
+## Production Deployment
 
-The app can be browsed at:
-- `http://localhost:5100`
-- `https://localhost:5001`
-- `http://localhost:4200` (default `ng serve` port)
+Production deployment is **not affected** by the Aspire setup. The AppHost and ServiceDefaults projects are for local development only.
 
-> Note: You might need to see how to [install/trust the ASP.NET Core HTTPS development certificates](https://docs.microsoft.com/en-us/aspnet/core/security/enforcing-ssl?view=aspnetcore-5.0&tabs=visual-studio#trust-the-aspnet-core-https-development-certificate-on-windows-and-macos) (not required but nice to have)
+Production continues to use:
+- Terraform for infrastructure
+- Kubernetes (GKE) for orchestration
+- Manual connection strings via appsettings/environment variables
 
-### Note to .NET SDK version and global.json
+## Note on .NET SDK Version
 
 We lock the .NET SDK version via `global.json` to have a reference version and avoid surprises during CI.
 If you don't have that exact version, usually anything with that major works just fine.
-If you just want to quickly build, try just deleting `global.json`.
+If you just want to quickly build, try deleting `global.json`.
+
+---
 
 Please note we have a code of conduct, please follow it in all your interactions with the project.

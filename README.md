@@ -18,6 +18,20 @@ It's a useful tool for package maintainers to see the download rate of their pac
 The database has the complete [nuget.org](https://www.nuget.org/) catalog which include target framework information.
 That means that there's a lot more features we can add, like TFM adoption overtime, dependency graphs etc.
 
+## Running Locally
+
+The project uses [.NET Aspire](https://learn.microsoft.com/en-us/dotnet/aspire/) for local development. Start everything with:
+
+```bash
+dotnet run --project src/NuGetTrends.AppHost
+```
+
+This starts PostgreSQL, RabbitMQ, ClickHouse, the Angular SPA, Web API, and Scheduler - all with a single command.
+
+The **Aspire Dashboard** opens at `https://localhost:17183` showing all services, logs, and traces.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed setup instructions.
+
 ## Docker
 
 Images published at: https://hub.docker.com/u/nugettrends
