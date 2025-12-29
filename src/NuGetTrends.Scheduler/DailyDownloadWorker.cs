@@ -326,8 +326,11 @@ public class DailyDownloadWorker : IHostedService
         using var scope = _services.CreateScope();
         await using var context = scope.ServiceProvider.GetRequiredService<NuGetTrendsContext>();
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var now = DateTime.UtcNow;
+        var today = DateOnly.FromDateTime(now);
         var clickHouseDownloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>();
+        var postgresUpserts = new List<PackageDownloadUpsert>();
+        var deletedPackageIds = new List<string>();
 
         for (var i = 0; i < tasks.Count; i++)
         {
@@ -338,7 +341,7 @@ public class DailyDownloadWorker : IHostedService
                 // All versions are unlisted or:
                 // "This package has been deleted from the gallery. It is no longer available for install/restore."
                 _logger.LogInformation("Package with id '{packageId}' deleted.", expectedPackageId);
-                await RemovePackage(context, expectedPackageId, _cancellationTokenSource.Token);
+                deletedPackageIds.Add(expectedPackageId);
             }
             else
             {
@@ -346,40 +349,13 @@ public class DailyDownloadWorker : IHostedService
                 if (packageMetadata.DownloadCount is { } downloadCount)
                 {
                     clickHouseDownloads.Add((packageMetadata.Identity.Id, today, downloadCount));
-                }
 
-                void Update(PackageDownload package, IPackageSearchMetadata metadata)
-                {
-                    if (metadata.IconUrl?.ToString() is { } url)
-                    {
-                        package.IconUrl = url;
-                    }
-
-                    if (metadata.DownloadCount is null)
-                    {
-                        throw new InvalidOperationException("DownloadCount is required.");
-                    }
-                    package.LatestDownloadCount = metadata.DownloadCount.Value;
-                    package.LatestDownloadCountCheckedUtc = DateTime.UtcNow;
-                }
-
-                // Update PackageDownloads in PostgreSQL (for search/autocomplete)
-                var pkgDownload = await context.PackageDownloads.FirstOrDefaultAsync(
-                    p => p.PackageIdLowered == packageMetadata.Identity.Id.ToLower());
-                if (pkgDownload == null)
-                {
-                    pkgDownload = new PackageDownload
-                    {
-                        PackageId = packageMetadata.Identity.Id,
-                        PackageIdLowered = packageMetadata.Identity.Id.ToLower(),
-                    };
-                    Update(pkgDownload, packageMetadata);
-                    context.PackageDownloads.Add(pkgDownload);
-                }
-                else
-                {
-                    Update(pkgDownload, packageMetadata);
-                    context.PackageDownloads.Update(pkgDownload);
+                    // Collect for batch upsert to PostgreSQL
+                    postgresUpserts.Add(new PackageDownloadUpsert(
+                        PackageId: packageMetadata.Identity.Id,
+                        DownloadCount: downloadCount,
+                        CheckedUtc: now,
+                        IconUrl: packageMetadata.IconUrl?.ToString()));
                 }
             }
         }
@@ -393,8 +369,37 @@ public class DailyDownloadWorker : IHostedService
                 parentSpan);
         }
 
-        // Save PostgreSQL changes (PackageDownloads updates only)
-        await context.SaveChangesAsync(_cancellationTokenSource.Token);
+        // Batch upsert to PostgreSQL (single query instead of N SELECT + N INSERT/UPDATE)
+        if (postgresUpserts.Count > 0)
+        {
+            var pgUpsertSpan = parentSpan.StartChild("db", "INSERT INTO package_downloads ... ON CONFLICT DO UPDATE");
+            pgUpsertSpan.SetExtra("db.system", "postgresql");
+            pgUpsertSpan.SetExtra("db.operation", "UPSERT");
+            pgUpsertSpan.SetTag("count", postgresUpserts.Count.ToString());
+            try
+            {
+                var rowsAffected = await context.UpsertPackageDownloadsAsync(postgresUpserts, _cancellationTokenSource.Token);
+                pgUpsertSpan.SetExtra("db.rows_affected", rowsAffected);
+                pgUpsertSpan.Finish(SpanStatus.Ok);
+            }
+            catch (Exception e)
+            {
+                pgUpsertSpan.Finish(e);
+                throw;
+            }
+        }
+
+        // Handle deleted packages (rare, so individual processing is fine)
+        foreach (var deletedPackageId in deletedPackageIds)
+        {
+            await RemovePackage(context, deletedPackageId, _cancellationTokenSource.Token);
+        }
+
+        // Save any pending EF Core changes (from RemovePackage)
+        if (deletedPackageIds.Count > 0)
+        {
+            await context.SaveChangesAsync(_cancellationTokenSource.Token);
+        }
     }
 
     private async Task RemovePackage(NuGetTrendsContext context, string packageId, CancellationToken token)
