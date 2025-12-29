@@ -35,10 +35,17 @@ public class DailyDownloadPackageIdPublisher(
     {
         var jobId = context?.BackgroundJob?.Id ?? "unknown";
 
-        // Start transaction immediately - wraps entire job execution for full observability
+        // Start a new, independent transaction with its own trace ID
+        // This ensures daily download publishing is not linked to other jobs' traces
         using var _ = hub.PushScope();
-        var transaction = hub.StartTransaction("daily-download-pkg-id-publisher", "queue.write",
-            "queues package ids to fetch download numbers");
+        var transactionContext = new TransactionContext(
+            name: "daily-download-pkg-id-publisher",
+            operation: "queue.publish",
+            traceId: SentryId.Create(),
+            spanId: SpanId.Create(),
+            parentSpanId: null,
+            isSampled: true);
+        var transaction = hub.StartTransaction(transactionContext);
         hub.ConfigureScope(s =>
         {
             s.Transaction = transaction;
@@ -169,9 +176,13 @@ public class DailyDownloadPackageIdPublisher(
 
         if (publishSpan != null)
         {
+            // Generate a unique message ID using the span ID
+            var messageId = publishSpan.SpanId.ToString();
+
             // Required attributes for Sentry Queues module
-            publishSpan.SetExtra("messaging.system", "rabbitmq");
+            publishSpan.SetExtra("messaging.message.id", messageId);
             publishSpan.SetExtra("messaging.destination.name", queueName);
+            publishSpan.SetExtra("messaging.system", "rabbitmq");
 
             // Optional but useful attributes
             publishSpan.SetExtra("messaging.message.body.size", serializedBatch.Length);
@@ -179,6 +190,7 @@ public class DailyDownloadPackageIdPublisher(
             // Inject trace context into message headers for distributed tracing
             properties.Headers ??= new Dictionary<string, object>();
             properties.Headers["sentry-trace"] = publishSpan.GetTraceHeader().ToString();
+            properties.Headers["message-id"] = messageId; // Pass message ID to consumer
             if (hub.GetBaggage() is { } baggage)
             {
                 properties.Headers["baggage"] = baggage.ToString();

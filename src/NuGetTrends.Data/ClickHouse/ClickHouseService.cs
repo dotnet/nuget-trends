@@ -137,6 +137,16 @@ public class ClickHouseService : IClickHouseService
             await bulkCopy.WriteToServerAsync(data, ct);
 
             span?.SetExtra("db.rows_affected", downloadList.Count);
+
+            // Add package IDs for traceability (limit to avoid huge payloads)
+            const int maxPackageIdsToLog = 10;
+            var packageIds = downloadList.Select(d => d.PackageId).Take(maxPackageIdsToLog).ToList();
+            span?.SetExtra("package_ids", string.Join(", ", packageIds));
+            if (downloadList.Count > maxPackageIdsToLog)
+            {
+                span?.SetExtra("package_ids_truncated", true);
+            }
+
             span?.Finish(SpanStatus.Ok);
 
             _logger.LogDebug("Inserted {Count} daily downloads to ClickHouse", downloadList.Count);

@@ -159,38 +159,72 @@ public class DailyDownloadWorker : IHostedService
         using var _ = _logger.BeginScope("OnConsumerOnReceived");
 
         // Extract distributed trace context from message headers if present
-        SentryTraceHeader? traceHeader = null;
+        string? sentryTraceHeader = null;
+        string? baggageHeader = null;
+        string? messageId = null;
 
         if (ea.BasicProperties?.Headers != null)
         {
             if (ea.BasicProperties.Headers.TryGetValue("sentry-trace", out var traceObj) &&
                 traceObj is byte[] traceBytes)
             {
-                var traceString = System.Text.Encoding.UTF8.GetString(traceBytes);
-                traceHeader = SentryTraceHeader.Parse(traceString);
+                sentryTraceHeader = System.Text.Encoding.UTF8.GetString(traceBytes);
+            }
+
+            if (ea.BasicProperties.Headers.TryGetValue("baggage", out var baggageObj) &&
+                baggageObj is byte[] baggageBytes)
+            {
+                baggageHeader = System.Text.Encoding.UTF8.GetString(baggageBytes);
+            }
+
+            if (ea.BasicProperties.Headers.TryGetValue("message-id", out var messageIdObj) &&
+                messageIdObj is byte[] messageIdBytes)
+            {
+                messageId = System.Text.Encoding.UTF8.GetString(messageIdBytes);
             }
         }
 
-        // Create queue.process transaction, continuing the trace from the publisher if available
-        var batchProcessSpan = traceHeader != null
-            ? SentrySdk.StartTransaction("daily-download-process", "queue.process", traceHeader)
-            : SentrySdk.StartTransaction("daily-download-process", "queue.process");
+        // Use ContinueTrace to properly link producer and consumer spans
+        var transactionContext = SentrySdk.ContinueTrace(sentryTraceHeader, baggageHeader);
 
-        SentrySdk.ConfigureScope(s => s.Transaction = batchProcessSpan);
+        // Create the outer transaction with a general operation type
+        ITransactionTracer transaction;
+        if (transactionContext != null)
+        {
+            // Continue the trace from the producer, setting our own name and operation
+            var context = new TransactionContext(
+                name: "daily-download-process",
+                operation: "queue.process",
+                traceId: transactionContext.TraceId,
+                parentSpanId: transactionContext.SpanId,
+                isSampled: transactionContext.IsSampled);
+            transaction = SentrySdk.StartTransaction(context);
+        }
+        else
+        {
+            transaction = SentrySdk.StartTransaction("daily-download-process", "queue.process");
+        }
+
+        SentrySdk.ConfigureScope(s => s.Transaction = transaction);
+
+        // Create the inner queue.process.batch span per Sentry Queues module conventions
+        var queueProcessSpan = transaction.StartChild("queue.process.batch", queueName);
 
         // Set required Sentry Queues module attributes
-        batchProcessSpan.SetExtra("messaging.system", "rabbitmq");
-        batchProcessSpan.SetExtra("messaging.destination.name", queueName);
+        queueProcessSpan.SetExtra("messaging.system", "rabbitmq");
+        queueProcessSpan.SetExtra("messaging.destination.name", queueName);
+
+        // Set message ID (required for linking producer/consumer)
+        if (messageId != null)
+        {
+            queueProcessSpan.SetExtra("messaging.message.id", messageId);
+        }
 
         // Set optional attributes
-        if (ea.BasicProperties?.MessageId != null)
-        {
-            batchProcessSpan.SetExtra("messaging.message.id", ea.BasicProperties.MessageId);
-        }
-        batchProcessSpan.SetExtra("messaging.message.body.size", ea.Body.Length);
+        queueProcessSpan.SetExtra("messaging.message.body.size", ea.Body.Length);
         if (ea.Redelivered)
         {
-            batchProcessSpan.SetExtra("messaging.message.retry.count", 1); // RabbitMQ doesn't track exact retry count
+            queueProcessSpan.SetExtra("messaging.message.retry.count", 1); // RabbitMQ doesn't track exact retry count
         }
 
         List<string>? packageIds = null;
@@ -200,7 +234,7 @@ public class DailyDownloadWorker : IHostedService
             var body = ea.Body;
             _logger.LogDebug("Received message with body size '{size}'.", body.Length);
             SentrySdk.ConfigureScope(s => s.SetTag("msg_size", body.Length.ToString()));
-            var deserializationSpan = batchProcessSpan.StartChild("serialize.msgpack.deserialize", "Deserialize MessagePack");
+            var deserializationSpan = queueProcessSpan.StartChild("serialize.msgpack.deserialize", "Deserialize MessagePack");
             packageIds = MessagePackSerializer.Deserialize<List<string>>(body);
             deserializationSpan.Finish(SpanStatus.Ok);
 
@@ -209,7 +243,7 @@ public class DailyDownloadWorker : IHostedService
                 throw new InvalidOperationException($"Deserializing '{body}' resulted in a null reference.");
             }
 
-            var updateCountSpan = batchProcessSpan.StartChild("update.download.count", "Updates the DB with the current daily downloads");
+            var updateCountSpan = queueProcessSpan.StartChild("update.download.count", "Updates the DB with the current daily downloads");
             updateCountSpan.SetTag("packageIds", packageIds.Count.ToString());
             try
             {
@@ -223,7 +257,8 @@ public class DailyDownloadWorker : IHostedService
             }
 
             consumer.Model.BasicAck(ea.DeliveryTag, false);
-            batchProcessSpan.Finish(SpanStatus.Ok);
+            queueProcessSpan.Finish(SpanStatus.Ok);
+            transaction.Finish(SpanStatus.Ok);
         }
         catch (NuGetUnavailableException e)
         {
@@ -231,7 +266,8 @@ public class DailyDownloadWorker : IHostedService
             // Don't report to Sentry as this is expected during outages
             _logger.LogWarning(e, "NuGet unavailable, requeueing batch of {Count} packages.", packageIds?.Count ?? 0);
             consumer.Model.BasicNack(ea.DeliveryTag, multiple: false, requeue: true);
-            batchProcessSpan.Finish(SpanStatus.Unavailable);
+            queueProcessSpan.Finish(SpanStatus.Unavailable);
+            transaction.Finish(SpanStatus.Unavailable);
         }
         catch (AggregateException ae) when (ae.InnerExceptions.Any(e => e is NuGetUnavailableException))
         {
@@ -239,7 +275,8 @@ public class DailyDownloadWorker : IHostedService
             // NACK the message so it gets redelivered later
             _logger.LogWarning(ae, "NuGet unavailable (multiple failures), requeueing batch of {Count} packages.", packageIds?.Count ?? 0);
             consumer.Model.BasicNack(ea.DeliveryTag, multiple: false, requeue: true);
-            batchProcessSpan.Finish(SpanStatus.Unavailable);
+            queueProcessSpan.Finish(SpanStatus.Unavailable);
+            transaction.Finish(SpanStatus.Unavailable);
         }
         catch (Exception e)
         {
@@ -250,7 +287,8 @@ public class DailyDownloadWorker : IHostedService
                     e.Data.Add("Package:#" + i.ToString("D2"), packageIds[i]);
                 }
             }
-            batchProcessSpan.Finish(e);
+            queueProcessSpan.Finish(e);
+            transaction.Finish(e);
             _logger.LogCritical(e, "Failed to process batch.");
             throw;
         }

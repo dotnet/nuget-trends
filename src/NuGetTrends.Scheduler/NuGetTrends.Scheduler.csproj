@@ -26,6 +26,7 @@
     <PackageReference Include="RabbitMQ.Client" />
     <PackageReference Include="Hangfire.AspNetCore" />
     <PackageReference Include="Hangfire.MemoryStorage" />
+    <PackageReference Include="Sentry" />
     <PackageReference Include="Sentry.AspNetCore" />
     <PackageReference Include="Sentry.Hangfire" />
     <PackageReference Include="Sentry.Serilog" />
