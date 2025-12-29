@@ -31,7 +31,7 @@ public class PackageController(
             .ToListAsync(cancellationToken);
     }
 
-    private const int MaxMonthsAllowed = 36;
+    private const int MaxMonthsAllowed = 240;
 
     [HttpGet("history/{id}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
