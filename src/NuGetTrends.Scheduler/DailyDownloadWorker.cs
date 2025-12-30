@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 using MessagePack;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -323,9 +324,8 @@ public class DailyDownloadWorker : IHostedService
             throw exs; // re-throw the AggregateException to capture all errors with Sentry
         }
 
-        using var scope = _services.CreateScope();
-        await using var context = scope.ServiceProvider.GetRequiredService<NuGetTrendsContext>();
-
+        // Process API responses and prepare batch data
+        var processDataSpan = parentSpan.StartChild("function", "Process NuGet API responses");
         var now = DateTime.UtcNow;
         var today = DateOnly.FromDateTime(now);
         var clickHouseDownloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>();
@@ -360,6 +360,14 @@ public class DailyDownloadWorker : IHostedService
             }
         }
 
+        processDataSpan.SetExtra("packages_processed", tasks.Count);
+        processDataSpan.SetExtra("packages_with_downloads", clickHouseDownloads.Count);
+        processDataSpan.SetExtra("deleted_packages", deletedPackageIds.Count);
+        processDataSpan.Finish(SpanStatus.Ok);
+
+        using var scope = _services.CreateScope();
+        await using var context = scope.ServiceProvider.GetRequiredService<NuGetTrendsContext>();
+
         // Batch insert to ClickHouse (span created inside ClickHouseService for Sentry Queries module)
         if (clickHouseDownloads.Count > 0)
         {
@@ -372,9 +380,7 @@ public class DailyDownloadWorker : IHostedService
         // Batch upsert to PostgreSQL (single query instead of N SELECT + N INSERT/UPDATE)
         if (postgresUpserts.Count > 0)
         {
-            var pgUpsertSpan = parentSpan.StartChild("db", "INSERT INTO package_downloads ... ON CONFLICT DO UPDATE");
-            pgUpsertSpan.SetExtra("db.system", "postgresql");
-            pgUpsertSpan.SetExtra("db.operation", "UPSERT");
+            var pgUpsertSpan = StartDbSpan(parentSpan, "INSERT INTO package_downloads ... ON CONFLICT DO UPDATE", "postgresql", "UPSERT");
             pgUpsertSpan.SetTag("count", postgresUpserts.Count.ToString());
             try
             {
@@ -389,17 +395,46 @@ public class DailyDownloadWorker : IHostedService
             }
         }
 
-        // Handle deleted packages (rare, so individual processing is fine)
-        foreach (var deletedPackageId in deletedPackageIds)
-        {
-            await RemovePackage(context, deletedPackageId, _cancellationTokenSource.Token);
-        }
-
-        // Save any pending EF Core changes (from RemovePackage)
+        // Handle deleted packages
         if (deletedPackageIds.Count > 0)
         {
-            await context.SaveChangesAsync(_cancellationTokenSource.Token);
+            var deleteSpan = StartDbSpan(parentSpan, "DELETE FROM package_details_catalog_leafs", "postgresql", "DELETE");
+            deleteSpan.SetTag("count", deletedPackageIds.Count.ToString());
+            try
+            {
+                foreach (var deletedPackageId in deletedPackageIds)
+                {
+                    await RemovePackage(context, deletedPackageId, _cancellationTokenSource.Token);
+                }
+                await context.SaveChangesAsync(_cancellationTokenSource.Token);
+                deleteSpan.SetExtra("db.rows_affected", deletedPackageIds.Count);
+                deleteSpan.Finish(SpanStatus.Ok);
+            }
+            catch (Exception e)
+            {
+                deleteSpan.Finish(e);
+                throw;
+            }
         }
+    }
+
+    /// <summary>
+    /// Creates a database span with query source attributes for Sentry's Queries module.
+    /// </summary>
+    private ISpan StartDbSpan(
+        ISpan parent,
+        string description,
+        string dbSystem,
+        string dbOperation,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+    {
+        var span = parent.StartChild("db.sql.execute", description);
+        span.SetExtra("db.system", dbSystem);
+        span.SetExtra("db.operation", dbOperation);
+        TelemetryHelpers.SetQuerySource<DailyDownloadWorker>(span, filePath, memberName, lineNumber);
+        return span;
     }
 
     private async Task RemovePackage(NuGetTrendsContext context, string packageId, CancellationToken token)
