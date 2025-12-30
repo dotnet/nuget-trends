@@ -1,8 +1,8 @@
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using ClickHouse.Client.ADO;
 using ClickHouse.Client.Copy;
 using Microsoft.Extensions.Logging;
-using Sentry;
 
 namespace NuGetTrends.Data.ClickHouse;
 
@@ -222,11 +222,18 @@ public class ClickHouseService : IClickHouseService
 
     /// <summary>
     /// Starts a database span following Sentry's Queries module conventions.
+    /// Includes query source attributes for the Sentry Queries module.
     /// </summary>
-    private ISpan? StartDatabaseSpan(ISpan? parentSpan, string queryDescription, string operation)
+    private ISpan? StartDatabaseSpan(
+        ISpan? parentSpan,
+        string queryDescription,
+        string operation,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
     {
-        var span = parentSpan?.StartChild("db", queryDescription)
-                   ?? SentrySdk.GetSpan()?.StartChild("db", queryDescription);
+        var span = parentSpan?.StartChild("db.sql.execute", queryDescription)
+                   ?? SentrySdk.GetSpan()?.StartChild("db.sql.execute", queryDescription);
 
         if (span == null)
         {
@@ -253,6 +260,12 @@ public class ClickHouseService : IClickHouseService
         {
             span.SetExtra("server.port", _connectionInfo.Port);
         }
+
+        // Query source attributes for Sentry Queries module
+        span.SetExtra("code.filepath", TelemetryHelpers.GetRelativeFilePath(filePath));
+        span.SetExtra("code.function", memberName);
+        span.SetExtra("code.lineno", lineNumber);
+        span.SetExtra("code.namespace", typeof(ClickHouseService).FullName);
 
         return span;
     }
