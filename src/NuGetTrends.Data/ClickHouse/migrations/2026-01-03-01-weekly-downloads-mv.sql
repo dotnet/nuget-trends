@@ -52,11 +52,134 @@ GROUP BY package_id, week;
 -- ONE-TIME BACKFILL (run manually after creating the MV)
 -- This populates weekly_downloads from existing daily_downloads data.
 -- The MV only captures NEW inserts, so this is needed for historical data.
+--
+-- IMPORTANT: The backfill is batched by year/month to avoid OOM errors.
+-- A single query over all data exceeds ClickHouse's memory limit.
 -- ============================================================================
+
+-- Clear any partial data first
+-- TRUNCATE TABLE nugettrends.weekly_downloads;
+
+-- ============================================================================
+-- Small years (2012-2019) - single batch each
+-- ============================================================================
+
 -- INSERT INTO nugettrends.weekly_downloads
--- SELECT
---     package_id,
---     toMonday(date) AS week,
---     avgState(download_count) AS download_avg
--- FROM nugettrends.daily_downloads
--- GROUP BY package_id, week;
+-- SELECT package_id, toMonday(date) AS week, avgState(download_count)
+-- FROM nugettrends.daily_downloads WHERE toYear(date) = 2012 GROUP BY package_id, week;
+
+-- INSERT INTO nugettrends.weekly_downloads
+-- SELECT package_id, toMonday(date) AS week, avgState(download_count)
+-- FROM nugettrends.daily_downloads WHERE toYear(date) = 2013 GROUP BY package_id, week;
+
+-- INSERT INTO nugettrends.weekly_downloads
+-- SELECT package_id, toMonday(date) AS week, avgState(download_count)
+-- FROM nugettrends.daily_downloads WHERE toYear(date) = 2014 GROUP BY package_id, week;
+
+-- INSERT INTO nugettrends.weekly_downloads
+-- SELECT package_id, toMonday(date) AS week, avgState(download_count)
+-- FROM nugettrends.daily_downloads WHERE toYear(date) = 2015 GROUP BY package_id, week;
+
+-- INSERT INTO nugettrends.weekly_downloads
+-- SELECT package_id, toMonday(date) AS week, avgState(download_count)
+-- FROM nugettrends.daily_downloads WHERE toYear(date) = 2016 GROUP BY package_id, week;
+
+-- INSERT INTO nugettrends.weekly_downloads
+-- SELECT package_id, toMonday(date) AS week, avgState(download_count)
+-- FROM nugettrends.daily_downloads WHERE toYear(date) = 2017 GROUP BY package_id, week;
+
+-- INSERT INTO nugettrends.weekly_downloads
+-- SELECT package_id, toMonday(date) AS week, avgState(download_count)
+-- FROM nugettrends.daily_downloads WHERE toYear(date) = 2018 GROUP BY package_id, week;
+
+-- INSERT INTO nugettrends.weekly_downloads
+-- SELECT package_id, toMonday(date) AS week, avgState(download_count)
+-- FROM nugettrends.daily_downloads WHERE toYear(date) = 2019 GROUP BY package_id, week;
+
+-- ============================================================================
+-- Large years (2020-2025) - batch by month to avoid OOM
+-- ============================================================================
+
+-- 2020
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2020 AND toMonth(date) = 1 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2020 AND toMonth(date) = 2 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2020 AND toMonth(date) = 3 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2020 AND toMonth(date) = 4 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2020 AND toMonth(date) = 5 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2020 AND toMonth(date) = 6 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2020 AND toMonth(date) = 7 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2020 AND toMonth(date) = 8 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2020 AND toMonth(date) = 9 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2020 AND toMonth(date) = 10 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2020 AND toMonth(date) = 11 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2020 AND toMonth(date) = 12 GROUP BY package_id, week;
+
+-- 2021
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2021 AND toMonth(date) = 1 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2021 AND toMonth(date) = 2 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2021 AND toMonth(date) = 3 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2021 AND toMonth(date) = 4 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2021 AND toMonth(date) = 5 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2021 AND toMonth(date) = 6 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2021 AND toMonth(date) = 7 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2021 AND toMonth(date) = 8 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2021 AND toMonth(date) = 9 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2021 AND toMonth(date) = 10 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2021 AND toMonth(date) = 11 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2021 AND toMonth(date) = 12 GROUP BY package_id, week;
+
+-- 2022
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2022 AND toMonth(date) = 1 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2022 AND toMonth(date) = 2 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2022 AND toMonth(date) = 3 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2022 AND toMonth(date) = 4 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2022 AND toMonth(date) = 5 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2022 AND toMonth(date) = 6 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2022 AND toMonth(date) = 7 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2022 AND toMonth(date) = 8 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2022 AND toMonth(date) = 9 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2022 AND toMonth(date) = 10 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2022 AND toMonth(date) = 11 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2022 AND toMonth(date) = 12 GROUP BY package_id, week;
+
+-- 2023
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2023 AND toMonth(date) = 1 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2023 AND toMonth(date) = 2 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2023 AND toMonth(date) = 3 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2023 AND toMonth(date) = 4 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2023 AND toMonth(date) = 5 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2023 AND toMonth(date) = 6 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2023 AND toMonth(date) = 7 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2023 AND toMonth(date) = 8 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2023 AND toMonth(date) = 9 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2023 AND toMonth(date) = 10 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2023 AND toMonth(date) = 11 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2023 AND toMonth(date) = 12 GROUP BY package_id, week;
+
+-- 2024
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2024 AND toMonth(date) = 1 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2024 AND toMonth(date) = 2 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2024 AND toMonth(date) = 3 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2024 AND toMonth(date) = 4 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2024 AND toMonth(date) = 5 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2024 AND toMonth(date) = 6 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2024 AND toMonth(date) = 7 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2024 AND toMonth(date) = 8 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2024 AND toMonth(date) = 9 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2024 AND toMonth(date) = 10 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2024 AND toMonth(date) = 11 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2024 AND toMonth(date) = 12 GROUP BY package_id, week;
+
+-- 2025
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2025 AND toMonth(date) = 1 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2025 AND toMonth(date) = 2 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2025 AND toMonth(date) = 3 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2025 AND toMonth(date) = 4 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2025 AND toMonth(date) = 5 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2025 AND toMonth(date) = 6 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2025 AND toMonth(date) = 7 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2025 AND toMonth(date) = 8 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2025 AND toMonth(date) = 9 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2025 AND toMonth(date) = 10 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2025 AND toMonth(date) = 11 GROUP BY package_id, week;
+-- INSERT INTO nugettrends.weekly_downloads SELECT package_id, toMonday(date) AS week, avgState(download_count) FROM nugettrends.daily_downloads WHERE toYear(date) = 2025 AND toMonth(date) = 12 GROUP BY package_id, week;
