@@ -363,7 +363,7 @@ public class ClickHouseServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetWeeklyDownloadsAsync_HandlesPartialWeek()
+    public async Task GetWeeklyDownloadsAsync_HandlesPartialWeek_ThreeDays()
     {
         // Arrange - Insert data for only 3 days of a week
         var monday = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-14));
@@ -389,6 +389,164 @@ public class ClickHouseServiceTests : IAsyncLifetime
         var weekResult = result.FirstOrDefault(r => r.Week.Date == monday.ToDateTime(TimeOnly.MinValue));
         weekResult.Should().NotBeNull();
         weekResult!.Count.Should().Be(200);
+    }
+
+    [Fact]
+    public async Task GetWeeklyDownloadsAsync_HandlesPartialWeek_SingleDay()
+    {
+        // Arrange - Insert data for only 1 day of a week (edge case: worker only ran once)
+        var monday = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-14));
+        while (monday.DayOfWeek != DayOfWeek.Monday)
+        {
+            monday = monday.AddDays(-1);
+        }
+
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
+        {
+            ("sentry", monday.AddDays(3), 500), // Only Thursday
+        };
+        await _sut.InsertDailyDownloadsAsync(downloads);
+
+        // Act
+        var result = await _sut.GetWeeklyDownloadsAsync("sentry", months: 1);
+
+        // Assert - Average of single value is that value
+        result.Should().NotBeEmpty();
+        var weekResult = result.FirstOrDefault(r => r.Week.Date == monday.ToDateTime(TimeOnly.MinValue));
+        weekResult.Should().NotBeNull();
+        weekResult!.Count.Should().Be(500);
+    }
+
+    [Fact]
+    public async Task GetWeeklyDownloadsAsync_HandlesPartialWeek_TwoDays()
+    {
+        // Arrange - Insert data for only 2 days of a week
+        var monday = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-14));
+        while (monday.DayOfWeek != DayOfWeek.Monday)
+        {
+            monday = monday.AddDays(-1);
+        }
+
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
+        {
+            ("sentry", monday, 100),       // Monday
+            ("sentry", monday.AddDays(4), 300), // Friday
+        };
+        await _sut.InsertDailyDownloadsAsync(downloads);
+
+        // Act
+        var result = await _sut.GetWeeklyDownloadsAsync("sentry", months: 1);
+
+        // Assert - Average should be (100+300)/2 = 200
+        result.Should().NotBeEmpty();
+        var weekResult = result.FirstOrDefault(r => r.Week.Date == monday.ToDateTime(TimeOnly.MinValue));
+        weekResult.Should().NotBeNull();
+        weekResult!.Count.Should().Be(200);
+    }
+
+    [Fact]
+    public async Task GetWeeklyDownloadsAsync_HandlesPartialWeek_FiveDays()
+    {
+        // Arrange - Insert data for 5 days of a week (weekend missing)
+        var monday = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-14));
+        while (monday.DayOfWeek != DayOfWeek.Monday)
+        {
+            monday = monday.AddDays(-1);
+        }
+
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
+        {
+            ("sentry", monday, 100),           // Monday
+            ("sentry", monday.AddDays(1), 200), // Tuesday
+            ("sentry", monday.AddDays(2), 300), // Wednesday
+            ("sentry", monday.AddDays(3), 400), // Thursday
+            ("sentry", monday.AddDays(4), 500), // Friday
+            // Saturday and Sunday missing
+        };
+        await _sut.InsertDailyDownloadsAsync(downloads);
+
+        // Act
+        var result = await _sut.GetWeeklyDownloadsAsync("sentry", months: 1);
+
+        // Assert - Average should be (100+200+300+400+500)/5 = 300
+        result.Should().NotBeEmpty();
+        var weekResult = result.FirstOrDefault(r => r.Week.Date == monday.ToDateTime(TimeOnly.MinValue));
+        weekResult.Should().NotBeNull();
+        weekResult!.Count.Should().Be(300);
+    }
+
+    [Fact]
+    public async Task GetWeeklyDownloadsAsync_HandlesNonConsecutiveDays()
+    {
+        // Arrange - Insert data for non-consecutive days (simulates worker failures)
+        var monday = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-14));
+        while (monday.DayOfWeek != DayOfWeek.Monday)
+        {
+            monday = monday.AddDays(-1);
+        }
+
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
+        {
+            ("sentry", monday, 100),           // Monday
+            // Tuesday missing (worker failed)
+            ("sentry", monday.AddDays(2), 300), // Wednesday
+            // Thursday missing (worker failed)
+            ("sentry", monday.AddDays(4), 500), // Friday
+            // Weekend missing
+        };
+        await _sut.InsertDailyDownloadsAsync(downloads);
+
+        // Act
+        var result = await _sut.GetWeeklyDownloadsAsync("sentry", months: 1);
+
+        // Assert - Average should be (100+300+500)/3 = 300
+        result.Should().NotBeEmpty();
+        var weekResult = result.FirstOrDefault(r => r.Week.Date == monday.ToDateTime(TimeOnly.MinValue));
+        weekResult.Should().NotBeNull();
+        weekResult!.Count.Should().Be(300);
+    }
+
+    [Fact]
+    public async Task GetWeeklyDownloadsAsync_HandlesDifferentDayCountsAcrossWeeks()
+    {
+        // Arrange - Different weeks have different numbers of days (realistic scenario)
+        var monday1 = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-21));
+        while (monday1.DayOfWeek != DayOfWeek.Monday)
+        {
+            monday1 = monday1.AddDays(-1);
+        }
+        var monday2 = monday1.AddDays(7);
+
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
+        {
+            // Week 1: Only 2 days of data, avg = (100+200)/2 = 150
+            ("sentry", monday1, 100),
+            ("sentry", monday1.AddDays(1), 200),
+
+            // Week 2: Full 7 days of data, avg = (100+200+300+400+500+600+700)/7 = 400
+            ("sentry", monday2, 100),
+            ("sentry", monday2.AddDays(1), 200),
+            ("sentry", monday2.AddDays(2), 300),
+            ("sentry", monday2.AddDays(3), 400),
+            ("sentry", monday2.AddDays(4), 500),
+            ("sentry", monday2.AddDays(5), 600),
+            ("sentry", monday2.AddDays(6), 700),
+        };
+        await _sut.InsertDailyDownloadsAsync(downloads);
+
+        // Act
+        var result = await _sut.GetWeeklyDownloadsAsync("sentry", months: 1);
+
+        // Assert - Each week should have its own correct average
+        result.Should().HaveCount(2);
+
+        var week1Result = result.FirstOrDefault(r => r.Week.Date == monday1.ToDateTime(TimeOnly.MinValue));
+        week1Result.Should().NotBeNull();
+        week1Result!.Count.Should().Be(150);
+
+        var week2Result = result.FirstOrDefault(r => r.Week.Date == monday2.ToDateTime(TimeOnly.MinValue));
+        week2Result.Should().NotBeNull();
+        week2Result!.Count.Should().Be(400);
     }
 
     [Fact]

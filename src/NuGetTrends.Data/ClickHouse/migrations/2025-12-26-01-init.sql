@@ -1,4 +1,4 @@
--- ClickHouse Schema Migration: 2024-12-26-1-init
+-- ClickHouse Schema Migration: 2025-12-26-01-init
 -- Initial schema for NuGet Trends daily downloads
 
 -- Create the nugettrends database if it doesn't exist

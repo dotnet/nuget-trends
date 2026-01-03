@@ -50,7 +50,7 @@ public class ClickHouseFixture : IAsyncLifetime
     private string AdminConnectionString => $"Host={_container.Hostname};Port={_container.GetMappedPublicPort(8123)};Username={Username};Password={Password}";
 
     /// <summary>
-    /// Resets the daily_downloads table by truncating all data.
+    /// Resets all tables by truncating data.
     /// Call this at the start of each test for isolation.
     /// </summary>
     public async Task ResetTableAsync()
@@ -58,9 +58,13 @@ public class ClickHouseFixture : IAsyncLifetime
         await using var connection = new ClickHouseConnection(ConnectionString);
         await connection.OpenAsync();
 
-        await using var truncateCmd = connection.CreateCommand();
-        truncateCmd.CommandText = "TRUNCATE TABLE daily_downloads";
-        await truncateCmd.ExecuteNonQueryAsync();
+        await using var truncateDailyCmd = connection.CreateCommand();
+        truncateDailyCmd.CommandText = "TRUNCATE TABLE daily_downloads";
+        await truncateDailyCmd.ExecuteNonQueryAsync();
+
+        await using var truncateWeeklyCmd = connection.CreateCommand();
+        truncateWeeklyCmd.CommandText = "TRUNCATE TABLE weekly_downloads";
+        await truncateWeeklyCmd.ExecuteNonQueryAsync();
     }
 
     /// <summary>
