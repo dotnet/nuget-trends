@@ -10,7 +10,11 @@ using Sentry.Hangfire;
 namespace NuGetTrends.Scheduler;
 
 [DisableConcurrentExecution(timeoutInSeconds: 60 * 60)]
-[AutomaticRetry(Attempts = 1, OnAttemptsExceeded = AttemptsExceededAction.Delete)]
+// Retries disabled: If this job fails and retries while messages are still in RabbitMQ,
+// duplicate package IDs would be queued. The weekly_downloads MV uses AggregatingMergeTree
+// which cannot deduplicate, so duplicates would inflate weekly averages. Manual rerun is
+// preferred over automatic retry to allow time for the queue to drain first.
+[AutomaticRetry(Attempts = 0, OnAttemptsExceeded = AttemptsExceededAction.Delete)]
 // ReSharper disable once ClassNeverInstantiated.Global - DI
 public class DailyDownloadPackageIdPublisher(
     IConnectionFactory connectionFactory,

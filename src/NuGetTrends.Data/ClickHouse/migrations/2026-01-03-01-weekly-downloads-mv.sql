@@ -1,6 +1,26 @@
 -- ClickHouse Schema Migration: 2026-01-03-01-weekly-downloads-mv
 -- Pre-aggregated weekly downloads to avoid OOM on large time range queries
 -- See: https://github.com/dotnet/nuget-trends/issues/318
+--
+-- IMPORTANT: Duplicate handling limitation
+-- =========================================
+-- The daily_downloads table uses ReplacingMergeTree which deduplicates rows with
+-- the same (package_id, date) during background merges. However, this MV fires on
+-- every INSERT before deduplication occurs. If the same (package_id, date) is
+-- inserted multiple times (e.g., job reruns), the MV will emit multiple aggregate
+-- states that cannot be retracted, causing avgMerge() to overcount.
+--
+-- To prevent this:
+-- 1. The DailyDownloadPackageIdPublisher job has retries disabled (Attempts = 0)
+-- 2. The publisher queries for packages not yet checked today before queueing
+-- 3. If manual rerun is needed, wait for the RabbitMQ queue to drain first
+--
+-- If data corruption occurs, rebuild weekly_downloads from daily_downloads:
+--   TRUNCATE TABLE nugettrends.weekly_downloads;
+--   INSERT INTO nugettrends.weekly_downloads
+--   SELECT package_id, toMonday(date) AS week, avgState(download_count)
+--   FROM nugettrends.daily_downloads
+--   GROUP BY package_id, week;
 
 -- Target table for weekly aggregates
 -- Uses AggregatingMergeTree to store pre-computed avg() state
