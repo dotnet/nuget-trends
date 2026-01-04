@@ -109,7 +109,7 @@ jobs:
           SENTRY_PROJECT: spa
         run: |
           RELEASE="NuGetTrends.Spa@1.0.0+${GITHUB_SHA}"
-          npx @sentry/cli releases files "$RELEASE" upload-sourcemaps ./dist --url-prefix '~/'
+          npx @sentry/cli sourcemaps upload --release "$RELEASE" --url-prefix '~/' ./dist
         working-directory: src/NuGetTrends.Web/Portal
 
       - name: Replace SPA path on coverage file (Hack codecov) # https://community.codecov.io/t/looking-for-assistance-with-path-fixing/1669/9
