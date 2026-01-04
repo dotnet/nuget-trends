@@ -660,18 +660,20 @@ public class ClickHouseServiceTests : IAsyncLifetime
         var previousMonday = currentMonday.AddDays(-7);
         var packageId = $"tiny-package-{Guid.NewGuid():N}";
 
+        // The query computes weekly total as: avgMerge(daily) * 7
+        // So a daily value of 100 becomes weekly 700.
         var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
         {
-            // Small package with good growth
+            // Small package: daily 50 -> weekly 350, daily 100 -> weekly 700
             (packageId, previousMonday, 50),
-            (packageId, currentMonday, 100), // 100% growth but only 100 downloads
+            (packageId, currentMonday, 100),
         };
         await _sut.InsertDailyDownloadsAsync(downloads);
 
-        // Act - Set minimum to 500
-        var result = await _sut.GetTrendingPackagesAsync(limit: 10, minWeeklyDownloads: 500, maxPackageAgeMonths: 12);
+        // Act - Set minimum to 1000 (which is > 700 weekly)
+        var result = await _sut.GetTrendingPackagesAsync(limit: 100, minWeeklyDownloads: 1000, maxPackageAgeMonths: 12);
 
-        // Assert - Package should be filtered out (only 100 downloads, threshold is 500)
+        // Assert - Package should be filtered out (700 weekly < 1000 threshold)
         result.Where(p => p.PackageId == packageId.ToLowerInvariant()).Should().BeEmpty();
     }
 
@@ -778,9 +780,12 @@ public class ClickHouseServiceTests : IAsyncLifetime
         var previousMonday = currentMonday.AddDays(-7);
         var packageId = $"test-package-{Guid.NewGuid():N}";
 
+        // Insert daily download counts. The query calculates weekly totals as:
+        // avgMerge(download_avg) * 7 - so a single day's value gets multiplied by 7.
+        // To get predictable weekly totals, we insert values that account for this.
         var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
         {
-            // 50% growth: 2000 -> 3000
+            // 50% growth: daily avg 2000 -> 3000 becomes weekly 14000 -> 21000
             (packageId, previousMonday, 2000),
             (packageId, currentMonday, 3000),
         };
@@ -789,12 +794,13 @@ public class ClickHouseServiceTests : IAsyncLifetime
         // Act
         var result = await _sut.GetTrendingPackagesAsync(limit: 100, minWeeklyDownloads: 100, maxPackageAgeMonths: 12);
 
-        // Assert - find our specific package
+        // Assert - find our specific package and verify growth rate
+        // The absolute values are daily * 7, but the growth rate should be preserved
         var package = result.FirstOrDefault(p => p.PackageId == packageId.ToLowerInvariant());
         package.Should().NotBeNull();
-        package!.WeekDownloads.Should().Be(3000);
-        package.ComparisonWeekDownloads.Should().Be(2000);
-        package.GrowthRate.Should().BeApproximately(0.5, 0.01); // 50% growth
+        package!.WeekDownloads.Should().Be(3000 * 7); // daily avg * 7
+        package.ComparisonWeekDownloads.Should().Be(2000 * 7); // daily avg * 7
+        package.GrowthRate.Should().BeApproximately(0.5, 0.01); // 50% growth preserved
     }
 
     [Fact]
