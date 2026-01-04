@@ -34,6 +34,10 @@
         Hosted by <img src="../../assets/images/sentry-logo.svg" alt="Sentry" class="sentry-logo">
       </a>
     </p>
-    <p class="version-info">{{ version }}</p>
+    <p class="version-info">
+      <span class="version-badge" (click)="copyVersion()" title="Copy to clipboard">
+        {{ shortSha }}
+      </span>
+    </p>
   </div>
 </footer>
