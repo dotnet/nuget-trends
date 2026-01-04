@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <title>NuGet Trends</title>
+    <meta name="description" content="NuGet package download statistics and trends over time" />
+
+    <!-- Bulma CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css" />
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" />
+    <!-- App styles -->
+    <link rel="stylesheet" href="css/app.css" />
+    <!-- Blazor CSS isolation -->
+    <link rel="stylesheet" href="NuGetTrends.Web.styles.css" />
+    <!-- Blazored Toast -->
+    <link href="_content/Blazored.Toast/blazored-toast.min.css" rel="stylesheet" />
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+
+    <HeadOutlet @rendermode="InteractiveWebAssembly" />
+</head>
+
+<body class="site">
+    <Routes @rendermode="new InteractiveWebAssemblyRenderMode(prerender: true)" />
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script src="js/chartInterop.js"></script>
+    <script src="js/themeInterop.js"></script>
+    <!-- Blazor WebAssembly -->
+    <script src="_framework/blazor.web.js"></script>
+</body>
+
+</html>

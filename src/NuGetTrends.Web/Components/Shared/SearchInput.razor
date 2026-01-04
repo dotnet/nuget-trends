@@ -1,0 +1,236 @@
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject PackageState PackageState
+@inject IToastService ToastService
+@inject IJSRuntime JSRuntime
+
+<section>
+    <div class="control @(_isSearching ? "is-large is-loading" : "")">
+        <input class="input is-large is-shadowless"
+               type="text"
+               placeholder="Start typing to discover NuGet Trends"
+               @ref="_inputRef"
+               @bind="_searchTerm"
+               @bind:event="oninput"
+               @bind:after="OnSearchTermChanged"
+               @onkeydown="OnKeyDown"
+               @onfocus="OnFocus"
+               @onblur="OnBlur"
+               autocomplete="off" />
+        <span class="icon is-medium is-left"><i class="fa fa-search"></i></span>
+    </div>
+
+    @if (_showDropdown && _searchResults.Count > 0)
+    {
+        <div class="autocomplete-dropdown">
+            @foreach (var (package, index) in _searchResults.Select((p, i) => (p, i)))
+            {
+                <div class="autocomplete-option @(index == _selectedIndex ? "selected" : "")"
+                     @onclick="() => SelectPackage(package)"
+                     @onmouseenter="() => _selectedIndex = index">
+                    <img class="package-img"
+                         src="@package.IconUrl"
+                         alt="@package.PackageId icon"
+                         onerror="this.onerror=null;this.src='https://nuget.org/Content/Images/packageDefaultIcon-50x50.png';" />
+                    <span>@package.PackageId</span>
+                </div>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    private string _searchTerm = "";
+    private List<PackageSearchResult> _searchResults = [];
+    private bool _isSearching;
+    private bool _showDropdown;
+    private int _selectedIndex = -1;
+    private ElementReference _inputRef;
+    private CancellationTokenSource? _debounceTokenSource;
+    private const int DebounceDelayMs = 300;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Auto-focus the search input
+            await JSRuntime.InvokeVoidAsync("eval", "document.querySelector('.input.is-large')?.focus()");
+        }
+    }
+
+    private async Task OnSearchTermChanged()
+    {
+        // Cancel any pending search
+        _debounceTokenSource?.Cancel();
+        _debounceTokenSource = new CancellationTokenSource();
+
+        if (string.IsNullOrWhiteSpace(_searchTerm))
+        {
+            _searchResults.Clear();
+            _showDropdown = false;
+            return;
+        }
+
+        try
+        {
+            // Debounce
+            await Task.Delay(DebounceDelayMs, _debounceTokenSource.Token);
+
+            _isSearching = true;
+            StateHasChanged();
+
+            var results = await Http.GetFromJsonAsync<List<PackageSearchResult>>(
+                $"/api/package/search?q={Uri.EscapeDataString(_searchTerm.Trim())}",
+                _debounceTokenSource.Token);
+
+            _searchResults = results ?? [];
+            _selectedIndex = _searchResults.Count > 0 ? 0 : -1;
+            _showDropdown = true;
+
+            if (_searchResults.Count == 0)
+            {
+                ToastService.ShowInfo("No packages found!");
+            }
+        }
+        catch (TaskCanceledException)
+        {
+            // Ignore cancellation
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Search error: {ex.Message}");
+            ToastService.ShowError("Our servers are too cool (or not) to handle your request at the moment.");
+        }
+        finally
+        {
+            _isSearching = false;
+        }
+    }
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "ArrowDown":
+                if (_searchResults.Count > 0)
+                {
+                    _selectedIndex = Math.Min(_selectedIndex + 1, _searchResults.Count - 1);
+                }
+                break;
+
+            case "ArrowUp":
+                if (_searchResults.Count > 0)
+                {
+                    _selectedIndex = Math.Max(_selectedIndex - 1, 0);
+                }
+                break;
+
+            case "Enter":
+                if (_selectedIndex >= 0 && _selectedIndex < _searchResults.Count)
+                {
+                    _ = SelectPackage(_searchResults[_selectedIndex]);
+                }
+                break;
+
+            case "Escape":
+                _showDropdown = false;
+                _searchResults.Clear();
+                break;
+        }
+    }
+
+    private void OnFocus()
+    {
+        if (_searchResults.Count > 0)
+        {
+            _showDropdown = true;
+        }
+    }
+
+    private async Task OnBlur()
+    {
+        // Delay to allow click on dropdown item to register
+        await Task.Delay(200);
+        _showDropdown = false;
+    }
+
+    private async Task SelectPackage(PackageSearchResult package)
+    {
+        _showDropdown = false;
+        _searchTerm = "";
+        _searchResults.Clear();
+        _selectedIndex = -1;
+
+        try
+        {
+            // Fetch download history
+            var history = await Http.GetFromJsonAsync<PackageDownloadHistory>(
+                $"/api/package/history/{Uri.EscapeDataString(package.PackageId)}?months={PackageState.SearchPeriod}");
+
+            if (history == null)
+            {
+                ToastService.ShowWarning($"Package '{package.PackageId}' doesn't exist.");
+                return;
+            }
+
+            // Check if chart is full
+            if (PackageState.Packages.Count >= PackageState.MaxChartItems)
+            {
+                ToastService.ShowWarning("Insert bitcoin to add another item to the chart.");
+                return;
+            }
+
+            // Check if already on chart
+            if (PackageState.HasPackage(package.PackageId))
+            {
+                ToastService.ShowInfo($"Package '{package.PackageId}' is already on the chart.");
+                return;
+            }
+
+            // Navigate to packages page if not already there
+            var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+            if (!uri.AbsolutePath.StartsWith("/packages", StringComparison.OrdinalIgnoreCase))
+            {
+                Navigation.NavigateTo($"/packages/{Uri.EscapeDataString(package.PackageId)}");
+            }
+            else
+            {
+                // Add to chart directly
+                PackageState.AddPackage(history);
+            }
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            // Check if package exists on nuget.org
+            try
+            {
+                var response = await Http.GetAsync(
+                    $"https://api.nuget.org/v3-flatcontainer/{package.PackageId.ToLowerInvariant()}/index.json");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    ToastService.ShowWarning($"Package '{package.PackageId}' exists on NuGet.org but is not yet tracked by NuGet Trends.");
+                }
+                else
+                {
+                    ToastService.ShowWarning($"Package '{package.PackageId}' doesn't exist.");
+                }
+            }
+            catch
+            {
+                ToastService.ShowWarning($"Package '{package.PackageId}' doesn't exist.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error selecting package: {ex.Message}");
+            ToastService.ShowError("Our servers are too cool (or not) to handle your request at the moment.");
+        }
+    }
+
+    public void Dispose()
+    {
+        _debounceTokenSource?.Cancel();
+        _debounceTokenSource?.Dispose();
+    }
+}

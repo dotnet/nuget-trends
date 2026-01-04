@@ -1,0 +1,355 @@
+@page "/packages"
+@page "/packages/{PackageId}"
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject PackageState PackageState
+@inject ThemeState ThemeState
+@inject IToastService ToastService
+@inject IJSRuntime JSRuntime
+@implements IDisposable
+
+<PageTitle>NuGet Trends - Package Comparison</PageTitle>
+
+<div id="chartz">
+    <section class="section">
+        <div class="columns is-centered">
+            <PackageList />
+        </div>
+    </section>
+    <div class="columns is-vcentered is-centered">
+        <div class="column has-text-right has-text-centered-mobile is-narrow">
+            <label for="period" class="title is-5">Showing results for the last: </label>
+        </div>
+        <div class="column has-text-centered-mobile is-narrow">
+            <SearchPeriod />
+        </div>
+    </div>
+    <section class="section chart-section">
+        <div class="columns is-centered has-text-centered">
+            <div class="column is-8">
+                <div class="box is-shadowless">
+                    <canvas id="trend-chart" width="500" height="380"></canvas>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+@code {
+    [Parameter]
+    public string? PackageId { get; set; }
+
+    [SupplyParameterFromQuery(Name = "ids")]
+    public string[]? PackageIds { get; set; }
+
+    [SupplyParameterFromQuery(Name = "months")]
+    public int? Months { get; set; }
+
+    private bool _chartInitialized;
+
+    protected override async Task OnInitializedAsync()
+    {
+        PackageState.PackagePlotted += OnPackagePlotted;
+        PackageState.PackageRemoved += OnPackageRemoved;
+        PackageState.SearchPeriodChanged += OnSearchPeriodChanged;
+        ThemeState.ThemeChanged += OnThemeChanged;
+
+        // Set search period from URL
+        if (Months.HasValue && Months.Value > 0)
+        {
+            PackageState.SearchPeriod = Months.Value;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadPackagesFromUrl();
+        }
+    }
+
+    private async Task LoadPackagesFromUrl()
+    {
+        var packageIdsToLoad = new List<string>();
+
+        // Add path parameter package
+        if (!string.IsNullOrEmpty(PackageId))
+        {
+            packageIdsToLoad.Add(PackageId);
+        }
+
+        // Add query parameter packages
+        if (PackageIds != null)
+        {
+            foreach (var id in PackageIds)
+            {
+                if (!packageIdsToLoad.Any(p => p.Equals(id, StringComparison.OrdinalIgnoreCase)))
+                {
+                    packageIdsToLoad.Add(id);
+                }
+            }
+        }
+
+        foreach (var id in packageIdsToLoad)
+        {
+            await LoadPackage(id);
+        }
+
+        // If no packages were loaded, navigate home
+        if (PackageState.Packages.Count == 0)
+        {
+            Navigation.NavigateTo("/");
+        }
+    }
+
+    private async Task LoadPackage(string packageId)
+    {
+        try
+        {
+            var history = await Http.GetFromJsonAsync<PackageDownloadHistory>(
+                $"/api/package/history/{Uri.EscapeDataString(packageId)}?months={PackageState.SearchPeriod}");
+
+            if (history != null)
+            {
+                PackageState.AddPackage(history);
+            }
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            await HandlePackageNotFound(packageId);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error loading package {packageId}: {ex.Message}");
+            ToastService.ShowError("Our servers are too cool (or not) to handle your request at the moment.");
+        }
+    }
+
+    private async Task HandlePackageNotFound(string packageId)
+    {
+        try
+        {
+            var response = await Http.GetAsync(
+                $"https://api.nuget.org/v3-flatcontainer/{packageId.ToLowerInvariant()}/index.json");
+
+            if (response.IsSuccessStatusCode)
+            {
+                ToastService.ShowWarning($"Package '{packageId}' exists on NuGet.org but is not yet tracked by NuGet Trends.");
+            }
+            else
+            {
+                ToastService.ShowWarning($"Package '{packageId}' doesn't exist.");
+            }
+        }
+        catch
+        {
+            ToastService.ShowWarning($"Package '{packageId}' doesn't exist.");
+        }
+
+        RemovePackageFromUrl(packageId);
+    }
+
+    private async void OnPackagePlotted(object? sender, PackageDownloadHistory history)
+    {
+        await InvokeAsync(async () =>
+        {
+            if (!_chartInitialized)
+            {
+                await InitializeChart(history);
+                _chartInitialized = true;
+            }
+            else
+            {
+                await AddDataset(history);
+            }
+
+            UpdateUrl();
+            StateHasChanged();
+        });
+    }
+
+    private async void OnPackageRemoved(object? sender, string packageId)
+    {
+        await InvokeAsync(async () =>
+        {
+            await JSRuntime.InvokeVoidAsync("chartInterop.removeDataset", packageId);
+            RemovePackageFromUrl(packageId);
+
+            if (PackageState.Packages.Count == 0)
+            {
+                Navigation.NavigateTo("/");
+            }
+
+            StateHasChanged();
+        });
+    }
+
+    private async void OnSearchPeriodChanged(object? sender, int period)
+    {
+        await InvokeAsync(async () =>
+        {
+            // Reload all packages with new period
+            var packageIds = PackageState.Packages.Select(p => p.Id).ToList();
+
+            foreach (var id in packageIds)
+            {
+                try
+                {
+                    var history = await Http.GetFromJsonAsync<PackageDownloadHistory>(
+                        $"/api/package/history/{Uri.EscapeDataString(id)}?months={period}");
+
+                    if (history != null)
+                    {
+                        PackageState.UpdatePackage(history);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"Error reloading package {id}: {ex.Message}");
+                }
+            }
+        });
+    }
+
+    private async void OnThemeChanged(object? sender, string theme)
+    {
+        await InvokeAsync(async () =>
+        {
+            await JSRuntime.InvokeVoidAsync("chartInterop.updateTheme", ThemeState.IsDark);
+        });
+    }
+
+    private async Task InitializeChart(PackageDownloadHistory history)
+    {
+        var config = new
+        {
+            type = "line",
+            data = new
+            {
+                datasets = new[]
+                {
+                    CreateDataset(history)
+                }
+            },
+            options = GetChartOptions()
+        };
+
+        await JSRuntime.InvokeVoidAsync("chartInterop.init", "trend-chart", config);
+    }
+
+    private async Task AddDataset(PackageDownloadHistory history)
+    {
+        var dataset = CreateDataset(history);
+        await JSRuntime.InvokeVoidAsync("chartInterop.addDataset", dataset);
+    }
+
+    private object CreateDataset(PackageDownloadHistory history)
+    {
+        var data = history.Downloads
+            .Where(d => d.Count.HasValue)
+            .Select(d => new { x = d.Week.ToString("yyyy-MM-ddTHH:mm:ss"), y = d.Count!.Value })
+            .ToArray();
+
+        return new
+        {
+            label = history.Id,
+            backgroundColor = history.Color,
+            borderColor = history.Color,
+            pointRadius = 6,
+            pointHoverRadius = 8,
+            pointBackgroundColor = history.Color,
+            pointBorderColor = "#fff",
+            pointBorderWidth = 1,
+            pointHoverBackgroundColor = history.Color,
+            pointHoverBorderColor = history.Color,
+            fill = false,
+            data
+        };
+    }
+
+    private object GetChartOptions()
+    {
+        var timeUnit = PackageState.SearchPeriod switch
+        {
+            <= 6 => "day",
+            <= 24 => "month",
+            _ => "year"
+        };
+
+        return new
+        {
+            responsive = true,
+            maintainAspectRatio = false,
+            plugins = new
+            {
+                legend = new { display = false },
+                tooltip = new
+                {
+                    animation = false
+                }
+            },
+            scales = new
+            {
+                x = new
+                {
+                    type = "time",
+                    time = new
+                    {
+                        unit = timeUnit,
+                        displayFormats = new
+                        {
+                            day = "dd MMM yyyy",
+                            month = "MMM yyyy",
+                            year = "yyyy"
+                        }
+                    }
+                }
+            }
+        };
+    }
+
+    private void UpdateUrl()
+    {
+        var packageIds = PackageState.Packages.Select(p => p.Id).ToList();
+
+        if (packageIds.Count == 0)
+        {
+            return;
+        }
+
+        var queryString = string.Join("&", packageIds.Select(id => $"ids={Uri.EscapeDataString(id)}"));
+        queryString += $"&months={PackageState.SearchPeriod}";
+
+        Navigation.NavigateTo($"/packages?{queryString}", replace: true);
+    }
+
+    private void RemovePackageFromUrl(string packageId)
+    {
+        var remainingIds = PackageState.Packages
+            .Where(p => !p.Id.Equals(packageId, StringComparison.OrdinalIgnoreCase))
+            .Select(p => p.Id)
+            .ToList();
+
+        if (remainingIds.Count == 0)
+        {
+            return;
+        }
+
+        var queryString = string.Join("&", remainingIds.Select(id => $"ids={Uri.EscapeDataString(id)}"));
+        queryString += $"&months={PackageState.SearchPeriod}";
+
+        Navigation.NavigateTo($"/packages?{queryString}", replace: true);
+    }
+
+    public void Dispose()
+    {
+        PackageState.PackagePlotted -= OnPackagePlotted;
+        PackageState.PackageRemoved -= OnPackageRemoved;
+        PackageState.SearchPeriodChanged -= OnSearchPeriodChanged;
+        ThemeState.ThemeChanged -= OnThemeChanged;
+
+        // Clear packages when leaving the page
+        PackageState.Clear();
+    }
+}

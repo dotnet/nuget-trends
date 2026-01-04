@@ -1,0 +1,68 @@
+@inject ThemeState ThemeState
+@inject IJSRuntime JSRuntime
+@implements IDisposable
+
+<button class="theme-toggle-btn"
+        @onclick="Toggle"
+        title="@ThemeState.Tooltip"
+        aria-label="Toggle theme">
+    <i class="fa @ThemeState.CurrentIcon"></i>
+</button>
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Load saved preference from localStorage
+            var savedPreference = await JSRuntime.InvokeAsync<string?>("themeInterop.getPreference");
+            ThemeState.LoadPreference(savedPreference);
+
+            // Get system preference
+            var systemPrefersDark = await JSRuntime.InvokeAsync<bool>("themeInterop.getSystemPreference");
+            ThemeState.SetSystemPreference(systemPrefersDark);
+
+            // Apply theme
+            await ApplyTheme();
+
+            // Subscribe to theme changes
+            ThemeState.ThemeChanged += OnThemeChanged;
+
+            // Listen for system preference changes
+            await JSRuntime.InvokeVoidAsync("themeInterop.watchSystemPreference",
+                DotNetObjectReference.Create(this));
+
+            StateHasChanged();
+        }
+    }
+
+    private async void OnThemeChanged(object? sender, string theme)
+    {
+        await ApplyTheme();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public void OnSystemPreferenceChanged(bool prefersDark)
+    {
+        ThemeState.SetSystemPreference(prefersDark);
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task Toggle()
+    {
+        ThemeState.CycleTheme();
+        await JSRuntime.InvokeVoidAsync("themeInterop.setPreference", ThemeState.GetPreferenceString());
+        await ApplyTheme();
+    }
+
+    private async Task ApplyTheme()
+    {
+        await JSRuntime.InvokeVoidAsync("themeInterop.applyTheme", ThemeState.ResolvedTheme);
+    }
+
+    public void Dispose()
+    {
+        ThemeState.ThemeChanged -= OnThemeChanged;
+    }
+}

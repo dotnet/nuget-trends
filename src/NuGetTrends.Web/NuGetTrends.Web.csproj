@@ -2,9 +2,9 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
-    <SpaRoot>Portal/</SpaRoot>
-    <DefaultItemExcludes>$(DefaultItemExcludes);$(SpaRoot)node_modules/**</DefaultItemExcludes>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
@@ -12,7 +12,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.SpaServices.Extensions" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" />
+    <PackageReference Include="Blazored.Toast" />
     <PackageReference Include="Swashbuckle.AspNetCore" />
     <PackageReference Include="Sentry.AspNetCore" />
     <PackageReference Include="Sentry.Serilog" />
@@ -25,25 +26,7 @@
   <ItemGroup>
     <ProjectReference Include="..\NuGetTrends.Data\NuGetTrends.Data.csproj" />
     <ProjectReference Include="..\NuGetTrends.ServiceDefaults\NuGetTrends.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\NuGetTrends.Web.Client\NuGetTrends.Web.Client.csproj" />
   </ItemGroup>
-
-  <ItemGroup>
-    <!-- Don't publish the SPA source files, but do show them in the project files list -->
-    <Content Remove="$(SpaRoot)**" />
-    <None Remove="$(SpaRoot)**" />
-    <None Include="$(SpaRoot)**" Exclude="$(SpaRoot)node_modules/**" />
-  </ItemGroup>
-
-  <Target Name="PublishRunWebpack" AfterTargets="ComputeFilesToPublish">
-    <!-- Include the newly-built spa files in the publish output -->
-    <ItemGroup>
-      <DistFiles Include="$(SpaRoot)dist/**" />
-      <ResolvedFileToPublish Include="@(DistFiles-&gt;'%(FullPath)')" Exclude="@(ResolvedFileToPublish)">
-        <RelativePath>%(DistFiles.Identity)</RelativePath>
-        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-        <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
-      </ResolvedFileToPublish>
-    </ItemGroup>
-  </Target>
 
 </Project>

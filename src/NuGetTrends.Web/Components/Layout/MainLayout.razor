@@ -1,0 +1,39 @@
+@inherits LayoutComponentBase
+@inject IToastService ToastService
+
+<BlazoredToasts Position="ToastPosition.BottomRight"
+                Timeout="5"
+                IconType="IconType.FontAwesome"
+                SuccessIcon="fa fa-check"
+                ErrorIcon="fa fa-times"
+                InfoIcon="fa fa-info"
+                WarningIcon="fa fa-exclamation-triangle" />
+
+<ThemeToggle />
+
+<div class="site-content">
+    <section class="hero search-pattern is-primary">
+        <div class="hero-body main-header">
+            <div class="container">
+                <div class="columns">
+                    <div class="column has-text-centered is-12">
+                        <a href="/">
+                            <img src="images/logo-inverted-400.png" alt="NuGet Trends brand logo" />
+                        </a>
+                    </div>
+                </div>
+                <div class="columns">
+                    <div class="column is-8 is-offset-2">
+                        <div class="control has-icons-left has-icons-right">
+                            <SearchInput />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    @Body
+</div>
+
+<Footer />
+<LoadingIndicator />

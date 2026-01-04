@@ -1,8 +1,11 @@
 using System.Reflection;
+using Blazored.Toast;
 using Microsoft.OpenApi.Models;
 using NuGetTrends.Data;
 using NuGetTrends.Data.ClickHouse;
 using NuGetTrends.Web;
+using NuGetTrends.Web.Components;
+using NuGetTrends.Web.Services;
 using Serilog;
 using Swashbuckle.AspNetCore.SwaggerUI;
 using SystemEnvironment = System.Environment;
@@ -48,21 +51,10 @@ try
         {
             o.SetBeforeSend(e =>
             {
-                // Ignore SPA default page middleware errors for POST requests
-                // The SPA middleware doesn't support POST requests to index.html and this is expected behavior
-                // See: https://nugettrends.sentry.io/issues/4968360400/
-                if (e.Exception is InvalidOperationException &&
-                    e.Message?.Formatted is { } message &&
-                    message.Contains("The SPA default page middleware could not return the default page") &&
-                    e.Request?.Method == "POST")
-                {
-                    return null;
-                }
-
                 if (e.Message?.Formatted is { } msg && msg.Contains(
                         "An error occurred using the connection to database '\"nugettrends\"' on server"))
                 {
-                    e.Fingerprint = new[] { msg };
+                    e.Fingerprint = [msg];
                 }
 
                 return e;
@@ -76,71 +68,90 @@ try
         });
 
     builder.Services.AddSentryTunneling(); // Add Sentry Tunneling to avoid ad-blockers.
+
+    // Add Blazor services
+    builder.Services.AddRazorComponents()
+        .AddInteractiveWebAssemblyComponents();
+
+    // Add Blazored Toast
+    builder.Services.AddBlazoredToast();
+
+    // Add app state services (scoped for Blazor)
+    builder.Services.AddScoped<PackageState>();
+    builder.Services.AddScoped<ThemeState>();
+
+    // Add HttpClient for Blazor components to call the API
+    builder.Services.AddScoped(sp =>
+    {
+        var navigationManager = sp.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>();
+        return new HttpClient { BaseAddress = new Uri(navigationManager.BaseUri) };
+    });
+
     builder.Services.AddControllers();
     builder.Services.AddHttpClient();
 
-     // In production, the Angular files will be served from this directory
-     builder.Services.AddSpaStaticFiles(c => c.RootPath = "Portal/dist");
+    if (environment != Production)
+    {
+        // keep cors during development
+        builder.Services.AddCors(options =>
+        {
+            options.AddPolicy("AllowAll",
+                corsPolicyBuilder =>
+                {
+                    corsPolicyBuilder
+                        .AllowAnyOrigin()
+                        .AllowAnyMethod()
+                        .AllowAnyHeader()
+                        .SetPreflightMaxAge(TimeSpan.FromDays(1));
+                });
+        });
+    }
 
-     if (environment != Production)
-     {
-         // keep cors during development so we can still run the spa on Angular default port (4200)
-         builder.Services.AddCors(options =>
-         {
-             options.AddPolicy("AllowAll",
-                 corsPolicyBuilder =>
-                 {
-                     corsPolicyBuilder
-                         .AllowAnyOrigin()
-                         .AllowAnyMethod()
-                         .AllowAnyHeader()
-                         .SetPreflightMaxAge(TimeSpan.FromDays(1));
-                 });
-         });
-     }
+    // Use Aspire's PostgreSQL integration for automatic connection string injection and health checks
+    builder.AddNpgsqlDbContext<NuGetTrendsContext>("nugettrends", configureDbContextOptions: options =>
+    {
+        if (environment != Production)
+        {
+            options.EnableSensitiveDataLogging();
+        }
+    });
 
-     // Use Aspire's PostgreSQL integration for automatic connection string injection and health checks
-     builder.AddNpgsqlDbContext<NuGetTrendsContext>("nugettrends", configureDbContextOptions: options =>
-     {
-         if (environment != Production)
-         {
-             options.EnableSensitiveDataLogging();
-         }
-     });
+    // ClickHouse connection - parse connection info once as singleton
+    builder.Services.AddSingleton(sp =>
+    {
+        var config = sp.GetRequiredService<IConfiguration>();
+        var connString = config.GetConnectionString("clickhouse")
+            ?? config.GetConnectionString("ClickHouse")
+            ?? throw new InvalidOperationException("ClickHouse connection string not configured.");
+        return ClickHouseConnectionInfo.Parse(connString);
+    });
 
-     // ClickHouse connection - parse connection info once as singleton
-     builder.Services.AddSingleton(sp =>
-     {
-         var config = sp.GetRequiredService<IConfiguration>();
-         var connString = config.GetConnectionString("clickhouse")
-             ?? config.GetConnectionString("ClickHouse")
-             ?? throw new InvalidOperationException("ClickHouse connection string not configured.");
-         return ClickHouseConnectionInfo.Parse(connString);
-     });
+    builder.Services.AddSingleton<IClickHouseService>(sp =>
+    {
+        var config = sp.GetRequiredService<IConfiguration>();
+        // Aspire injects the connection string via ConnectionStrings__clickhouse environment variable
+        var connString = config.GetConnectionString("clickhouse")
+            ?? config.GetConnectionString("ClickHouse")
+            ?? throw new InvalidOperationException("ClickHouse connection string not configured.");
+        var logger = sp.GetRequiredService<ILogger<ClickHouseService>>();
+        var connectionInfo = sp.GetRequiredService<ClickHouseConnectionInfo>();
+        return new ClickHouseService(connString, logger, connectionInfo);
+    });
 
-     builder.Services.AddSingleton<IClickHouseService>(sp =>
-     {
-         var config = sp.GetRequiredService<IConfiguration>();
-         // Aspire injects the connection string via ConnectionStrings__clickhouse environment variable
-         var connString = config.GetConnectionString("clickhouse")
-             ?? config.GetConnectionString("ClickHouse")
-             ?? throw new InvalidOperationException("ClickHouse connection string not configured.");
-         var logger = sp.GetRequiredService<ILogger<ClickHouseService>>();
-         var connectionInfo = sp.GetRequiredService<ClickHouseConnectionInfo>();
-         return new ClickHouseService(connString, logger, connectionInfo);
-     });
+    // Add caching services
+    builder.Services.AddMemoryCache();
+    builder.Services.AddScoped<ITrendingPackagesCache, TrendingPackagesCache>();
 
-     // Add caching services
-     builder.Services.AddMemoryCache();
-     builder.Services.AddScoped<ITrendingPackagesCache, TrendingPackagesCache>();
-
-     builder.Services.AddSwaggerGen(c =>
-     {
-         c.SwaggerDoc("v1", new OpenApiInfo {Title = "NuGet Trends", Version = "v1"});
-         var xmlFile = Assembly.GetExecutingAssembly().GetName().Name + ".xml";
-         var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
-         c.IncludeXmlComments(xmlPath);
-     });
+    builder.Services.AddSwaggerGen(c =>
+    {
+        c.SwaggerDoc("v1", new OpenApiInfo { Title = "NuGet Trends", Version = "v1" });
+        var xmlFile = Assembly.GetExecutingAssembly().GetName().Name + ".xml";
+        var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+        if (File.Exists(xmlPath))
+        {
+            c.IncludeXmlComments(xmlPath);
+        }
+    });
 
 
     var app = builder.Build();
@@ -153,8 +164,10 @@ try
         .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
         ?.InformationalVersion?.Split('+').LastOrDefault() ?? "unknown";
 
-    app.Use(async (context, next) => {
-        context.Response.OnStarting(() => {
+    app.Use(async (context, next) =>
+    {
+        context.Response.OnStarting(() =>
+        {
             // Sentry Browser Profiling
             // https://docs.sentry.io/platforms/javascript/profiling/
             context.Response.Headers.Append("Document-Policy", "js-profiling");
@@ -166,13 +179,16 @@ try
     });
 
     app.UseStaticFiles();
-    if (!app.Environment.IsDevelopment())
+
+    // Enable WebAssembly debugging in development
+    if (app.Environment.IsDevelopment())
     {
-        app.UseSpaStaticFiles();
+        app.UseWebAssemblyDebugging();
     }
 
     app.UseRouting();
     app.UseSentryTracing();
+    app.UseAntiforgery();
 
     if (app.Environment.IsDevelopment())
     {
@@ -191,22 +207,13 @@ try
     app.UseSentryTunneling("/t");
 
     app.UseSwagger();
-#pragma warning disable ASP0014 // Suggest using top level route registrations
-    app.UseEndpoints(endpoints =>
-    {
-        endpoints.MapControllers();
-    });
-#pragma warning restore ASP0014
 
-    app.UseSpa(spa =>
-    {
-        spa.Options.SourcePath = "Portal";
-        if (app.Environment.IsDevelopment())
-        {
-            // use the external angular CLI server instead
-            spa.UseProxyToSpaDevelopmentServer("http://localhost:4200");
-        }
-    });
+    app.MapControllers();
+
+    // Map Blazor components
+    app.MapRazorComponents<App>()
+        .AddInteractiveWebAssemblyRenderMode()
+        .AddAdditionalAssemblies(typeof(NuGetTrends.Web.Client._Imports).Assembly);
 
     app.Run();
 
@@ -221,3 +228,6 @@ finally
 {
     Log.CloseAndFlush();
 }
+
+// Required for WebApplicationFactory in integration tests
+public partial class Program { }
