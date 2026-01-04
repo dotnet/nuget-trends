@@ -1,4 +1,4 @@
-import { Component, ErrorHandler, OnDestroy, OnInit } from '@angular/core';
+import { Component, ErrorHandler, OnDestroy, OnInit, effect } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom, Subscription } from 'rxjs';
@@ -8,7 +8,7 @@ import { ToastrService } from 'ngx-toastr';
 import * as Sentry from "@sentry/angular";
 import 'chartjs-adapter-date-fns'; 
 
-import { PackagesService, PackageInteractionService } from '../core';
+import { PackagesService, PackageInteractionService, ThemeService } from '../core';
 import { IPackageDownloadHistory, IDownloadStats } from '../shared/models/package-models';
 import { 
   Chart, 
@@ -52,7 +52,8 @@ export class PackagesComponent implements OnInit, OnDestroy {
     private packageInteractionService: PackageInteractionService,
     private datePipe: DatePipe,
     private toastr: ToastrService,
-    private errorHandler: ErrorHandler) {
+    private errorHandler: ErrorHandler,
+    private themeService: ThemeService) {
 
     this.plotPackageSubscription = this.packageInteractionService.packagePlotted$.subscribe(
       (packageHistory: IPackageDownloadHistory) => {
@@ -63,6 +64,12 @@ export class PackagesComponent implements OnInit, OnDestroy {
 
     this.searchPeriodSubscription = this.packageInteractionService.searchPeriodChanged$.subscribe(
       (searchPeriod: number) => this.periodChanged(searchPeriod));
+
+    // Update chart colors when theme changes
+    effect(() => {
+      const isDark = this.themeService.isDark();
+      this.updateChartTheme(isDark);
+    });
   }
 
   ngOnInit() {
@@ -180,6 +187,9 @@ export class PackagesComponent implements OnInit, OnDestroy {
     this.chartData.datasets!.push(this.parseDataSet(firstPackageData));
     Chart.defaults.font.size = 13;
 
+    const colors = this.getThemeColors();
+    Chart.defaults.color = colors.text;
+
     const chartOptions: ChartOptions = {
       responsive: true,
       maintainAspectRatio: false,
@@ -189,6 +199,9 @@ export class PackagesComponent implements OnInit, OnDestroy {
         },
         tooltip: {
           animation: false,
+          backgroundColor: colors.tooltipBg,
+          titleColor: colors.tooltipText,
+          bodyColor: colors.tooltipText,
           callbacks: {
             title: (tooltipItems) => {
               const rawData = tooltipItems[0].raw as { x: number; y: number }; 
@@ -225,14 +238,22 @@ export class PackagesComponent implements OnInit, OnDestroy {
               year: 'yyyy',
             },
           },
+          grid: {
+            color: colors.grid,
+          },
           ticks: {
             source: 'auto',
             autoSkip: true,
+            color: colors.text,
           },
         },
         y: {
           display: true,
+          grid: {
+            color: colors.grid,
+          },
           ticks: {
+            color: colors.text,
             callback: (tickValue: string | number) => {
               if (typeof tickValue === 'number') {
                 return tickValue.toLocaleString();
@@ -418,5 +439,59 @@ export class PackagesComponent implements OnInit, OnDestroy {
     } else {
       return 'year';
     }
+  }
+
+  /**
+   * Updates chart colors based on current theme
+   */
+  private updateChartTheme(_isDark: boolean): void {
+    if (!this.trendChart) return;
+
+    const colors = this.getThemeColors();
+
+    // Update global defaults
+    Chart.defaults.color = colors.text;
+
+    // Update scales
+    if (this.trendChart.options.scales) {
+      const xScale = this.trendChart.options.scales['x'];
+      const yScale = this.trendChart.options.scales['y'];
+
+      if (xScale) {
+        if (xScale.grid) xScale.grid.color = colors.grid;
+        if (xScale.ticks) xScale.ticks.color = colors.text;
+      }
+      if (yScale) {
+        if (yScale.grid) yScale.grid.color = colors.grid;
+        if (yScale.ticks) yScale.ticks.color = colors.text;
+      }
+    }
+
+    // Update tooltip
+    if (this.trendChart.options.plugins?.tooltip) {
+      this.trendChart.options.plugins.tooltip.backgroundColor = colors.tooltipBg;
+      this.trendChart.options.plugins.tooltip.titleColor = colors.tooltipText;
+      this.trendChart.options.plugins.tooltip.bodyColor = colors.tooltipText;
+    }
+
+    this.safeChartUpdate();
+  }
+
+  /**
+   * Gets theme-appropriate colors from CSS custom properties
+   */
+  private getThemeColors(): {
+    grid: string;
+    text: string;
+    tooltipBg: string;
+    tooltipText: string;
+  } {
+    const style = getComputedStyle(document.body);
+    return {
+      grid: style.getPropertyValue('--chart-grid-color').trim() || 'rgba(0, 0, 0, 0.1)',
+      text: style.getPropertyValue('--chart-text-color').trim() || '#666666',
+      tooltipBg: style.getPropertyValue('--chart-tooltip-bg').trim() || 'rgba(0, 0, 0, 0.8)',
+      tooltipText: style.getPropertyValue('--chart-tooltip-text').trim() || '#ffffff',
+    };
   }
 }

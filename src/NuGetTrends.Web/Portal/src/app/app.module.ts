@@ -36,9 +36,12 @@ Sentry.init({
     }),
     Sentry.replayCanvasIntegration(),
     Sentry.feedbackIntegration({
-      colorScheme: "light", // no dark theme yet
+      colorScheme: "system", // auto-detect system theme
       themeLight: {
         accentBackground: "#215C84",
+      },
+      themeDark: {
+        accentBackground: "#4a9fd4",
       },
     }),
     Sentry.browserTracingIntegration({
