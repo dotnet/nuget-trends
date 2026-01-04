@@ -319,6 +319,141 @@ public class ClickHouseService : IClickHouseService
         }
     }
 
+    public async Task<List<TrendingPackage>> GetTrendingPackagesFromSnapshotAsync(
+        int limit = 100,
+        CancellationToken ct = default,
+        ISpan? parentSpan = null)
+    {
+        // Query the pre-computed snapshot table for the most recent week
+        // The table is ordered by (computed_week, -growth_rate, package_id) so we get
+        // packages sorted by growth rate descending automatically
+        const string query = """
+            SELECT
+                package_id,
+                current_week_downloads,
+                previous_week_downloads
+            FROM trending_packages_snapshot
+            WHERE computed_week = (SELECT max(computed_week) FROM trending_packages_snapshot)
+            ORDER BY growth_rate DESC
+            LIMIT {limit:Int32}
+            """;
+
+        var span = StartDatabaseSpan(parentSpan, query, "SELECT");
+
+        try
+        {
+            await using var connection = new ClickHouseConnection(_connectionString);
+            await connection.OpenAsync(ct);
+
+            await using var cmd = connection.CreateCommand();
+            cmd.CommandText = query;
+
+            var limitParam = cmd.CreateParameter();
+            limitParam.ParameterName = "limit";
+            limitParam.Value = limit;
+            cmd.Parameters.Add(limitParam);
+
+            var results = new List<TrendingPackage>();
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+
+            while (await reader.ReadAsync(ct))
+            {
+                results.Add(new TrendingPackage
+                {
+                    PackageId = reader.GetString(0),
+                    CurrentWeekDownloads = reader.GetInt64(1),
+                    PreviousWeekDownloads = reader.GetInt64(2)
+                });
+            }
+
+            span?.SetData("db.rows_affected", results.Count);
+            span?.Finish(SpanStatus.Ok);
+
+            _logger.LogDebug("Retrieved {Count} trending packages from snapshot", results.Count);
+            return results;
+        }
+        catch (Exception ex)
+        {
+            span?.Finish(ex);
+            throw;
+        }
+    }
+
+    public async Task<int> RefreshTrendingPackagesSnapshotAsync(
+        long minWeeklyDownloads = 1000,
+        int maxPackageAgeMonths = 12,
+        CancellationToken ct = default,
+        ISpan? parentSpan = null)
+    {
+        // Insert computed trending packages into the snapshot table
+        // This runs the expensive query once and stores results for fast retrieval
+        // We store a generous number (1000) to allow filtering on the read side
+        const string query = """
+            INSERT INTO trending_packages_snapshot
+                (computed_week, package_id, current_week_downloads, previous_week_downloads, growth_rate)
+            WITH
+                toMonday(today()) AS current_week,
+                toMonday(today() - INTERVAL 1 WEEK) AS previous_week,
+                today() - INTERVAL {maxAgeMonths:Int32} MONTH AS age_cutoff
+            SELECT
+                current_week AS computed_week,
+                cur.package_id AS package_id,
+                toInt64(avgMerge(cur.download_avg) * 7) AS current_downloads,
+                toInt64(avgMerge(prev.download_avg) * 7) AS previous_downloads,
+                (current_downloads - previous_downloads) / previous_downloads AS growth_rate
+            FROM weekly_downloads cur
+            INNER JOIN weekly_downloads prev
+                ON cur.package_id = prev.package_id
+                AND prev.week = previous_week
+            INNER JOIN (
+                SELECT package_id, min(week) AS first_seen
+                FROM weekly_downloads
+                GROUP BY package_id
+            ) first ON cur.package_id = first.package_id
+            WHERE cur.week = current_week
+              AND first.first_seen >= age_cutoff
+            GROUP BY cur.package_id
+            HAVING current_downloads >= {minDownloads:Int64}
+               AND previous_downloads > 0
+            ORDER BY growth_rate DESC
+            LIMIT 1000
+            """;
+
+        var span = StartDatabaseSpan(parentSpan, query, "INSERT");
+
+        try
+        {
+            await using var connection = new ClickHouseConnection(_connectionString);
+            await connection.OpenAsync(ct);
+
+            await using var cmd = connection.CreateCommand();
+            cmd.CommandText = query;
+
+            var maxAgeParam = cmd.CreateParameter();
+            maxAgeParam.ParameterName = "maxAgeMonths";
+            maxAgeParam.Value = maxPackageAgeMonths;
+            cmd.Parameters.Add(maxAgeParam);
+
+            var minDownloadsParam = cmd.CreateParameter();
+            minDownloadsParam.ParameterName = "minDownloads";
+            minDownloadsParam.Value = minWeeklyDownloads;
+            cmd.Parameters.Add(minDownloadsParam);
+
+            var rowsAffected = await cmd.ExecuteNonQueryAsync(ct);
+
+            span?.SetData("db.rows_affected", rowsAffected);
+            span?.Finish(SpanStatus.Ok);
+
+            _logger.LogInformation("Refreshed trending packages snapshot with {Count} packages", rowsAffected);
+            return rowsAffected;
+        }
+        catch (Exception ex)
+        {
+            span?.Finish(ex);
+            throw;
+        }
+    }
+
     /// <summary>
     /// Starts a database span following Sentry's Queries module conventions.
     /// Includes query source attributes for the Sentry Queries module.

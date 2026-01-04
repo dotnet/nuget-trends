@@ -31,5 +31,12 @@ internal static class RecurringJobManagerExtensions
             j => j.Import(JobCancellationToken.Null, null),
             // Runs at 1 AM UTC
             Cron.Daily(1));
+
+        // Refresh the pre-computed trending packages snapshot weekly
+        // Runs on Monday at 2 AM UTC (after daily download import completes)
+        jobManager.AddOrUpdate<TrendingPackagesSnapshotRefresher>(
+            "TrendingPackagesSnapshotRefresher",
+            j => j.Refresh(JobCancellationToken.Null, null),
+            Cron.Weekly(DayOfWeek.Monday, 2));
     }
 }

@@ -36,6 +36,8 @@ public interface IClickHouseService
     /// <summary>
     /// Get trending packages based on week-over-week growth rate.
     /// Favors newer packages by filtering to packages first seen within the specified age limit.
+    /// NOTE: This method performs an expensive real-time query. For production use,
+    /// prefer <see cref="GetTrendingPackagesFromSnapshotAsync"/> which reads from pre-computed data.
     /// </summary>
     /// <param name="limit">Maximum number of packages to return (1-100)</param>
     /// <param name="minWeeklyDownloads">Minimum weekly downloads to filter noise</param>
@@ -45,6 +47,36 @@ public interface IClickHouseService
     /// <returns>List of trending packages sorted by growth rate descending</returns>
     Task<List<TrendingPackage>> GetTrendingPackagesAsync(
         int limit = 10,
+        long minWeeklyDownloads = 1000,
+        int maxPackageAgeMonths = 12,
+        CancellationToken ct = default,
+        ISpan? parentSpan = null);
+
+    /// <summary>
+    /// Get trending packages from the pre-computed snapshot table.
+    /// This is fast (milliseconds) because it reads pre-computed data.
+    /// The snapshot is refreshed weekly by <see cref="RefreshTrendingPackagesSnapshotAsync"/>.
+    /// </summary>
+    /// <param name="limit">Maximum number of packages to return</param>
+    /// <param name="ct">Cancellation token</param>
+    /// <param name="parentSpan">Optional parent span for Sentry tracing</param>
+    /// <returns>List of trending packages from the latest snapshot, or empty if no snapshot exists</returns>
+    Task<List<TrendingPackage>> GetTrendingPackagesFromSnapshotAsync(
+        int limit = 100,
+        CancellationToken ct = default,
+        ISpan? parentSpan = null);
+
+    /// <summary>
+    /// Refresh the trending packages snapshot by computing and storing current trending data.
+    /// This runs the expensive query once and stores results in trending_packages_snapshot table.
+    /// Should be called weekly (e.g., Monday morning) via a scheduled job.
+    /// </summary>
+    /// <param name="minWeeklyDownloads">Minimum weekly downloads to filter noise</param>
+    /// <param name="maxPackageAgeMonths">Maximum age of package in months (filters to newer packages)</param>
+    /// <param name="ct">Cancellation token</param>
+    /// <param name="parentSpan">Optional parent span for Sentry tracing</param>
+    /// <returns>Number of trending packages computed and stored</returns>
+    Task<int> RefreshTrendingPackagesSnapshotAsync(
         long minWeeklyDownloads = 1000,
         int maxPackageAgeMonths = 12,
         CancellationToken ct = default,
