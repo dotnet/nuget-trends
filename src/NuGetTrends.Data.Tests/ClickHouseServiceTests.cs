@@ -777,8 +777,8 @@ public class ClickHouseServiceTests : IAsyncLifetime
         // Assert
         result.Should().HaveCount(1);
         result[0].PackageId.Should().Be("test-package");
-        result[0].CurrentWeekDownloads.Should().Be(3000);
-        result[0].PreviousWeekDownloads.Should().Be(2000);
+        result[0].WeekDownloads.Should().Be(3000);
+        result[0].ComparisonWeekDownloads.Should().Be(2000);
         result[0].GrowthRate.Should().BeApproximately(0.5, 0.01); // 50% growth
     }
 
