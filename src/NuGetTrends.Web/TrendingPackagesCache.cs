@@ -30,26 +30,47 @@ public class TrendingPackagesCacheWarmupService : BackgroundService
         // Small delay to let the app fully start before warming cache
         await Task.Delay(TimeSpan.FromSeconds(2), stoppingToken);
 
+        // Create a transaction for the cache warmup operation
+        var transaction = SentrySdk.StartTransaction(
+            name: "TrendingPackagesCacheWarmupService",
+            operation: "cache.warmup");
+        transaction.SetData("service.type", "BackgroundService");
+
+        SentrySdk.ConfigureScope(s => s.Transaction = transaction);
+
         try
         {
             _logger.LogInformation("Warming trending packages cache...");
 
+            var scopeSpan = transaction.StartChild("di.scope", "Create service scope");
             using var scope = _scopeFactory.CreateScope();
             var cache = scope.ServiceProvider.GetRequiredService<ITrendingPackagesCache>();
+            scopeSpan.Finish(SpanStatus.Ok);
 
             // Warm the cache by requesting the max number of results
+            var warmSpan = transaction.StartChild("cache.warmup.fetch", "Fetch and cache trending packages");
+            warmSpan.SetData("cache.limit", 100);
             await cache.GetTrendingPackagesAsync(100, stoppingToken);
+            warmSpan.Finish(SpanStatus.Ok);
 
             _logger.LogInformation("Trending packages cache warmed successfully");
+            transaction.Status = SpanStatus.Ok;
         }
         catch (OperationCanceledException)
         {
             // Shutdown requested, ignore
+            transaction.Status = SpanStatus.Cancelled;
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to warm trending packages cache on startup");
+            transaction.Status = SpanStatus.InternalError;
+            SentrySdk.CaptureException(ex);
             // Don't fail the app if cache warming fails
+        }
+        finally
+        {
+            transaction.Finish();
         }
     }
 }
