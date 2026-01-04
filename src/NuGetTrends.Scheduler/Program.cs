@@ -61,6 +61,29 @@ public class Program
                         o.AttachStacktrace = false;
                         o.SetBeforeSend(e =>
                         {
+                            // Handle Polly timeout events - downgrade to warning and add URL tag
+                            if (e.Logger == "Polly"
+                                && e.Extra.TryGetValue("EventName", out var eventName)
+                                && eventName?.ToString() == "OnTimeout"
+                                && e.Extra.TryGetValue("Uri", out var uri))
+                            {
+                                e.Level = SentryLevel.Warning;
+                                var urlString = uri?.ToString() ?? "unknown";
+                                e.SetTag("url", urlString);
+
+                                // Append URL to formatted message (preserves grouping via Message template)
+                                if (e.Message != null)
+                                {
+                                    e.Message = new SentryMessage
+                                    {
+                                        Message = e.Message.Message,
+                                        Params = e.Message.Params,
+                                        Formatted = $"{e.Message.Formatted}\nURL: {urlString}"
+                                    };
+                                }
+                            }
+
+                            // Fingerprint database connection errors
                             if (e.Message?.Formatted is {} msg && msg.Contains(
                                     "An error occurred using the connection to database '\"nugettrends\"' on server"))
                             {
