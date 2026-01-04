@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { RouterTestingModule } from '@angular/router/testing';
 
 import { HomeComponent } from './home.component';
 import { SharedModule } from '../shared/shared.module';
@@ -10,7 +12,7 @@ describe('HomeComponent', () => {
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       declarations: [HomeComponent],
-      imports: [SharedModule]
+      imports: [SharedModule, HttpClientTestingModule, RouterTestingModule]
     })
       .compileComponents();
   }));

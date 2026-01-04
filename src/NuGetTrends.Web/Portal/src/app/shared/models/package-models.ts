@@ -38,6 +38,14 @@ export interface IPackageColor {
   color: string;
 }
 
+export interface ITrendingPackage {
+  packageId: string;
+  downloadCount: number;
+  growthRate: number | null;
+  iconUrl: string;
+  gitHubUrl: string | null;
+}
+
 export class TagColor {
   code: string;
   private used: boolean;

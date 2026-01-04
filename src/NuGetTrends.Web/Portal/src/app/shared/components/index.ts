@@ -5,3 +5,4 @@ export * from './package-list/package-list.component';
 export * from './search-input/search-input.component';
 export * from './search-period/search-period.component';
 export * from './search-type/search-type.component';
+export * from './trending-packages/trending-packages.component';

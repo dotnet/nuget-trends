@@ -224,6 +224,101 @@ public class ClickHouseService : IClickHouseService
         }
     }
 
+    public async Task<List<TrendingPackage>> GetTrendingPackagesAsync(
+        int limit = 10,
+        long minWeeklyDownloads = 1000,
+        int maxPackageAgeMonths = 12,
+        CancellationToken ct = default,
+        ISpan? parentSpan = null)
+    {
+        // Query uses a self-join to compare current week vs previous week downloads.
+        // To favor newer/emerging packages over established ones, we filter by first_seen date.
+        // Growth rate = (current - previous) / previous
+        //
+        // The query:
+        // 1. Gets first_seen date per package (min week in weekly_downloads)
+        // 2. Joins current week and previous week data
+        // 3. Filters to packages first seen within maxPackageAgeMonths
+        // 4. Filters by minimum download threshold to reduce noise
+        // 5. Orders by growth rate descending
+        const string query = """
+            WITH
+                toMonday(today()) AS current_week,
+                toMonday(today() - INTERVAL 1 WEEK) AS previous_week,
+                today() - INTERVAL {maxAgeMonths:Int32} MONTH AS age_cutoff
+            SELECT
+                cur.package_id AS package_id,
+                toInt64(avgMerge(cur.download_avg)) AS current_downloads,
+                toInt64(avgMerge(prev.download_avg)) AS previous_downloads
+            FROM weekly_downloads cur
+            INNER JOIN weekly_downloads prev
+                ON cur.package_id = prev.package_id
+                AND prev.week = previous_week
+            INNER JOIN (
+                SELECT package_id, min(week) AS first_seen
+                FROM weekly_downloads
+                GROUP BY package_id
+            ) first ON cur.package_id = first.package_id
+            WHERE cur.week = current_week
+              AND first.first_seen >= age_cutoff
+            GROUP BY cur.package_id
+            HAVING current_downloads >= {minDownloads:Int64}
+               AND previous_downloads > 0
+            ORDER BY (current_downloads - previous_downloads) / previous_downloads DESC
+            LIMIT {limit:Int32}
+            """;
+
+        var span = StartDatabaseSpan(parentSpan, query, "SELECT");
+
+        try
+        {
+            await using var connection = new ClickHouseConnection(_connectionString);
+            await connection.OpenAsync(ct);
+
+            await using var cmd = connection.CreateCommand();
+            cmd.CommandText = query;
+
+            var maxAgeParam = cmd.CreateParameter();
+            maxAgeParam.ParameterName = "maxAgeMonths";
+            maxAgeParam.Value = maxPackageAgeMonths;
+            cmd.Parameters.Add(maxAgeParam);
+
+            var minDownloadsParam = cmd.CreateParameter();
+            minDownloadsParam.ParameterName = "minDownloads";
+            minDownloadsParam.Value = minWeeklyDownloads;
+            cmd.Parameters.Add(minDownloadsParam);
+
+            var limitParam = cmd.CreateParameter();
+            limitParam.ParameterName = "limit";
+            limitParam.Value = limit;
+            cmd.Parameters.Add(limitParam);
+
+            var results = new List<TrendingPackage>();
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+
+            while (await reader.ReadAsync(ct))
+            {
+                results.Add(new TrendingPackage
+                {
+                    PackageId = reader.GetString(0),
+                    CurrentWeekDownloads = reader.GetInt64(1),
+                    PreviousWeekDownloads = reader.GetInt64(2)
+                });
+            }
+
+            span?.SetData("db.rows_affected", results.Count);
+            span?.Finish(SpanStatus.Ok);
+
+            _logger.LogDebug("Retrieved {Count} trending packages", results.Count);
+            return results;
+        }
+        catch (Exception ex)
+        {
+            span?.Finish(ex);
+            throw;
+        }
+    }
+
     /// <summary>
     /// Starts a database span following Sentry's Queries module conventions.
     /// Includes query source attributes for the Sentry Queries module.

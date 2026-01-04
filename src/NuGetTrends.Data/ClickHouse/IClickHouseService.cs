@@ -32,4 +32,21 @@ public interface IClickHouseService
         int months,
         CancellationToken ct = default,
         ISpan? parentSpan = null);
+
+    /// <summary>
+    /// Get trending packages based on week-over-week growth rate.
+    /// Favors newer packages by filtering to packages first seen within the specified age limit.
+    /// </summary>
+    /// <param name="limit">Maximum number of packages to return (1-100)</param>
+    /// <param name="minWeeklyDownloads">Minimum weekly downloads to filter noise</param>
+    /// <param name="maxPackageAgeMonths">Maximum age of package in months (filters to newer packages)</param>
+    /// <param name="ct">Cancellation token</param>
+    /// <param name="parentSpan">Optional parent span for Sentry tracing</param>
+    /// <returns>List of trending packages sorted by growth rate descending</returns>
+    Task<List<TrendingPackage>> GetTrendingPackagesAsync(
+        int limit = 10,
+        long minWeeklyDownloads = 1000,
+        int maxPackageAgeMonths = 12,
+        CancellationToken ct = default,
+        ISpan? parentSpan = null);
 }

@@ -2,6 +2,7 @@ using System.Reflection;
 using Microsoft.OpenApi.Models;
 using NuGetTrends.Data;
 using NuGetTrends.Data.ClickHouse;
+using NuGetTrends.Web;
 using Serilog;
 using Swashbuckle.AspNetCore.SwaggerUI;
 using SystemEnvironment = System.Environment;
@@ -128,6 +129,10 @@ try
          var connectionInfo = sp.GetRequiredService<ClickHouseConnectionInfo>();
          return new ClickHouseService(connString, logger, connectionInfo);
      });
+
+     // Add caching services
+     builder.Services.AddMemoryCache();
+     builder.Services.AddScoped<ITrendingPackagesCache, TrendingPackagesCache>();
 
      builder.Services.AddSwaggerGen(c =>
      {
