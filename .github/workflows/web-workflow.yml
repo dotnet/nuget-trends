@@ -101,6 +101,17 @@ jobs:
         run: npm run build
         working-directory: src/NuGetTrends.Web/Portal
 
+      - name: Upload source maps to Sentry
+        if: ${{ github.event_name != 'pull_request' }}
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: nugettrends
+          SENTRY_PROJECT: spa
+        run: |
+          RELEASE="NuGetTrends.Spa@1.0.0+${GITHUB_SHA}"
+          npx @sentry/cli releases files "$RELEASE" upload-sourcemaps ./dist --url-prefix '~/'
+        working-directory: src/NuGetTrends.Web/Portal
+
       - name: Replace SPA path on coverage file (Hack codecov) # https://community.codecov.io/t/looking-for-assistance-with-path-fixing/1669/9
         run: sed -i 's/SF:/SF:src\/NuGetTrends.Web\/Portal\//g' src/NuGetTrends.Web/Portal/coverage/lcov.info
 
