@@ -12,7 +12,8 @@ import {
   SearchTypeComponent,
   SearchPeriodComponent,
   LoadingIndicatorComponent,
-  LoadingIndicatorInterceptor
+  LoadingIndicatorInterceptor,
+  TrendingPackagesComponent
 } from './components';
 
 @NgModule({
@@ -21,7 +22,8 @@ import {
     PackageListComponent,
     SearchTypeComponent,
     SearchPeriodComponent,
-    LoadingIndicatorComponent
+    LoadingIndicatorComponent,
+    TrendingPackagesComponent
   ],
   imports: [
     CommonModule,
@@ -43,7 +45,8 @@ import {
     PackageListComponent,
     SearchTypeComponent,
     SearchPeriodComponent,
-    LoadingIndicatorComponent
+    LoadingIndicatorComponent,
+    TrendingPackagesComponent
   ],
   providers: [
     {

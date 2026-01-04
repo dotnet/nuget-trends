@@ -620,4 +620,244 @@ public class ClickHouseServiceTests : IAsyncLifetime
             r.Count.Should().BeGreaterThan(0);
         });
     }
+
+    [Fact]
+    public async Task GetTrendingPackagesAsync_WithNoData_ReturnsEmptyList()
+    {
+        // Act
+        var result = await _sut.GetTrendingPackagesAsync(limit: 10, minWeeklyDownloads: 100, maxPackageAgeMonths: 12);
+
+        // Assert
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetTrendingPackagesAsync_FiltersPackagesWithoutPreviousWeekData()
+    {
+        // Arrange - Insert data only for current week (no previous week comparison possible)
+        var monday = GetCurrentWeekMonday();
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
+        {
+            ("new-package", monday, 5000),
+            ("new-package", monday.AddDays(1), 5000),
+        };
+        await _sut.InsertDailyDownloadsAsync(downloads);
+
+        // Act
+        var result = await _sut.GetTrendingPackagesAsync(limit: 10, minWeeklyDownloads: 100, maxPackageAgeMonths: 12);
+
+        // Assert - Package should not appear (no previous week data for comparison)
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetTrendingPackagesAsync_FiltersByMinDownloads()
+    {
+        // Arrange - Insert data for both weeks but below minimum threshold
+        var currentMonday = GetCurrentWeekMonday();
+        var previousMonday = currentMonday.AddDays(-7);
+
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
+        {
+            // Small package with good growth
+            ("tiny-package", previousMonday, 50),
+            ("tiny-package", currentMonday, 100), // 100% growth but only 100 downloads
+        };
+        await _sut.InsertDailyDownloadsAsync(downloads);
+
+        // Act - Set minimum to 500
+        var result = await _sut.GetTrendingPackagesAsync(limit: 10, minWeeklyDownloads: 500, maxPackageAgeMonths: 12);
+
+        // Assert - Package should be filtered out
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetTrendingPackagesAsync_ReturnsTrendingPackagesSortedByGrowthRate()
+    {
+        // Arrange - Insert data for multiple packages with different growth rates
+        var currentMonday = GetCurrentWeekMonday();
+        var previousMonday = currentMonday.AddDays(-7);
+
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
+        {
+            // Package A: 50% growth (1000 -> 1500)
+            ("package-a", previousMonday, 1000),
+            ("package-a", currentMonday, 1500),
+
+            // Package B: 100% growth (1000 -> 2000) - highest growth
+            ("package-b", previousMonday, 1000),
+            ("package-b", currentMonday, 2000),
+
+            // Package C: 25% growth (2000 -> 2500)
+            ("package-c", previousMonday, 2000),
+            ("package-c", currentMonday, 2500),
+        };
+        await _sut.InsertDailyDownloadsAsync(downloads);
+
+        // Act
+        var result = await _sut.GetTrendingPackagesAsync(limit: 10, minWeeklyDownloads: 100, maxPackageAgeMonths: 12);
+
+        // Assert - Should be sorted by growth rate descending
+        result.Should().HaveCount(3);
+        result[0].PackageId.Should().Be("package-b"); // 100% growth
+        result[1].PackageId.Should().Be("package-a"); // 50% growth
+        result[2].PackageId.Should().Be("package-c"); // 25% growth
+    }
+
+    [Fact]
+    public async Task GetTrendingPackagesAsync_RespectsLimit()
+    {
+        // Arrange - Insert many packages
+        var currentMonday = GetCurrentWeekMonday();
+        var previousMonday = currentMonday.AddDays(-7);
+
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>();
+        for (var i = 1; i <= 20; i++)
+        {
+            downloads.Add(($"package-{i}", previousMonday, 1000));
+            downloads.Add(($"package-{i}", currentMonday, 1000 + i * 100)); // Increasing growth rates
+        }
+        await _sut.InsertDailyDownloadsAsync(downloads);
+
+        // Act
+        var result = await _sut.GetTrendingPackagesAsync(limit: 5, minWeeklyDownloads: 100, maxPackageAgeMonths: 12);
+
+        // Assert
+        result.Should().HaveCount(5);
+    }
+
+    [Fact]
+    public async Task GetTrendingPackagesAsync_FiltersByPackageAge()
+    {
+        // Arrange - Insert packages with different ages
+        var currentMonday = GetCurrentWeekMonday();
+        var previousMonday = currentMonday.AddDays(-7);
+        var longAgo = currentMonday.AddMonths(-18); // 18 months ago
+
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
+        {
+            // Old package (first seen 18 months ago) - should be excluded with 12 month filter
+            ("old-package", longAgo, 500),
+            ("old-package", previousMonday, 1000),
+            ("old-package", currentMonday, 2000), // 100% growth
+
+            // New package (first seen this week) - should be included
+            ("new-package", previousMonday, 1000),
+            ("new-package", currentMonday, 1500), // 50% growth
+        };
+        await _sut.InsertDailyDownloadsAsync(downloads);
+
+        // Act - Filter to packages up to 12 months old
+        var result = await _sut.GetTrendingPackagesAsync(limit: 10, minWeeklyDownloads: 100, maxPackageAgeMonths: 12);
+
+        // Assert - Only new package should appear
+        result.Should().HaveCount(1);
+        result[0].PackageId.Should().Be("new-package");
+    }
+
+    [Fact]
+    public async Task GetTrendingPackagesAsync_CalculatesGrowthRateCorrectly()
+    {
+        // Arrange - Insert data with known growth
+        var currentMonday = GetCurrentWeekMonday();
+        var previousMonday = currentMonday.AddDays(-7);
+
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
+        {
+            // 50% growth: 2000 -> 3000
+            ("test-package", previousMonday, 2000),
+            ("test-package", currentMonday, 3000),
+        };
+        await _sut.InsertDailyDownloadsAsync(downloads);
+
+        // Act
+        var result = await _sut.GetTrendingPackagesAsync(limit: 10, minWeeklyDownloads: 100, maxPackageAgeMonths: 12);
+
+        // Assert
+        result.Should().HaveCount(1);
+        result[0].PackageId.Should().Be("test-package");
+        result[0].CurrentWeekDownloads.Should().Be(3000);
+        result[0].PreviousWeekDownloads.Should().Be(2000);
+        result[0].GrowthRate.Should().BeApproximately(0.5, 0.01); // 50% growth
+    }
+
+    [Fact]
+    public async Task GetTrendingPackagesAsync_LowercasesPackageIds()
+    {
+        // Arrange - Insert with mixed case
+        var currentMonday = GetCurrentWeekMonday();
+        var previousMonday = currentMonday.AddDays(-7);
+
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
+        {
+            ("Sentry.AspNetCore", previousMonday, 1000),
+            ("Sentry.AspNetCore", currentMonday, 1500),
+        };
+        await _sut.InsertDailyDownloadsAsync(downloads);
+
+        // Act
+        var result = await _sut.GetTrendingPackagesAsync(limit: 10, minWeeklyDownloads: 100, maxPackageAgeMonths: 12);
+
+        // Assert - Package ID should be lowercased in results
+        result.Should().HaveCount(1);
+        result[0].PackageId.Should().Be("sentry.aspnetcore");
+    }
+
+    [Fact]
+    public async Task GetTrendingPackagesAsync_HandlesZeroGrowth()
+    {
+        // Arrange - Package with zero growth should still appear if it meets criteria
+        var currentMonday = GetCurrentWeekMonday();
+        var previousMonday = currentMonday.AddDays(-7);
+
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
+        {
+            ("stable-package", previousMonday, 5000),
+            ("stable-package", currentMonday, 5000), // 0% growth
+        };
+        await _sut.InsertDailyDownloadsAsync(downloads);
+
+        // Act
+        var result = await _sut.GetTrendingPackagesAsync(limit: 10, minWeeklyDownloads: 100, maxPackageAgeMonths: 12);
+
+        // Assert - Should appear with 0% growth
+        result.Should().HaveCount(1);
+        result[0].GrowthRate.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetTrendingPackagesAsync_HandlesNegativeGrowth()
+    {
+        // Arrange - Package with declining downloads
+        var currentMonday = GetCurrentWeekMonday();
+        var previousMonday = currentMonday.AddDays(-7);
+
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
+        {
+            ("declining-package", previousMonday, 10000),
+            ("declining-package", currentMonday, 8000), // -20% growth
+        };
+        await _sut.InsertDailyDownloadsAsync(downloads);
+
+        // Act
+        var result = await _sut.GetTrendingPackagesAsync(limit: 10, minWeeklyDownloads: 100, maxPackageAgeMonths: 12);
+
+        // Assert - Should appear with negative growth
+        result.Should().HaveCount(1);
+        result[0].GrowthRate.Should().BeApproximately(-0.2, 0.01); // -20% growth
+    }
+
+    /// <summary>
+    /// Gets the Monday of the current week as a DateOnly.
+    /// </summary>
+    private static DateOnly GetCurrentWeekMonday()
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        while (today.DayOfWeek != DayOfWeek.Monday)
+        {
+            today = today.AddDays(-1);
+        }
+        return today;
+    }
 }
