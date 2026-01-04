@@ -75,6 +75,71 @@ public class CatalogLeafProcessor : ICatalogLeafProcessor
 
     public async Task ProcessPackageDetailsAsync(PackageDetailsCatalogLeaf leaf, CancellationToken token)
     {
+        await ProcessPackageDetailsBatchAsync([leaf], token);
+    }
+
+    public async Task ProcessPackageDetailsBatchAsync(IReadOnlyList<PackageDetailsCatalogLeaf> leaves, CancellationToken token)
+    {
+        if (leaves.Count == 0)
+        {
+            return;
+        }
+
+        // Extract all package IDs from the batch to filter the database query
+        var packageIds = leaves.Select(l => l.PackageId).Distinct().ToList();
+
+        // Single query to find which packages already exist in the database
+        // We filter by PackageId first (which can use an index), then do the version check in memory
+        var existingPackages = await Context.PackageDetailsCatalogLeafs
+            .Where(p => packageIds.Contains(p.PackageId))
+            .Select(p => new { p.PackageId, p.PackageVersion })
+            .ToListAsync(token);
+
+        var existingSet = existingPackages
+            .Select(p => new PackageKey(p.PackageId, p.PackageVersion))
+            .ToHashSet();
+
+        // Add only leaves that don't already exist
+        var newLeaves = leaves
+            .Where(l => !existingSet.Contains(new PackageKey(l.PackageId, l.PackageVersion)))
+            .ToList();
+
+        if (newLeaves.Count == 0)
+        {
+            _logger.LogDebug("All {Count} packages in batch already exist, skipping.", leaves.Count);
+            return;
+        }
+
+        _logger.LogDebug("Adding {NewCount} new packages out of {TotalCount} in batch.", newLeaves.Count, leaves.Count);
+
+        Context.PackageDetailsCatalogLeafs.AddRange(newLeaves);
+
+        try
+        {
+            await Save(token);
+        }
+        catch (DbUpdateException ex) when (IsDuplicateKeyException(ex))
+        {
+            // Race condition: another process inserted one or more packages between our query and save.
+            // Fall back to individual processing for this batch to handle partial success.
+            _logger.LogDebug("Concurrent insert detected in batch, falling back to individual processing.");
+
+            // Detach all entities we tried to add
+            foreach (var leaf in newLeaves)
+            {
+                Context.Entry(leaf).State = EntityState.Detached;
+            }
+
+            // Process each leaf individually to handle partial success
+            foreach (var leaf in newLeaves)
+            {
+                await ProcessPackageDetailsIndividualAsync(leaf, token);
+            }
+        }
+    }
+
+    private async Task ProcessPackageDetailsIndividualAsync(PackageDetailsCatalogLeaf leaf, CancellationToken token)
+    {
         var exists = await Context.PackageDetailsCatalogLeafs.AnyAsync(
             p => p.PackageId == leaf.PackageId && p.PackageVersion == leaf.PackageVersion, token);
 
@@ -103,5 +168,29 @@ public class CatalogLeafProcessor : ICatalogLeafProcessor
     private static bool IsDuplicateKeyException(DbUpdateException ex)
     {
         return ex.InnerException is PostgresException { SqlState: PostgresUniqueViolationCode };
+    }
+
+    /// <summary>
+    /// Case-insensitive package key for efficient lookup in HashSet.
+    /// </summary>
+    private readonly record struct PackageKey
+    {
+        public string PackageId { get; }
+        public string PackageVersion { get; }
+
+        public PackageKey(string? packageId, string? packageVersion)
+        {
+            PackageId = packageId ?? "";
+            PackageVersion = packageVersion ?? "";
+        }
+
+        public bool Equals(PackageKey other) =>
+            StringComparer.OrdinalIgnoreCase.Equals(PackageId, other.PackageId) &&
+            StringComparer.OrdinalIgnoreCase.Equals(PackageVersion, other.PackageVersion);
+
+        public override int GetHashCode() =>
+            HashCode.Combine(
+                StringComparer.OrdinalIgnoreCase.GetHashCode(PackageId),
+                StringComparer.OrdinalIgnoreCase.GetHashCode(PackageVersion));
     }
 }

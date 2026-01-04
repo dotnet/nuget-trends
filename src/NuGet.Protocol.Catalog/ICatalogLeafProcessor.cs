@@ -34,4 +34,17 @@ public interface ICatalogLeafProcessor
     /// <param name="token"></param>
     /// <returns>True, if the leaf was successfully processed. False, otherwise.</returns>
     Task ProcessPackageDeleteAsync(PackageDeleteCatalogLeaf leaf, CancellationToken token);
+
+    /// <summary>
+    /// Process a batch of catalog leaves containing package details. This method allows for efficient batch
+    /// processing to avoid N+1 query patterns. The default implementation falls back to processing each leaf
+    /// individually via <see cref="ProcessPackageDetailsAsync"/>.
+    /// </summary>
+    /// <param name="leaves">The batch of leaf documents to process.</param>
+    /// <param name="token">Cancellation token.</param>
+    Task ProcessPackageDetailsBatchAsync(IReadOnlyList<PackageDetailsCatalogLeaf> leaves, CancellationToken token)
+    {
+        // Default implementation processes leaves individually for backward compatibility
+        return Task.WhenAll(leaves.Select(leaf => ProcessPackageDetailsAsync(leaf, token)));
+    }
 }
