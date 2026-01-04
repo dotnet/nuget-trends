@@ -9,68 +9,40 @@ using Sentry;
 namespace NuGetTrends.Web;
 
 /// <summary>
-/// Background service that warms the trending packages cache on startup.
-/// This ensures the first user request doesn't have to wait for the expensive ClickHouse query.
+/// Background service that warms the trending packages in-memory cache on startup.
+/// This ensures the first user request doesn't have to wait for the ClickHouse query.
+/// Note: The ClickHouse trending_packages_snapshot is refreshed weekly by a Hangfire job
+/// in the Scheduler project, making the query fast (milliseconds).
 /// </summary>
-public class TrendingPackagesCacheWarmupService : BackgroundService
+public class TrendingPackagesCacheWarmupService(
+    IServiceScopeFactory scopeFactory,
+    ILogger<TrendingPackagesCacheWarmupService> logger) : BackgroundService
 {
-    private readonly IServiceScopeFactory _scopeFactory;
-    private readonly ILogger<TrendingPackagesCacheWarmupService> _logger;
-
-    public TrendingPackagesCacheWarmupService(
-        IServiceScopeFactory scopeFactory,
-        ILogger<TrendingPackagesCacheWarmupService> logger)
-    {
-        _scopeFactory = scopeFactory;
-        _logger = logger;
-    }
-
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         // Small delay to let the app fully start before warming cache
         await Task.Delay(TimeSpan.FromSeconds(2), stoppingToken);
 
-        // Create a transaction for the cache warmup operation
-        var transaction = SentrySdk.StartTransaction(
-            name: "TrendingPackagesCacheWarmupService",
-            operation: "cache.warmup");
-        transaction.SetData("service.type", "BackgroundService");
-
-        SentrySdk.ConfigureScope(s => s.Transaction = transaction);
-
         try
         {
-            _logger.LogInformation("Warming trending packages cache...");
+            logger.LogInformation("Warming trending packages cache...");
 
-            var scopeSpan = transaction.StartChild("di.scope", "Create service scope");
-            using var scope = _scopeFactory.CreateScope();
+            using var scope = scopeFactory.CreateScope();
             var cache = scope.ServiceProvider.GetRequiredService<ITrendingPackagesCache>();
-            scopeSpan.Finish(SpanStatus.Ok);
 
             // Warm the cache by requesting the max number of results
-            var warmSpan = transaction.StartChild("cache.warmup.fetch", "Fetch and cache trending packages");
-            warmSpan.SetData("cache.limit", 100);
             await cache.GetTrendingPackagesAsync(100, stoppingToken);
-            warmSpan.Finish(SpanStatus.Ok);
 
-            _logger.LogInformation("Trending packages cache warmed successfully");
-            transaction.Status = SpanStatus.Ok;
+            logger.LogInformation("Trending packages cache warmed successfully");
         }
         catch (OperationCanceledException)
         {
             // Shutdown requested, ignore
-            transaction.Status = SpanStatus.Cancelled;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to warm trending packages cache on startup");
-            transaction.Status = SpanStatus.InternalError;
-            SentrySdk.CaptureException(ex);
+            logger.LogWarning(ex, "Failed to warm trending packages cache on startup");
             // Don't fail the app if cache warming fails
-        }
-        finally
-        {
-            transaction.Finish();
         }
     }
 }
@@ -207,12 +179,21 @@ public class TrendingPackagesCache : ITrendingPackagesCache
 
     private async Task<List<TrendingPackageDto>> FetchTrendingPackagesAsync(CancellationToken ct)
     {
-        // Get trending packages from ClickHouse
-        var trendingPackages = await _clickHouseService.GetTrendingPackagesAsync(
+        // Get trending packages from pre-computed ClickHouse snapshot (fast, milliseconds)
+        // Falls back to real-time query if snapshot is empty (first run or stale data)
+        var trendingPackages = await _clickHouseService.GetTrendingPackagesFromSnapshotAsync(
             limit: MaxCachedResults,
-            minWeeklyDownloads: MinWeeklyDownloads,
-            maxPackageAgeMonths: MaxPackageAgeMonths,
             ct: ct);
+
+        if (trendingPackages.Count == 0)
+        {
+            _logger.LogWarning("No trending packages in snapshot, falling back to real-time query");
+            trendingPackages = await _clickHouseService.GetTrendingPackagesAsync(
+                limit: MaxCachedResults,
+                minWeeklyDownloads: MinWeeklyDownloads,
+                maxPackageAgeMonths: MaxPackageAgeMonths,
+                ct: ct);
+        }
 
         if (trendingPackages.Count == 0)
         {
