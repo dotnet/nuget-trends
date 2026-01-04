@@ -19,11 +19,13 @@ export class MockedActivatedRoute  {
 
   constructor() {
     this.testParamMap = {};
+    this.testPathParamMap = {};
   }
 
   private subject = new BehaviorSubject(convertToParamMap(this.testParamMap));
   paramMap = this.subject.asObservable();
   private _testParamMap!: ParamMap;
+  private _testPathParamMap!: ParamMap;
 
   get testParamMap() {
     return this._testParamMap;
@@ -34,8 +36,20 @@ export class MockedActivatedRoute  {
     this.subject.next(this._testParamMap);
   }
 
+  get testPathParamMap() {
+    return this._testPathParamMap;
+  }
+
+  set testPathParamMap(params: {}) {
+    this._testPathParamMap = convertToParamMap(params);
+  }
+
   get snapshot() {
-    return { queryParamMap: this.testParamMap };
+    return {
+      queryParamMap: this.testParamMap,
+      queryParams: {},
+      paramMap: this.testPathParamMap
+    };
   }
 
   static injectMockActivatedRoute() {
