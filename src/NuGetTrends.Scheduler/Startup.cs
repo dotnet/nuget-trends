@@ -1,3 +1,4 @@
+using System.Reflection;
 using Hangfire;
 using Hangfire.Dashboard;
 using Hangfire.MemoryStorage;
@@ -181,10 +182,16 @@ public class Startup(
             db.Database.Migrate();
         }
 
+        // Get app version from assembly (set via SourceRevisionId at build time)
+        var appVersion = Assembly.GetExecutingAssembly()
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion?.Split('+').LastOrDefault() ?? "unknown";
+
         app.UseHangfireDashboard(
             pathMatch: "",
             options: new DashboardOptions
             {
+                DashboardTitle = $"NuGet Trends Scheduler ({appVersion})",
                 Authorization = new IDashboardAuthorizationFilter[]
                 {
                     // Process not expected to be exposed to the internet

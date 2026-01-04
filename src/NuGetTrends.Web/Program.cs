@@ -143,11 +143,18 @@ try
     // Map Aspire health check endpoints
     app.MapDefaultEndpoints();
 
+    // Get app version from assembly (set via SourceRevisionId at build time)
+    var appVersion = Assembly.GetExecutingAssembly()
+        .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+        ?.InformationalVersion?.Split('+').LastOrDefault() ?? "unknown";
+
     app.Use(async (context, next) => {
         context.Response.OnStarting(() => {
             // Sentry Browser Profiling
             // https://docs.sentry.io/platforms/javascript/profiling/
             context.Response.Headers.Append("Document-Policy", "js-profiling");
+            // App version header
+            context.Response.Headers.Append("X-Version", appVersion);
             return Task.CompletedTask;
         });
         await next();

@@ -108,7 +108,7 @@ jobs:
         uses: codecov/codecov-action@v3
 
       - name: Web Build
-        run: dotnet build -c Release
+        run: dotnet build -c Release -p:SourceRevisionId=${GITHUB_SHA::8}
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         working-directory: src/NuGetTrends.Web/
