@@ -635,7 +635,7 @@ public class ClickHouseServiceTests : IAsyncLifetime
     public async Task GetTrendingPackagesAsync_FiltersPackagesWithoutPreviousWeekData()
     {
         // Arrange - Insert data only for current week (no previous week comparison possible)
-        var monday = GetCurrentWeekMonday();
+        var monday = GetLastWeekMonday();
         var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
         {
             ("new-package", monday, 5000),
@@ -654,7 +654,7 @@ public class ClickHouseServiceTests : IAsyncLifetime
     public async Task GetTrendingPackagesAsync_FiltersByMinDownloads()
     {
         // Arrange - Insert data for both weeks but below minimum threshold
-        var currentMonday = GetCurrentWeekMonday();
+        var currentMonday = GetLastWeekMonday();
         var previousMonday = currentMonday.AddDays(-7);
 
         var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
@@ -676,7 +676,7 @@ public class ClickHouseServiceTests : IAsyncLifetime
     public async Task GetTrendingPackagesAsync_ReturnsTrendingPackagesSortedByGrowthRate()
     {
         // Arrange - Insert data for multiple packages with different growth rates
-        var currentMonday = GetCurrentWeekMonday();
+        var currentMonday = GetLastWeekMonday();
         var previousMonday = currentMonday.AddDays(-7);
 
         var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
@@ -709,7 +709,7 @@ public class ClickHouseServiceTests : IAsyncLifetime
     public async Task GetTrendingPackagesAsync_RespectsLimit()
     {
         // Arrange - Insert many packages
-        var currentMonday = GetCurrentWeekMonday();
+        var currentMonday = GetLastWeekMonday();
         var previousMonday = currentMonday.AddDays(-7);
 
         var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>();
@@ -731,7 +731,7 @@ public class ClickHouseServiceTests : IAsyncLifetime
     public async Task GetTrendingPackagesAsync_FiltersByPackageAge()
     {
         // Arrange - Insert packages with different ages
-        var currentMonday = GetCurrentWeekMonday();
+        var currentMonday = GetLastWeekMonday();
         var previousMonday = currentMonday.AddDays(-7);
         var longAgo = currentMonday.AddMonths(-18); // 18 months ago
 
@@ -760,7 +760,7 @@ public class ClickHouseServiceTests : IAsyncLifetime
     public async Task GetTrendingPackagesAsync_CalculatesGrowthRateCorrectly()
     {
         // Arrange - Insert data with known growth
-        var currentMonday = GetCurrentWeekMonday();
+        var currentMonday = GetLastWeekMonday();
         var previousMonday = currentMonday.AddDays(-7);
 
         var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
@@ -786,7 +786,7 @@ public class ClickHouseServiceTests : IAsyncLifetime
     public async Task GetTrendingPackagesAsync_LowercasesPackageIds()
     {
         // Arrange - Insert with mixed case
-        var currentMonday = GetCurrentWeekMonday();
+        var currentMonday = GetLastWeekMonday();
         var previousMonday = currentMonday.AddDays(-7);
 
         var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
@@ -808,7 +808,7 @@ public class ClickHouseServiceTests : IAsyncLifetime
     public async Task GetTrendingPackagesAsync_HandlesZeroGrowth()
     {
         // Arrange - Package with zero growth should still appear if it meets criteria
-        var currentMonday = GetCurrentWeekMonday();
+        var currentMonday = GetLastWeekMonday();
         var previousMonday = currentMonday.AddDays(-7);
 
         var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
@@ -830,7 +830,7 @@ public class ClickHouseServiceTests : IAsyncLifetime
     public async Task GetTrendingPackagesAsync_HandlesNegativeGrowth()
     {
         // Arrange - Package with declining downloads
-        var currentMonday = GetCurrentWeekMonday();
+        var currentMonday = GetLastWeekMonday();
         var previousMonday = currentMonday.AddDays(-7);
 
         var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
@@ -849,15 +849,19 @@ public class ClickHouseServiceTests : IAsyncLifetime
     }
 
     /// <summary>
-    /// Gets the Monday of the current week as a DateOnly.
+    /// Gets the Monday of last week as a DateOnly.
+    /// This matches the ClickHouse query: toMonday(today() - INTERVAL 1 WEEK)
+    /// which means "go back 7 days from today, then find that week's Monday".
     /// </summary>
-    private static DateOnly GetCurrentWeekMonday()
+    private static DateOnly GetLastWeekMonday()
     {
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        while (today.DayOfWeek != DayOfWeek.Monday)
+        // Match ClickHouse logic: toMonday(today() - INTERVAL 1 WEEK)
+        var oneWeekAgo = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-7);
+        // Go back to Monday of that week
+        while (oneWeekAgo.DayOfWeek != DayOfWeek.Monday)
         {
-            today = today.AddDays(-1);
+            oneWeekAgo = oneWeekAgo.AddDays(-1);
         }
-        return today;
+        return oneWeekAgo;
     }
 }
