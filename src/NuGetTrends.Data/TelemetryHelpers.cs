@@ -44,9 +44,9 @@ public static class TelemetryHelpers
         [CallerMemberName] string memberName = "",
         [CallerLineNumber] int lineNumber = 0)
     {
-        span.SetExtra("code.filepath", GetRelativeFilePath(filePath));
-        span.SetExtra("code.function", memberName);
-        span.SetExtra("code.lineno", lineNumber);
-        span.SetExtra("code.namespace", typeof(T).FullName);
+        span.SetData("code.filepath", GetRelativeFilePath(filePath));
+        span.SetData("code.function", memberName);
+        span.SetData("code.lineno", lineNumber);
+        span.SetData("code.namespace", typeof(T).FullName);
     }
 }

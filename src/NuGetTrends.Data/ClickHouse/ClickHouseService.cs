@@ -136,15 +136,15 @@ public class ClickHouseService : IClickHouseService
             await bulkCopy.InitAsync();
             await bulkCopy.WriteToServerAsync(data, ct);
 
-            span?.SetExtra("db.rows_affected", downloadList.Count);
+            span?.SetData("db.rows_affected", downloadList.Count);
 
             // Add package IDs for traceability (limit to avoid huge payloads)
             const int maxPackageIdsToLog = 10;
             var packageIds = downloadList.Select(d => d.PackageId).Take(maxPackageIdsToLog).ToList();
-            span?.SetExtra("package_ids", string.Join(", ", packageIds));
+            span?.SetData("package_ids", string.Join(", ", packageIds));
             if (downloadList.Count > maxPackageIdsToLog)
             {
-                span?.SetExtra("package_ids_truncated", true);
+                span?.SetData("package_ids_truncated", true);
             }
 
             span?.Finish(SpanStatus.Ok);
@@ -211,7 +211,7 @@ public class ClickHouseService : IClickHouseService
                 });
             }
 
-            span?.SetExtra("db.rows_affected", results.Count);
+            span?.SetData("db.rows_affected", results.Count);
             span?.Finish(SpanStatus.Ok);
 
             _logger.LogDebug("Retrieved {Count} weekly download results for package {PackageId}", results.Count, packageId);
@@ -244,32 +244,32 @@ public class ClickHouseService : IClickHouseService
             return null;
         }
 
-        // Required for Sentry Queries module
-        span.SetExtra("db.system", "clickhouse");
+        // Required for Sentry Queries module (use SetData for span data attributes)
+        span.SetData("db.system", "clickhouse");
 
         // Recommended attributes for better insights
-        span.SetExtra("db.operation", operation);
+        span.SetData("db.operation", operation);
 
         if (_connectionInfo.Database is not null)
         {
-            span.SetExtra("db.name", _connectionInfo.Database);
+            span.SetData("db.name", _connectionInfo.Database);
         }
 
         if (_connectionInfo.Host is not null)
         {
-            span.SetExtra("server.address", _connectionInfo.Host);
+            span.SetData("server.address", _connectionInfo.Host);
         }
 
         if (_connectionInfo.Port is not null)
         {
-            span.SetExtra("server.port", _connectionInfo.Port);
+            span.SetData("server.port", _connectionInfo.Port);
         }
 
         // Query source attributes for Sentry Queries module
-        span.SetExtra("code.filepath", TelemetryHelpers.GetRelativeFilePath(filePath));
-        span.SetExtra("code.function", memberName);
-        span.SetExtra("code.lineno", lineNumber);
-        span.SetExtra("code.namespace", typeof(ClickHouseService).FullName);
+        span.SetData("code.filepath", TelemetryHelpers.GetRelativeFilePath(filePath));
+        span.SetData("code.function", memberName);
+        span.SetData("code.lineno", lineNumber);
+        span.SetData("code.namespace", typeof(ClickHouseService).FullName);
 
         return span;
     }
