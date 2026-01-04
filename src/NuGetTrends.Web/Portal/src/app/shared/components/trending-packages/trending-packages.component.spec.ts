@@ -71,15 +71,11 @@ describe('TrendingPackagesComponent', () => {
     expect(component.errorMessage).toBeNull();
   }));
 
-  it('should show error message when loading fails after retries', fakeAsync(() => {
+  it('should show error message when loading fails', fakeAsync(() => {
     packagesServiceSpy.getTrendingPackages.and.returnValue(throwError(() => new Error('Network error')));
 
     fixture.detectChanges();
-
-    // Wait for initial call + 2 retries with delays (1s * 1 + 1s * 2 = 3s total)
-    tick(1000); // First retry delay
-    tick(2000); // Second retry delay
-    tick(100);  // Small buffer for async completion
+    tick();
 
     expect(component.isLoading).toBeFalse();
     expect(component.errorMessage).toBeTruthy();
