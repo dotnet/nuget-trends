@@ -164,6 +164,7 @@ public class DailyDownloadWorker : IHostedService
         string? baggageHeader = null;
         string? messageId = null;
 
+        long? publishTimestamp = null;
         if (ea.BasicProperties?.Headers != null)
         {
             if (ea.BasicProperties.Headers.TryGetValue("sentry-trace", out var traceObj) &&
@@ -183,19 +184,25 @@ public class DailyDownloadWorker : IHostedService
             {
                 messageId = System.Text.Encoding.UTF8.GetString(messageIdBytes);
             }
+
+            if (ea.BasicProperties.Headers.TryGetValue("publish-timestamp", out var publishTimestampObj) &&
+                publishTimestampObj is long timestamp)
+            {
+                publishTimestamp = timestamp;
+            }
         }
 
         // Use ContinueTrace to properly link producer and consumer spans
         var transactionContext = SentrySdk.ContinueTrace(sentryTraceHeader, baggageHeader);
 
-        // Create the outer transaction with a general operation type
+        // Create the outer transaction - use 'task' op since queue.process should be on the child span
         ITransactionTracer transaction;
         if (transactionContext != null)
         {
             // Continue the trace from the producer, setting our own name and operation
             var context = new TransactionContext(
                 name: "daily-download-process",
-                operation: "queue.process",
+                operation: "task",
                 traceId: transactionContext.TraceId,
                 parentSpanId: transactionContext.SpanId,
                 isSampled: transactionContext.IsSampled);
@@ -203,13 +210,13 @@ public class DailyDownloadWorker : IHostedService
         }
         else
         {
-            transaction = SentrySdk.StartTransaction("daily-download-process", "queue.process");
+            transaction = SentrySdk.StartTransaction("daily-download-process", "task");
         }
 
         SentrySdk.ConfigureScope(s => s.Transaction = transaction);
 
-        // Create the inner queue.process.batch span per Sentry Queues module conventions
-        var queueProcessSpan = transaction.StartChild("queue.process.batch", queueName);
+        // Create the inner queue.process span per Sentry Queues module conventions
+        var queueProcessSpan = transaction.StartChild("queue.process", queueName);
 
         // Set required Sentry Queues module attributes
         queueProcessSpan.SetExtra("messaging.system", "rabbitmq");
@@ -226,6 +233,14 @@ public class DailyDownloadWorker : IHostedService
         if (ea.Redelivered)
         {
             queueProcessSpan.SetExtra("messaging.message.retry.count", 1); // RabbitMQ doesn't track exact retry count
+        }
+
+        // Calculate and set queue latency (time between publish and receive)
+        if (publishTimestamp.HasValue)
+        {
+            var receiveTimestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            var latencyMs = receiveTimestamp - publishTimestamp.Value;
+            queueProcessSpan.SetExtra("messaging.message.receive.latency", (double)latencyMs);
         }
 
         List<string>? packageIds = null;

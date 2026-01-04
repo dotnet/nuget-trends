@@ -44,7 +44,7 @@ public class DailyDownloadPackageIdPublisher(
         using var _ = hub.PushScope();
         var transactionContext = new TransactionContext(
             name: "daily-download-pkg-id-publisher",
-            operation: "queue.publish",
+            operation: "job",
             traceId: SentryId.Create(),
             spanId: SpanId.Create(),
             parentSpanId: null,
@@ -195,6 +195,7 @@ public class DailyDownloadPackageIdPublisher(
             properties.Headers ??= new Dictionary<string, object>();
             properties.Headers["sentry-trace"] = publishSpan.GetTraceHeader().ToString();
             properties.Headers["message-id"] = messageId; // Pass message ID to consumer
+            properties.Headers["publish-timestamp"] = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(); // For queue latency calculation
             if (hub.GetBaggage() is { } baggage)
             {
                 properties.Headers["baggage"] = baggage.ToString();
