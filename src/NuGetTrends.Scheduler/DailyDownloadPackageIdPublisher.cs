@@ -32,7 +32,7 @@ public class DailyDownloadPackageIdPublisher(
     private const int BatchSize = 10_000;
 
     // Batch size for RabbitMQ messages
-    private const int QueueBatchSize = 100;
+    private const int QueueBatchSize = 1000;
 
     [SentryMonitorSlug("DailyDownloadPackageIdPublisher.Import")]
     public async Task Import(IJobCancellationToken token, PerformContext? context)
