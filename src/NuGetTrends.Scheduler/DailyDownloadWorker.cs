@@ -164,6 +164,7 @@ public class DailyDownloadWorker : IHostedService
         string? baggageHeader = null;
         string? messageId = null;
 
+        long? enqueuedTime = null;
         if (ea.BasicProperties?.Headers != null)
         {
             if (ea.BasicProperties.Headers.TryGetValue("sentry-trace", out var traceObj) &&
@@ -183,19 +184,26 @@ public class DailyDownloadWorker : IHostedService
             {
                 messageId = System.Text.Encoding.UTF8.GetString(messageIdBytes);
             }
+
+            // Aligned with Python SDK header naming
+            if (ea.BasicProperties.Headers.TryGetValue("sentry-task-enqueued-time", out var enqueuedTimeObj) &&
+                enqueuedTimeObj is long timestamp)
+            {
+                enqueuedTime = timestamp;
+            }
         }
 
         // Use ContinueTrace to properly link producer and consumer spans
         var transactionContext = SentrySdk.ContinueTrace(sentryTraceHeader, baggageHeader);
 
-        // Create the outer transaction with a general operation type
+        // Create the outer transaction - use 'task' op since queue.process should be on the child span
         ITransactionTracer transaction;
         if (transactionContext != null)
         {
             // Continue the trace from the producer, setting our own name and operation
             var context = new TransactionContext(
                 name: "daily-download-process",
-                operation: "queue.process",
+                operation: "task",
                 traceId: transactionContext.TraceId,
                 parentSpanId: transactionContext.SpanId,
                 isSampled: transactionContext.IsSampled);
@@ -203,29 +211,37 @@ public class DailyDownloadWorker : IHostedService
         }
         else
         {
-            transaction = SentrySdk.StartTransaction("daily-download-process", "queue.process");
+            transaction = SentrySdk.StartTransaction("daily-download-process", "task");
         }
 
         SentrySdk.ConfigureScope(s => s.Transaction = transaction);
 
-        // Create the inner queue.process.batch span per Sentry Queues module conventions
-        var queueProcessSpan = transaction.StartChild("queue.process.batch", queueName);
+        // Create the inner queue.process span per Sentry Queues module conventions
+        var queueProcessSpan = transaction.StartChild("queue.process", queueName);
 
-        // Set required Sentry Queues module attributes
-        queueProcessSpan.SetExtra("messaging.system", "rabbitmq");
-        queueProcessSpan.SetExtra("messaging.destination.name", queueName);
+        // Set required Sentry Queues module attributes (use SetData for span data attributes)
+        queueProcessSpan.SetData("messaging.system", "rabbitmq");
+        queueProcessSpan.SetData("messaging.destination.name", queueName);
 
         // Set message ID (required for linking producer/consumer)
         if (messageId != null)
         {
-            queueProcessSpan.SetExtra("messaging.message.id", messageId);
+            queueProcessSpan.SetData("messaging.message.id", messageId);
         }
 
         // Set optional attributes
-        queueProcessSpan.SetExtra("messaging.message.body.size", ea.Body.Length);
+        queueProcessSpan.SetData("messaging.message.body.size", ea.Body.Length);
         if (ea.Redelivered)
         {
-            queueProcessSpan.SetExtra("messaging.message.retry.count", 1); // RabbitMQ doesn't track exact retry count
+            queueProcessSpan.SetData("messaging.message.retry.count", 1); // RabbitMQ doesn't track exact retry count
+        }
+
+        // Calculate and set queue latency (time between publish and receive)
+        if (enqueuedTime.HasValue)
+        {
+            var receiveTimestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            var latencyMs = receiveTimestamp - enqueuedTime.Value;
+            queueProcessSpan.SetData("messaging.message.receive.latency", (double)latencyMs);
         }
 
         List<string>? packageIds = null;
@@ -360,9 +376,9 @@ public class DailyDownloadWorker : IHostedService
             }
         }
 
-        processDataSpan.SetExtra("packages_processed", tasks.Count);
-        processDataSpan.SetExtra("packages_with_downloads", clickHouseDownloads.Count);
-        processDataSpan.SetExtra("deleted_packages", deletedPackageIds.Count);
+        processDataSpan.SetData("packages_processed", tasks.Count);
+        processDataSpan.SetData("packages_with_downloads", clickHouseDownloads.Count);
+        processDataSpan.SetData("deleted_packages", deletedPackageIds.Count);
         processDataSpan.Finish(SpanStatus.Ok);
 
         using var scope = _services.CreateScope();
@@ -385,7 +401,7 @@ public class DailyDownloadWorker : IHostedService
             try
             {
                 var rowsAffected = await context.UpsertPackageDownloadsAsync(postgresUpserts, _cancellationTokenSource.Token);
-                pgUpsertSpan.SetExtra("db.rows_affected", rowsAffected);
+                pgUpsertSpan.SetData("db.rows_affected", rowsAffected);
                 pgUpsertSpan.Finish(SpanStatus.Ok);
             }
             catch (Exception e)
@@ -407,7 +423,7 @@ public class DailyDownloadWorker : IHostedService
                     await RemovePackage(context, deletedPackageId, _cancellationTokenSource.Token);
                 }
                 await context.SaveChangesAsync(_cancellationTokenSource.Token);
-                deleteSpan.SetExtra("db.rows_affected", deletedPackageIds.Count);
+                deleteSpan.SetData("db.rows_affected", deletedPackageIds.Count);
                 deleteSpan.Finish(SpanStatus.Ok);
             }
             catch (Exception e)
@@ -431,8 +447,8 @@ public class DailyDownloadWorker : IHostedService
         [CallerLineNumber] int lineNumber = 0)
     {
         var span = parent.StartChild("db.sql.execute", description);
-        span.SetExtra("db.system", dbSystem);
-        span.SetExtra("db.operation", dbOperation);
+        span.SetData("db.system", dbSystem);
+        span.SetData("db.operation", dbOperation);
         TelemetryHelpers.SetQuerySource<DailyDownloadWorker>(span, filePath, memberName, lineNumber);
         return span;
     }

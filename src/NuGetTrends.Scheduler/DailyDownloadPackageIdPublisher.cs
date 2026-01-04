@@ -32,7 +32,7 @@ public class DailyDownloadPackageIdPublisher(
     private const int BatchSize = 10_000;
 
     // Batch size for RabbitMQ messages
-    private const int QueueBatchSize = 100;
+    private const int QueueBatchSize = 1000;
 
     [SentryMonitorSlug("DailyDownloadPackageIdPublisher.Import")]
     public async Task Import(IJobCancellationToken token, PerformContext? context)
@@ -44,7 +44,7 @@ public class DailyDownloadPackageIdPublisher(
         using var _ = hub.PushScope();
         var transactionContext = new TransactionContext(
             name: "daily-download-pkg-id-publisher",
-            operation: "queue.publish",
+            operation: "job",
             traceId: SentryId.Create(),
             spanId: SpanId.Create(),
             parentSpanId: null,
@@ -183,18 +183,20 @@ public class DailyDownloadPackageIdPublisher(
             // Generate a unique message ID using the span ID
             var messageId = publishSpan.SpanId.ToString();
 
-            // Required attributes for Sentry Queues module
-            publishSpan.SetExtra("messaging.message.id", messageId);
-            publishSpan.SetExtra("messaging.destination.name", queueName);
-            publishSpan.SetExtra("messaging.system", "rabbitmq");
+            // Required attributes for Sentry Queues module (use SetData for span data attributes)
+            publishSpan.SetData("messaging.message.id", messageId);
+            publishSpan.SetData("messaging.destination.name", queueName);
+            publishSpan.SetData("messaging.system", "rabbitmq");
 
             // Optional but useful attributes
-            publishSpan.SetExtra("messaging.message.body.size", serializedBatch.Length);
+            publishSpan.SetData("messaging.message.body.size", serializedBatch.Length);
 
             // Inject trace context into message headers for distributed tracing
             properties.Headers ??= new Dictionary<string, object>();
             properties.Headers["sentry-trace"] = publishSpan.GetTraceHeader().ToString();
             properties.Headers["message-id"] = messageId; // Pass message ID to consumer
+            // Enqueue timestamp for latency calculation (aligned with Python SDK naming)
+            properties.Headers["sentry-task-enqueued-time"] = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             if (hub.GetBaggage() is { } baggage)
             {
                 properties.Headers["baggage"] = baggage.ToString();
