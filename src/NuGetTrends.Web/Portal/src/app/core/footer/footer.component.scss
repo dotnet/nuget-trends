@@ -43,3 +43,20 @@ footer {
     transition: opacity 0.2s ease;
   }
 }
+
+.version-info {
+  margin-top: 10px;
+  font-size: 12px;
+}
+
+.version-badge {
+  cursor: pointer;
+  font-family: monospace;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background-color: rgba(255, 255, 255, 0.1);
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+}
