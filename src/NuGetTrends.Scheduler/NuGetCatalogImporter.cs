@@ -2,7 +2,6 @@ using Hangfire;
 using Hangfire.Server;
 using NuGet.Protocol.Catalog;
 using Polly.CircuitBreaker;
-using Sentry.Hangfire;
 
 namespace NuGetTrends.Scheduler;
 
@@ -24,7 +23,6 @@ public class NuGetCatalogImporter(
 
     private readonly ILogger<NuGetCatalogImporter> _logger = loggerFactory.CreateLogger<NuGetCatalogImporter>();
 
-    [SentryMonitorSlug("NuGetCatalogImporter.Import")]
     public async Task Import(IJobCancellationToken token, PerformContext? context)
     {
         var jobId = context?.BackgroundJob?.Id ?? "unknown";
@@ -46,12 +44,27 @@ public class NuGetCatalogImporter(
             s.SetTag("jobId", jobId);
         });
 
+        // Start Sentry cron check-in with monitor upsert (auto-creates/updates monitor config)
+        // Placed inside scope so check-in is bound to the same trace ID
+        var checkInId = hub.CaptureCheckIn(
+            JobScheduleConfig.CatalogImporter.MonitorSlug,
+            CheckInStatus.InProgress,
+            configureMonitorOptions: options =>
+            {
+                options.Interval(JobScheduleConfig.CatalogImporter.IntervalHours, SentryMonitorInterval.Hour);
+                options.CheckInMargin = TimeSpan.FromMinutes(JobScheduleConfig.CatalogImporter.CheckInMarginMinutes);
+                options.MaxRuntime = TimeSpan.FromMinutes(JobScheduleConfig.CatalogImporter.MaxRuntimeMinutes);
+                options.TimeZone = "Etc/UTC";
+                options.FailureIssueThreshold = JobScheduleConfig.CatalogImporter.FailureIssueThreshold;
+            });
+
         try
         {
             if (!await ImportLock.WaitAsync(TimeSpan.Zero))
             {
                 _logger.LogWarning("Job {JobId}: Skipping catalog import - another import is already in progress", jobId);
                 transaction.Finish(SpanStatus.Aborted);
+                hub.CaptureCheckIn(JobScheduleConfig.CatalogImporter.MonitorSlug, CheckInStatus.Ok, checkInId); // Skipped is OK, not an error
                 throw new ConcurrentExecutionSkippedException(
                     $"Job {jobId}: Catalog import skipped - another import is already in progress");
             }
@@ -65,6 +78,7 @@ public class NuGetCatalogImporter(
                         "Job {JobId}: Skipping catalog import - NuGet API marked unavailable since {UnavailableSince}. Will retry after cooldown.",
                         jobId, availabilityState.UnavailableSince);
                     transaction.Finish(SpanStatus.Unavailable);
+                    hub.CaptureCheckIn(JobScheduleConfig.CatalogImporter.MonitorSlug, CheckInStatus.Ok, checkInId); // Skipped is OK, not an error
                     return;
                 }
 
@@ -96,6 +110,7 @@ public class NuGetCatalogImporter(
                     _logger.LogInformation("Job {JobId}: Finished importing catalog.", jobId);
                     processingSpan.Finish(SpanStatus.Ok);
                     transaction.Finish(SpanStatus.Ok);
+                    hub.CaptureCheckIn(JobScheduleConfig.CatalogImporter.MonitorSlug, CheckInStatus.Ok, checkInId);
                 }
                 catch (HttpRequestException e)
                 {
@@ -104,6 +119,7 @@ public class NuGetCatalogImporter(
                     processingSpan.Finish(e);
                     transaction.Finish(e);
                     hub.CaptureException(e);
+                    hub.CaptureCheckIn(JobScheduleConfig.CatalogImporter.MonitorSlug, CheckInStatus.Error, checkInId);
                     throw;
                 }
                 catch (BrokenCircuitException e)
@@ -113,6 +129,7 @@ public class NuGetCatalogImporter(
                     processingSpan.Finish(e);
                     transaction.Finish(e);
                     hub.CaptureException(e);
+                    hub.CaptureCheckIn(JobScheduleConfig.CatalogImporter.MonitorSlug, CheckInStatus.Error, checkInId);
                     throw;
                 }
                 catch (Exception e)
@@ -120,6 +137,7 @@ public class NuGetCatalogImporter(
                     processingSpan.Finish(e);
                     transaction.Finish(e);
                     hub.CaptureException(e);
+                    hub.CaptureCheckIn(JobScheduleConfig.CatalogImporter.MonitorSlug, CheckInStatus.Error, checkInId);
                     throw;
                 }
             }
