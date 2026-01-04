@@ -1,5 +1,6 @@
 import { Component, ErrorHandler, OnDestroy, OnInit } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom, Subscription } from 'rxjs';
 import { ActivatedRoute, Params, Router } from '@angular/router';
 import { AppAnimations } from '../shared';
@@ -109,10 +110,30 @@ export class PackagesComponent implements OnInit, OnDestroy {
         const downloadHistory = await firstValueFrom(this.packagesService.getPackageDownloadHistory(packageId, period));
         this.packageInteractionService.updatePackage(downloadHistory);
       } catch (error) {
-        this.errorHandler.handleError(error);
-        this.toastr.error('Our servers are too cool (or not) to handle your request at the moment.');
+        if (error instanceof HttpErrorResponse && error.status === 404) {
+          await this.handlePackageNotFound(packageId);
+        } else {
+          this.errorHandler.handleError(error);
+          this.toastr.error('Our servers are too cool (or not) to handle your request at the moment.');
+        }
       }
     });
+  }
+
+  /**
+   * Handles a 404 error by checking if the package exists on nuget.org
+   * and showing an appropriate message to the user.
+   */
+  private async handlePackageNotFound(packageId: string): Promise<void> {
+    const existsOnNuGet = await firstValueFrom(this.packagesService.checkPackageExistsOnNuGet(packageId));
+
+    if (existsOnNuGet) {
+      this.toastr.warning(`Package '${packageId}' exists on NuGet.org but is not yet tracked by NuGet Trends.`);
+    } else {
+      this.toastr.warning(`Package '${packageId}' doesn't exist.`);
+    }
+
+    this.removePackageFromUrl(packageId);
   }
 
   /**
@@ -292,8 +313,12 @@ export class PackagesComponent implements OnInit, OnDestroy {
 
         this.packageInteractionService.addPackage(downloadHistory);
       } catch (error) {
-        this.errorHandler.handleError(error);
-        this.toastr.error('Our servers are too cool (or not) to handle your request at the moment.');
+        if (error instanceof HttpErrorResponse && error.status === 404) {
+          await this.handlePackageNotFound(packageId);
+        } else {
+          this.errorHandler.handleError(error);
+          this.toastr.error('Our servers are too cool (or not) to handle your request at the moment.');
+        }
       }
     });
   }
