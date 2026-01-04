@@ -92,6 +92,6 @@ public class PackageController(
         }
 
         var trending = await trendingPackagesCache.GetTrendingPackagesAsync(limit, cancellationToken);
-        return Ok(trending);
+        return Ok(trending.Packages);
     }
 }
