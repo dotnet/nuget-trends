@@ -193,3 +193,19 @@ body.dark-theme .search-pattern {
 .label {
   color: var(--color-text);
 }
+
+/* Angular Material CDK overlay theming for autocomplete */
+.cdk-overlay-container .mat-mdc-autocomplete-panel {
+  background-color: var(--color-autocomplete-bg);
+  color: var(--color-text);
+}
+
+.cdk-overlay-container .mat-mdc-option {
+  color: var(--color-text);
+}
+
+.cdk-overlay-container .mat-mdc-option:hover:not(.mat-mdc-option-disabled),
+.cdk-overlay-container .mat-mdc-option.mdc-list-item--selected,
+.cdk-overlay-container .mat-mdc-option.mat-mdc-option-active {
+  background-color: var(--color-autocomplete-hover);
+}
