@@ -1,14 +1,14 @@
 #!/usr/bin/env dotnet
 
-#:package ClickHouse.Client@7.14.0
+#:package ClickHouse.Driver@0.9.0
 #:property ManagePackageVersionsCentrally=false
 #:property PublishAot=false
 
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using ClickHouse.Client.ADO;
-using ClickHouse.Client.Copy;
+using ClickHouse.Driver.ADO;
+using ClickHouse.Driver.Copy;
 
 // ============================================================================
 // Seed ClickHouse with test data for the 'sentry' package

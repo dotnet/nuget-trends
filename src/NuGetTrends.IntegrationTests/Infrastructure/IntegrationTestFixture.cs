@@ -1,5 +1,5 @@
 using System.Runtime.CompilerServices;
-using ClickHouse.Client.ADO;
+using ClickHouse.Driver.ADO;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NuGet.Protocol.Catalog;
