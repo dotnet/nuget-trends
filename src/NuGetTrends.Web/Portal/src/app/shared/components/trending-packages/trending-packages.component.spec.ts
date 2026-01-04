@@ -90,6 +90,19 @@ describe('TrendingPackagesComponent', () => {
     expect(routerSpy.navigate).toHaveBeenCalledWith(['/packages', 'Newtonsoft.Json']);
   });
 
+  it('should open NuGet.org page in new tab', () => {
+    spyOn(window, 'open');
+    fixture.detectChanges();
+
+    component.openNuGetPage('Newtonsoft.Json');
+
+    expect(window.open).toHaveBeenCalledWith(
+      'https://www.nuget.org/packages/Newtonsoft.Json',
+      '_blank',
+      'noopener,noreferrer'
+    );
+  });
+
   describe('formatGrowthRate', () => {
     it('should format positive growth rate with plus sign', () => {
       expect(component.formatGrowthRate(0.25)).toBe('+25%');
