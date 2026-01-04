@@ -7,6 +7,6 @@ import { Component } from '@angular/core';
   standalone: false
 })
 export class FooterComponent {
-
   public year = new Date().getFullYear();
+  public version = (window as any).SENTRY_RELEASE?.id ?? 'local';
 }
