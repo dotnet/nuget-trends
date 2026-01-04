@@ -134,6 +134,9 @@ try
      builder.Services.AddMemoryCache();
      builder.Services.AddScoped<ITrendingPackagesCache, TrendingPackagesCache>();
 
+     // Warm trending packages cache on startup
+     builder.Services.AddHostedService<TrendingPackagesCacheWarmupService>();
+
      builder.Services.AddSwaggerGen(c =>
      {
          c.SwaggerDoc("v1", new OpenApiInfo {Title = "NuGet Trends", Version = "v1"});

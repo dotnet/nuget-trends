@@ -9,6 +9,52 @@ using Sentry;
 namespace NuGetTrends.Web;
 
 /// <summary>
+/// Background service that warms the trending packages cache on startup.
+/// This ensures the first user request doesn't have to wait for the expensive ClickHouse query.
+/// </summary>
+public class TrendingPackagesCacheWarmupService : BackgroundService
+{
+    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly ILogger<TrendingPackagesCacheWarmupService> _logger;
+
+    public TrendingPackagesCacheWarmupService(
+        IServiceScopeFactory scopeFactory,
+        ILogger<TrendingPackagesCacheWarmupService> logger)
+    {
+        _scopeFactory = scopeFactory;
+        _logger = logger;
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        // Small delay to let the app fully start before warming cache
+        await Task.Delay(TimeSpan.FromSeconds(2), stoppingToken);
+
+        try
+        {
+            _logger.LogInformation("Warming trending packages cache...");
+
+            using var scope = _scopeFactory.CreateScope();
+            var cache = scope.ServiceProvider.GetRequiredService<ITrendingPackagesCache>();
+
+            // Warm the cache by requesting the max number of results
+            await cache.GetTrendingPackagesAsync(100, stoppingToken);
+
+            _logger.LogInformation("Trending packages cache warmed successfully");
+        }
+        catch (OperationCanceledException)
+        {
+            // Shutdown requested, ignore
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to warm trending packages cache on startup");
+            // Don't fail the app if cache warming fails
+        }
+    }
+}
+
+/// <summary>
 /// DTO for trending package API response.
 /// </summary>
 public class TrendingPackageDto
