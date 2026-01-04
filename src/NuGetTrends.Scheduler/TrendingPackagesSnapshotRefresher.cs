@@ -85,6 +85,7 @@ public class TrendingPackagesSnapshotRefresher(
         {
             logger.LogError(ex, "Job {JobId}: Failed to refresh trending packages snapshot", jobId);
             transaction.Finish(ex);
+            hub.CaptureException(ex);
             throw;
         }
         finally

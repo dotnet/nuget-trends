@@ -46,6 +46,8 @@ try
     builder.WebHost.UseConfiguration(configuration)
         .UseSentry(o =>
         {
+            // Mark ClickHouse driver frames as not in-app for cleaner stack traces
+            o.AddInAppExclude("ClickHouse.Driver");
             o.SetBeforeSend(e =>
             {
                 // Ignore SPA default page middleware errors for POST requests
