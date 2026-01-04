@@ -50,21 +50,70 @@ public class ClickHouseFixture : IAsyncLifetime
     private string AdminConnectionString => $"Host={_container.Hostname};Port={_container.GetMappedPublicPort(8123)};Username={Username};Password={Password}";
 
     /// <summary>
-    /// Resets all tables by truncating data.
+    /// Resets all tables by dropping and recreating them.
     /// Call this at the start of each test for isolation.
     /// </summary>
+    /// <remarks>
+    /// We use DROP + CREATE instead of TRUNCATE because:
+    /// 1. The weekly_downloads table uses AggregatingMergeTree with a Materialized View
+    /// 2. TRUNCATE on AggregatingMergeTree doesn't properly reset aggregate state
+    /// 3. The MV continues to accumulate data even after truncate
+    /// Dropping and recreating ensures a completely clean slate for each test.
+    /// </remarks>
     public async Task ResetTableAsync()
     {
         await using var connection = new ClickHouseConnection(ConnectionString);
         await connection.OpenAsync();
 
-        await using var truncateDailyCmd = connection.CreateCommand();
-        truncateDailyCmd.CommandText = "TRUNCATE TABLE daily_downloads";
-        await truncateDailyCmd.ExecuteNonQueryAsync();
+        // Drop in reverse dependency order: MV first, then tables
+        var dropStatements = new[]
+        {
+            "DROP VIEW IF EXISTS weekly_downloads_mv",
+            "DROP TABLE IF EXISTS weekly_downloads",
+            "DROP TABLE IF EXISTS trending_packages_snapshot",
+            "DROP TABLE IF EXISTS daily_downloads"
+        };
 
-        await using var truncateWeeklyCmd = connection.CreateCommand();
-        truncateWeeklyCmd.CommandText = "TRUNCATE TABLE weekly_downloads";
-        await truncateWeeklyCmd.ExecuteNonQueryAsync();
+        foreach (var sql in dropStatements)
+        {
+            await using var cmd = connection.CreateCommand();
+            cmd.CommandText = sql;
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        // Recreate tables by running migrations
+        await using var adminConnection = new ClickHouseConnection(AdminConnectionString);
+        await adminConnection.OpenAsync();
+
+        var migrationScripts = GetMigrationScripts();
+        foreach (var script in migrationScripts)
+        {
+            var statements = script.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            foreach (var statement in statements)
+            {
+                var trimmed = statement.Trim();
+                if (string.IsNullOrWhiteSpace(trimmed))
+                {
+                    continue;
+                }
+
+                var lines = trimmed.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+                var hasNonCommentLine = lines.Any(line =>
+                {
+                    var l = line.Trim();
+                    return !string.IsNullOrEmpty(l) && !l.StartsWith("--");
+                });
+
+                if (!hasNonCommentLine)
+                {
+                    continue;
+                }
+
+                await using var cmd = adminConnection.CreateCommand();
+                cmd.CommandText = trimmed;
+                await cmd.ExecuteNonQueryAsync();
+            }
+        }
     }
 
     /// <summary>

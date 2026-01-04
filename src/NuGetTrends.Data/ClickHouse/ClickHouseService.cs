@@ -231,40 +231,42 @@ public class ClickHouseService : IClickHouseService
         CancellationToken ct = default,
         ISpan? parentSpan = null)
     {
-        // Query uses a self-join to compare current week vs previous week downloads.
+        // Query uses a self-join to compare LAST week vs the WEEK BEFORE.
+        // We use complete weeks only - not the current partial week.
         // To favor newer/emerging packages over established ones, we filter by first_seen date.
-        // Growth rate = (current - previous) / previous
+        // Growth rate = (week - comparison) / comparison
         //
         // The query:
         // 1. Gets first_seen date per package (min week in weekly_downloads)
-        // 2. Joins current week and previous week data
+        // 2. Joins last week and week before data
         // 3. Filters to packages first seen within maxPackageAgeMonths
         // 4. Filters by minimum download threshold to reduce noise
         // 5. Orders by growth rate descending
         const string query = """
             WITH
-                toMonday(today()) AS current_week,
-                toMonday(today() - INTERVAL 1 WEEK) AS previous_week,
+                toMonday(today() - INTERVAL 1 WEEK) AS data_week,
+                toMonday(today() - INTERVAL 2 WEEK) AS comparison_week,
                 today() - INTERVAL {maxAgeMonths:Int32} MONTH AS age_cutoff
             SELECT
+                data_week AS week,
                 cur.package_id AS package_id,
-                toInt64(avgMerge(cur.download_avg) * 7) AS current_downloads,
-                toInt64(avgMerge(prev.download_avg) * 7) AS previous_downloads
+                toInt64(avgMerge(cur.download_avg) * 7) AS week_downloads,
+                toInt64(avgMerge(prev.download_avg) * 7) AS comparison_downloads
             FROM weekly_downloads cur
             INNER JOIN weekly_downloads prev
                 ON cur.package_id = prev.package_id
-                AND prev.week = previous_week
+                AND prev.week = comparison_week
             INNER JOIN (
                 SELECT package_id, min(week) AS first_seen
                 FROM weekly_downloads
                 GROUP BY package_id
             ) first ON cur.package_id = first.package_id
-            WHERE cur.week = current_week
+            WHERE cur.week = data_week
               AND first.first_seen >= age_cutoff
             GROUP BY cur.package_id
-            HAVING current_downloads >= {minDownloads:Int64}
-               AND previous_downloads > 0
-            ORDER BY (current_downloads - previous_downloads) / previous_downloads DESC
+            HAVING week_downloads >= {minDownloads:Int64}
+               AND comparison_downloads > 0
+            ORDER BY (week_downloads - comparison_downloads) / comparison_downloads DESC
             LIMIT {limit:Int32}
             """;
 
@@ -300,9 +302,10 @@ public class ClickHouseService : IClickHouseService
             {
                 results.Add(new TrendingPackage
                 {
-                    PackageId = reader.GetString(0),
-                    CurrentWeekDownloads = reader.GetInt64(1),
-                    PreviousWeekDownloads = reader.GetInt64(2)
+                    Week = DateOnly.FromDateTime(reader.GetDateTime(0)),
+                    PackageId = reader.GetString(1),
+                    WeekDownloads = reader.GetInt64(2),
+                    ComparisonWeekDownloads = reader.GetInt64(3)
                 });
             }
 
@@ -311,6 +314,146 @@ public class ClickHouseService : IClickHouseService
 
             _logger.LogDebug("Retrieved {Count} trending packages", results.Count);
             return results;
+        }
+        catch (Exception ex)
+        {
+            span?.Finish(ex);
+            throw;
+        }
+    }
+
+    public async Task<List<TrendingPackage>> GetTrendingPackagesFromSnapshotAsync(
+        int limit = 100,
+        CancellationToken ct = default,
+        ISpan? parentSpan = null)
+    {
+        // Query the pre-computed snapshot table for the most recent week
+        // We ORDER BY growth_rate DESC to get top trending packages
+        const string query = """
+            SELECT
+                week,
+                package_id,
+                week_downloads,
+                comparison_week_downloads
+            FROM trending_packages_snapshot
+            WHERE week = (SELECT max(week) FROM trending_packages_snapshot)
+            ORDER BY growth_rate DESC
+            LIMIT {limit:Int32}
+            """;
+
+        var span = StartDatabaseSpan(parentSpan, query, "SELECT");
+
+        try
+        {
+            await using var connection = new ClickHouseConnection(_connectionString);
+            await connection.OpenAsync(ct);
+
+            await using var cmd = connection.CreateCommand();
+            cmd.CommandText = query;
+
+            var limitParam = cmd.CreateParameter();
+            limitParam.ParameterName = "limit";
+            limitParam.Value = limit;
+            cmd.Parameters.Add(limitParam);
+
+            var results = new List<TrendingPackage>();
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+
+            while (await reader.ReadAsync(ct))
+            {
+                results.Add(new TrendingPackage
+                {
+                    Week = DateOnly.FromDateTime(reader.GetDateTime(0)),
+                    PackageId = reader.GetString(1),
+                    WeekDownloads = reader.GetInt64(2),
+                    ComparisonWeekDownloads = reader.GetInt64(3)
+                });
+            }
+
+            span?.SetData("db.rows_affected", results.Count);
+            span?.Finish(SpanStatus.Ok);
+
+            _logger.LogDebug("Retrieved {Count} trending packages from snapshot", results.Count);
+            return results;
+        }
+        catch (Exception ex)
+        {
+            span?.Finish(ex);
+            throw;
+        }
+    }
+
+    public async Task<int> RefreshTrendingPackagesSnapshotAsync(
+        long minWeeklyDownloads = 1000,
+        int maxPackageAgeMonths = 12,
+        CancellationToken ct = default,
+        ISpan? parentSpan = null)
+    {
+        // Insert computed trending packages into the snapshot table
+        // This runs the expensive query once and stores results for fast retrieval
+        // We store a generous number (1000) to allow filtering on the read side
+        //
+        // IMPORTANT: We use LAST week vs WEEK BEFORE (not current vs previous)
+        // This ensures we're comparing complete weeks, not partial data.
+        // On Monday at 2 AM UTC, this computes trending for the week that just ended.
+        const string query = """
+            INSERT INTO trending_packages_snapshot
+                (week, package_id, week_downloads, comparison_week_downloads, growth_rate)
+            WITH
+                toMonday(today() - INTERVAL 1 WEEK) AS data_week,
+                toMonday(today() - INTERVAL 2 WEEK) AS comparison_week,
+                today() - INTERVAL {maxAgeMonths:Int32} MONTH AS age_cutoff
+            SELECT
+                data_week AS week,
+                cur.package_id AS package_id,
+                toInt64(avgMerge(cur.download_avg) * 7) AS week_downloads,
+                toInt64(avgMerge(prev.download_avg) * 7) AS comparison_downloads,
+                (week_downloads - comparison_downloads) / comparison_downloads AS growth_rate
+            FROM weekly_downloads cur
+            INNER JOIN weekly_downloads prev
+                ON cur.package_id = prev.package_id
+                AND prev.week = comparison_week
+            INNER JOIN (
+                SELECT package_id, min(week) AS first_seen
+                FROM weekly_downloads
+                GROUP BY package_id
+            ) first ON cur.package_id = first.package_id
+            WHERE cur.week = data_week
+              AND first.first_seen >= age_cutoff
+            GROUP BY cur.package_id
+            HAVING week_downloads >= {minDownloads:Int64}
+               AND comparison_downloads > 0
+            ORDER BY growth_rate DESC
+            LIMIT 1000
+            """;
+
+        var span = StartDatabaseSpan(parentSpan, query, "INSERT");
+
+        try
+        {
+            await using var connection = new ClickHouseConnection(_connectionString);
+            await connection.OpenAsync(ct);
+
+            await using var cmd = connection.CreateCommand();
+            cmd.CommandText = query;
+
+            var maxAgeParam = cmd.CreateParameter();
+            maxAgeParam.ParameterName = "maxAgeMonths";
+            maxAgeParam.Value = maxPackageAgeMonths;
+            cmd.Parameters.Add(maxAgeParam);
+
+            var minDownloadsParam = cmd.CreateParameter();
+            minDownloadsParam.ParameterName = "minDownloads";
+            minDownloadsParam.Value = minWeeklyDownloads;
+            cmd.Parameters.Add(minDownloadsParam);
+
+            var rowsAffected = await cmd.ExecuteNonQueryAsync(ct);
+
+            span?.SetData("db.rows_affected", rowsAffected);
+            span?.Finish(SpanStatus.Ok);
+
+            _logger.LogInformation("Refreshed trending packages snapshot with {Count} packages", rowsAffected);
+            return rowsAffected;
         }
         catch (Exception ex)
         {

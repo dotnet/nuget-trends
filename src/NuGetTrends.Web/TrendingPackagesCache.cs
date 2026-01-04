@@ -9,74 +9,24 @@ using Sentry;
 namespace NuGetTrends.Web;
 
 /// <summary>
-/// Background service that warms the trending packages cache on startup.
-/// This ensures the first user request doesn't have to wait for the expensive ClickHouse query.
+/// API response for trending packages endpoint.
 /// </summary>
-public class TrendingPackagesCacheWarmupService : BackgroundService
+public class TrendingPackagesResponse
 {
-    private readonly IServiceScopeFactory _scopeFactory;
-    private readonly ILogger<TrendingPackagesCacheWarmupService> _logger;
+    /// <summary>
+    /// The week this data represents (Monday of the week, ISO 8601 format).
+    /// This is always the most recently completed week, not the current partial week.
+    /// </summary>
+    public required DateOnly Week { get; init; }
 
-    public TrendingPackagesCacheWarmupService(
-        IServiceScopeFactory scopeFactory,
-        ILogger<TrendingPackagesCacheWarmupService> logger)
-    {
-        _scopeFactory = scopeFactory;
-        _logger = logger;
-    }
-
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        // Small delay to let the app fully start before warming cache
-        await Task.Delay(TimeSpan.FromSeconds(2), stoppingToken);
-
-        // Create a transaction for the cache warmup operation
-        var transaction = SentrySdk.StartTransaction(
-            name: "TrendingPackagesCacheWarmupService",
-            operation: "cache.warmup");
-        transaction.SetData("service.type", "BackgroundService");
-
-        SentrySdk.ConfigureScope(s => s.Transaction = transaction);
-
-        try
-        {
-            _logger.LogInformation("Warming trending packages cache...");
-
-            var scopeSpan = transaction.StartChild("di.scope", "Create service scope");
-            using var scope = _scopeFactory.CreateScope();
-            var cache = scope.ServiceProvider.GetRequiredService<ITrendingPackagesCache>();
-            scopeSpan.Finish(SpanStatus.Ok);
-
-            // Warm the cache by requesting the max number of results
-            var warmSpan = transaction.StartChild("cache.warmup.fetch", "Fetch and cache trending packages");
-            warmSpan.SetData("cache.limit", 100);
-            await cache.GetTrendingPackagesAsync(100, stoppingToken);
-            warmSpan.Finish(SpanStatus.Ok);
-
-            _logger.LogInformation("Trending packages cache warmed successfully");
-            transaction.Status = SpanStatus.Ok;
-        }
-        catch (OperationCanceledException)
-        {
-            // Shutdown requested, ignore
-            transaction.Status = SpanStatus.Cancelled;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to warm trending packages cache on startup");
-            transaction.Status = SpanStatus.InternalError;
-            SentrySdk.CaptureException(ex);
-            // Don't fail the app if cache warming fails
-        }
-        finally
-        {
-            transaction.Finish();
-        }
-    }
+    /// <summary>
+    /// List of trending packages for this week.
+    /// </summary>
+    public required List<TrendingPackageDto> Packages { get; init; }
 }
 
 /// <summary>
-/// DTO for trending package API response.
+/// DTO for a single trending package.
 /// </summary>
 public class TrendingPackageDto
 {
@@ -86,7 +36,7 @@ public class TrendingPackageDto
     public required string PackageId { get; init; }
 
     /// <summary>
-    /// Current week average downloads.
+    /// Total downloads for the reported week.
     /// </summary>
     public long DownloadCount { get; init; }
 
@@ -107,15 +57,16 @@ public class TrendingPackageDto
 }
 
 /// <summary>
-/// Caches trending packages to avoid expensive ClickHouse queries on every request.
+/// Caches trending packages to avoid ClickHouse queries on every request.
+/// The snapshot data is refreshed weekly, so we cache for 7 days.
 /// Instrumented with Sentry's Caches module conventions.
 /// </summary>
 public interface ITrendingPackagesCache
 {
     /// <summary>
-    /// Gets trending packages, using cached data if available.
+    /// Gets trending packages response, using cached data if available.
     /// </summary>
-    Task<List<TrendingPackageDto>> GetTrendingPackagesAsync(
+    Task<TrendingPackagesResponse> GetTrendingPackagesAsync(
         int limit = 10,
         CancellationToken ct = default);
 }
@@ -127,9 +78,9 @@ public class TrendingPackagesCache : ITrendingPackagesCache
     private readonly IMemoryCache _cache;
     private readonly ILogger<TrendingPackagesCache> _logger;
 
-    // Cache configuration
+    // Cache configuration - data is refreshed weekly, so cache for 7 days
     private const string CacheKey = "trending_packages";
-    private static readonly TimeSpan CacheDuration = TimeSpan.FromHours(1);
+    private static readonly TimeSpan CacheDuration = TimeSpan.FromDays(7);
 
     // Trending query configuration - favor newer packages
     private const long MinWeeklyDownloads = 1000;
@@ -148,7 +99,7 @@ public class TrendingPackagesCache : ITrendingPackagesCache
         _logger = logger;
     }
 
-    public async Task<List<TrendingPackageDto>> GetTrendingPackagesAsync(
+    public async Task<TrendingPackagesResponse> GetTrendingPackagesAsync(
         int limit = 10,
         CancellationToken ct = default)
     {
@@ -156,16 +107,20 @@ public class TrendingPackagesCache : ITrendingPackagesCache
 
         try
         {
-            if (_cache.TryGetValue(CacheKey, out List<TrendingPackageDto>? cached) && cached != null)
+            if (_cache.TryGetValue(CacheKey, out TrendingPackagesResponse? cached) && cached != null)
             {
                 span?.SetData("cache.hit", true);
-                span?.SetData("cache.item_size", cached.Count);
+                span?.SetData("cache.item_size", cached.Packages.Count);
                 span?.Finish(SpanStatus.Ok);
 
                 _logger.LogDebug("Cache hit for trending packages, returning {Count} of {Total} results",
-                    Math.Min(limit, cached.Count), cached.Count);
+                    Math.Min(limit, cached.Packages.Count), cached.Packages.Count);
 
-                return cached.Take(limit).ToList();
+                return new TrendingPackagesResponse
+                {
+                    Week = cached.Week,
+                    Packages = cached.Packages.Take(limit).ToList()
+                };
             }
 
             span?.SetData("cache.hit", false);
@@ -185,7 +140,7 @@ public class TrendingPackagesCache : ITrendingPackagesCache
 
                 _cache.Set(CacheKey, freshData, cacheOptions);
 
-                putSpan?.SetData("cache.item_size", freshData.Count);
+                putSpan?.SetData("cache.item_size", freshData.Packages.Count);
                 putSpan?.SetData("cache.ttl", (int)CacheDuration.TotalSeconds);
                 putSpan?.Finish(SpanStatus.Ok);
             }
@@ -196,7 +151,11 @@ public class TrendingPackagesCache : ITrendingPackagesCache
                 _logger.LogWarning(ex, "Failed to cache trending packages");
             }
 
-            return freshData.Take(limit).ToList();
+            return new TrendingPackagesResponse
+            {
+                Week = freshData.Week,
+                Packages = freshData.Packages.Take(limit).ToList()
+            };
         }
         catch (Exception ex)
         {
@@ -205,19 +164,40 @@ public class TrendingPackagesCache : ITrendingPackagesCache
         }
     }
 
-    private async Task<List<TrendingPackageDto>> FetchTrendingPackagesAsync(CancellationToken ct)
+    private async Task<TrendingPackagesResponse> FetchTrendingPackagesAsync(CancellationToken ct)
     {
-        // Get trending packages from ClickHouse
-        var trendingPackages = await _clickHouseService.GetTrendingPackagesAsync(
+        // Get trending packages from pre-computed ClickHouse snapshot (fast, milliseconds)
+        // Falls back to real-time query if snapshot is empty (first run or stale data)
+        var trendingPackages = await _clickHouseService.GetTrendingPackagesFromSnapshotAsync(
             limit: MaxCachedResults,
-            minWeeklyDownloads: MinWeeklyDownloads,
-            maxPackageAgeMonths: MaxPackageAgeMonths,
             ct: ct);
 
         if (trendingPackages.Count == 0)
         {
-            return [];
+            _logger.LogWarning("No trending packages in snapshot, falling back to real-time query");
+            trendingPackages = await _clickHouseService.GetTrendingPackagesAsync(
+                limit: MaxCachedResults,
+                minWeeklyDownloads: MinWeeklyDownloads,
+                maxPackageAgeMonths: MaxPackageAgeMonths,
+                ct: ct);
         }
+
+        if (trendingPackages.Count == 0)
+        {
+            // Return empty response with a default week (last Monday)
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var daysFromMonday = ((int)today.DayOfWeek - (int)DayOfWeek.Monday + 7) % 7;
+            var lastMonday = today.AddDays(-daysFromMonday - 7); // Previous week's Monday
+
+            return new TrendingPackagesResponse
+            {
+                Week = lastMonday,
+                Packages = []
+            };
+        }
+
+        // Get the week from the first package (all packages have the same week)
+        var dataWeek = trendingPackages[0].Week;
 
         // Get package metadata from PostgreSQL (icon URLs, original casing)
         var packageIds = trendingPackages.Select(p => p.PackageId).ToList();
@@ -232,7 +212,6 @@ public class TrendingPackagesCache : ITrendingPackagesCache
             .ToListAsync(ct);
 
         // Get GitHub URLs from catalog data if available
-        // Using PackageDetailsCatalogLeafs instead of Set<> for better type inference
         var catalogData = await _dbContext.PackageDetailsCatalogLeafs
             .Where(c => c.PackageId != null && packageIds.Contains(c.PackageId.ToLower()))
             .Select(c => new
@@ -247,7 +226,7 @@ public class TrendingPackagesCache : ITrendingPackagesCache
             .GroupBy(c => c.PackageIdLowered)
             .ToDictionary(g => g.Key, g => g.First());
 
-        return trendingPackages.Select(tp =>
+        var packages = trendingPackages.Select(tp =>
         {
             var hasMetadata = metadataLookup.TryGetValue(tp.PackageId, out var metadata);
             var hasCatalog = catalogLookup.TryGetValue(tp.PackageId, out var catalog);
@@ -262,12 +241,18 @@ public class TrendingPackagesCache : ITrendingPackagesCache
             return new TrendingPackageDto
             {
                 PackageId = hasMetadata ? metadata!.PackageId : tp.PackageId,
-                DownloadCount = tp.CurrentWeekDownloads,
+                DownloadCount = tp.WeekDownloads,
                 GrowthRate = tp.GrowthRate,
                 IconUrl = metadata?.IconUrl ?? "https://www.nuget.org/Content/gallery/img/default-package-icon.svg",
                 GitHubUrl = gitHubUrl
             };
         }).ToList();
+
+        return new TrendingPackagesResponse
+        {
+            Week = dataWeek,
+            Packages = packages
+        };
     }
 
     /// <summary>

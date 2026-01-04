@@ -11,20 +11,27 @@ public class TrendingPackage
     public required string PackageId { get; init; }
 
     /// <summary>
-    /// Average downloads for the current week.
+    /// The week this data represents (Monday of the week).
+    /// This is the most recently completed week, not the current partial week.
     /// </summary>
-    public long CurrentWeekDownloads { get; init; }
+    public DateOnly Week { get; init; }
 
     /// <summary>
-    /// Average downloads for the previous week.
+    /// Total downloads for the reported week.
     /// </summary>
-    public long PreviousWeekDownloads { get; init; }
+    public long WeekDownloads { get; init; }
+
+    /// <summary>
+    /// Total downloads for the comparison week (week before the reported week).
+    /// Used to calculate growth rate.
+    /// </summary>
+    public long ComparisonWeekDownloads { get; init; }
 
     /// <summary>
     /// Week-over-week growth rate as a decimal (e.g., 0.25 = 25% growth).
-    /// Null if previous week had zero downloads.
+    /// Null if comparison week had zero downloads.
     /// </summary>
-    public double? GrowthRate => PreviousWeekDownloads > 0
-        ? (double)(CurrentWeekDownloads - PreviousWeekDownloads) / PreviousWeekDownloads
+    public double? GrowthRate => ComparisonWeekDownloads > 0
+        ? (double)(WeekDownloads - ComparisonWeekDownloads) / ComparisonWeekDownloads
         : null;
 }
