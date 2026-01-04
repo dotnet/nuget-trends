@@ -266,10 +266,21 @@ export class PackagesComponent implements OnInit, OnDestroy {
   
   /**
    * Reads the packages from the URL and initialize the chart
+   * Supports both NuGet-style URLs (/packages/PackageName) and query param URLs (/packages?ids=...)
    * Useful when sharing the URL with others
    */
   private async loadPackagesFromUrl(): Promise<void> {
-    const packageIds: string[] = this.activatedRoute.snapshot.queryParamMap.getAll(this.urlParamName);
+    // Check for path parameter (NuGet-style URL: /packages/Newtonsoft.Json)
+    const pathPackageId = this.activatedRoute.snapshot.paramMap.get('packageId');
+
+    // Check for query parameters (existing format: /packages?ids=...)
+    const queryPackageIds: string[] = this.activatedRoute.snapshot.queryParamMap.getAll(this.urlParamName);
+
+    // Combine: path param first, then query params (excluding duplicates)
+    const packageIds = pathPackageId
+      ? [pathPackageId, ...queryPackageIds.filter(id => id.toLowerCase() !== pathPackageId.toLowerCase())]
+      : queryPackageIds;
+
     if (!packageIds.length) {
       return;
     }
@@ -289,19 +300,41 @@ export class PackagesComponent implements OnInit, OnDestroy {
 
   /**
    * Add the selected packageId to the URL making it shareable
+   * Handles transition from NuGet-style URLs (/packages/Foo) to query param format when adding more packages
    */
   private addPackageToUrl(packageId: string) {
-    const packageIds: string[] = this.activatedRoute.snapshot.queryParamMap.getAll(this.urlParamName);
+    const pathPackageId = this.activatedRoute.snapshot.paramMap.get('packageId');
+    const queryPackageIds: string[] = this.activatedRoute.snapshot.queryParamMap.getAll(this.urlParamName);
 
-    if (packageIds.includes(packageId)) {
+    // Check if package already exists (case-insensitive)
+    const allCurrentIds = pathPackageId
+      ? [pathPackageId, ...queryPackageIds]
+      : queryPackageIds;
+
+    if (allCurrentIds.some(id => id.toLowerCase() === packageId.toLowerCase())) {
       return;
     }
+
+    // If we're on a NuGet-style URL (/packages/SomePackage), transition to query param format
+    if (pathPackageId) {
+      const allIds = [pathPackageId, packageId];
+      this.route.navigate(['/packages'], {
+        replaceUrl: true,
+        queryParams: {
+          [this.urlParamName]: allIds,
+          months: this.packageInteractionService.searchPeriod
+        }
+      });
+      return;
+    }
+
+    // Standard query param handling
     const queryParams: Params = { ...this.activatedRoute.snapshot.queryParams };
 
     // if packageIds exists, append the new package to the URL
     // otherwise initialize the param
-    if (packageIds.length) {
-      queryParams[this.urlParamName] = [...packageIds, packageId];
+    if (queryPackageIds.length) {
+      queryParams[this.urlParamName] = [...queryPackageIds, packageId];
     } else {
       queryParams[this.urlParamName] = packageId;
     }
@@ -315,15 +348,33 @@ export class PackagesComponent implements OnInit, OnDestroy {
 
   /**
    * Removes the package from the URL when removing the "tag" from the list
+   * Handles both NuGet-style URLs (/packages/Foo) and query param format
    */
   private removePackageFromUrl(packageId: string) {
-    const packageIds: string[] = this.activatedRoute.snapshot.queryParamMap.getAll(this.urlParamName);
+    const pathPackageId = this.activatedRoute.snapshot.paramMap.get('packageId');
+    const queryPackageIds: string[] = this.activatedRoute.snapshot.queryParamMap.getAll(this.urlParamName);
 
-    if (!packageIds.includes(packageId)) {
+    // If removing the path-based package, navigate away (handled by removePackage -> navigate to home)
+    if (pathPackageId && pathPackageId.toLowerCase() === packageId.toLowerCase()) {
+      // If there are other packages in query params, transition to query-only format
+      if (queryPackageIds.length > 0) {
+        this.route.navigate(['/packages'], {
+          queryParams: {
+            [this.urlParamName]: queryPackageIds,
+            months: this.packageInteractionService.searchPeriod
+          }
+        });
+      }
+      // Otherwise, the calling code (removePackage) will handle navigation to home
+      return;
+    }
+
+    // Standard query param handling
+    if (!queryPackageIds.some(id => id.toLowerCase() === packageId.toLowerCase())) {
       return;
     }
     const queryParams: Params = { ...this.activatedRoute.snapshot.queryParams };
-    queryParams[this.urlParamName] = packageIds.filter(p => p !== packageId);
+    queryParams[this.urlParamName] = queryPackageIds.filter(p => p.toLowerCase() !== packageId.toLowerCase());
 
     this.route.navigate([], {
       queryParams,

@@ -141,6 +141,25 @@ describe('PackagesComponent', () => {
 
       expect(mockedToastr.error).toHaveBeenCalled();
     }));
+
+    it('should load package from NuGet-style URL path parameter (/packages/:packageId)', fakeAsync(() => {
+      spyOn(mockedPackageService, 'getPackageDownloadHistory').and.callThrough();
+      spyOn(packageInteractionService, 'addPackage').and.callThrough();
+      spyOn(packageInteractionService, 'plotPackage').and.callThrough();
+
+      // Set path parameter (NuGet-style URL: /packages/EntityFramework)
+      activatedRoute.testPathParamMap = { packageId: 'EntityFramework' };
+      fixture.detectChanges();
+      tick();
+      fixture.detectChanges();
+
+      const actualPackageElements: HTMLElement[] = fixture.nativeElement.querySelectorAll('.tags span');
+
+      expect(actualPackageElements.length).toBe(1);
+      expect(mockedPackageService.getPackageDownloadHistory).toHaveBeenCalledTimes(1);
+      expect(packageInteractionService.addPackage).toHaveBeenCalledTimes(1);
+      expect(packageInteractionService.plotPackage).toHaveBeenCalledTimes(1);
+    }));
   });
 
   describe('Period Changed', () => {
@@ -380,6 +399,28 @@ describe('PackagesComponent', () => {
       expect(navigateActualParams[1].queryParams[queryParamName]).toEqual(['EntityFramework', 'Dapper']);
       expect(navigateActualParams[1].replaceUrl).toBeTruthy();
       expect(navigateActualParams[1].queryParamsHandling).toBe('merge');
+    }));
+
+    it('should transition from NuGet-style URL to query params when adding second package', fakeAsync(() => {
+      const spy = spyOn(router, 'navigate').and.callThrough();
+
+      // Start with NuGet-style URL (/packages/EntityFramework)
+      activatedRoute.testPathParamMap = { packageId: 'EntityFramework' };
+      fixture.detectChanges();
+      tick();
+      fixture.detectChanges();
+
+      // Act - Add a second package via plotPackage
+      packageInteractionService.plotPackage(PackagesServiceMock.mockedDownloadHistory[1]);
+      fixture.detectChanges();
+      tick();
+
+      const navigateActualParams: any[] = spy.calls.mostRecent().args;
+
+      // Should navigate to /packages with both packages as query params
+      expect(navigateActualParams[0]).toEqual(['/packages']);
+      expect(navigateActualParams[1].queryParams[queryParamName]).toEqual(['EntityFramework', 'Dapper']);
+      expect(navigateActualParams[1].replaceUrl).toBeTruthy();
     }));
   });
 });
