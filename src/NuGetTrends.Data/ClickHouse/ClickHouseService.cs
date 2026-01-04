@@ -248,8 +248,8 @@ public class ClickHouseService : IClickHouseService
                 today() - INTERVAL {maxAgeMonths:Int32} MONTH AS age_cutoff
             SELECT
                 cur.package_id AS package_id,
-                toInt64(avgMerge(cur.download_avg)) AS current_downloads,
-                toInt64(avgMerge(prev.download_avg)) AS previous_downloads
+                toInt64(avgMerge(cur.download_avg) * 7) AS current_downloads,
+                toInt64(avgMerge(prev.download_avg) * 7) AS previous_downloads
             FROM weekly_downloads cur
             INNER JOIN weekly_downloads prev
                 ON cur.package_id = prev.package_id

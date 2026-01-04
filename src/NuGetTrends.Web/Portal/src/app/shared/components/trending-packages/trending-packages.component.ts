@@ -44,6 +44,10 @@ export class TrendingPackagesComponent implements OnInit {
     this.router.navigate(['/packages', packageId]);
   }
 
+  openNuGetPage(packageId: string): void {
+    window.open(`https://www.nuget.org/packages/${packageId}`, '_blank', 'noopener,noreferrer');
+  }
+
   /**
    * Formats the growth rate as a percentage string.
    * Returns '+25%' for positive, '-10%' for negative, or '0%' for zero.
