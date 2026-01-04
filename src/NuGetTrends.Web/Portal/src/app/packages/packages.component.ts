@@ -383,17 +383,15 @@ export class PackagesComponent implements OnInit, OnDestroy {
   }
 
   /**
- * Gets correctly formated date depending on the period
- */
-  private getTimeUnit(period: number): any {
-    if (period >= 3 && period <= 6) {
+   * Gets correctly formatted date depending on the period
+   */
+  private getTimeUnit(period: number): 'day' | 'month' | 'year' {
+    if (period <= 6) {
       return 'day';
-    } else if (period >= 12 && period <= 24) {
+    } else if (period <= 24) {
       return 'month';
-    } else if (period >= 72 && period <= 120) {
-      return 'year';
     } else {
-      return 'month';
+      return 'year';
     }
   }
 }
