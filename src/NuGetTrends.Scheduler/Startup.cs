@@ -11,6 +11,7 @@ using Polly;
 using Polly.Timeout;
 using RabbitMQ.Client;
 using Sentry.Extensibility;
+using Sentry.Hangfire;
 
 namespace NuGetTrends.Scheduler;
 
@@ -105,9 +106,9 @@ public class Startup(
         // Install: Hangfire.PostgreSql
         // Configure: config.UsePostgreSqlStorage(Configuration.GetConnectionString("HangfireConnection")
         services.AddHangfire(config => config
-                .UseStorage(new MemoryStorage())
-                .UseFilter(new SkipConcurrentExecutionFilter()))
-            .AddSentry();
+            .UseStorage(new MemoryStorage())
+            .UseFilter(new SkipConcurrentExecutionFilter())
+            .UseSentry());
         services.AddHangfireServer();
 
         // Bind NuGet resilience options from configuration

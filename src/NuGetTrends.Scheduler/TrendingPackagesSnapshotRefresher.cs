@@ -2,7 +2,6 @@ using Hangfire;
 using Hangfire.Server;
 using NuGetTrends.Data.ClickHouse;
 using Sentry;
-using Sentry.Hangfire;
 
 namespace NuGetTrends.Scheduler;
 
@@ -21,7 +20,6 @@ public class TrendingPackagesSnapshotRefresher(
     private const long MinWeeklyDownloads = 1000;
     private const int MaxPackageAgeMonths = 12;
 
-    [SentryMonitorSlug("TrendingPackagesSnapshotRefresher.Refresh")]
     public async Task Refresh(IJobCancellationToken token, PerformContext? context)
     {
         var jobId = context?.BackgroundJob?.Id ?? "unknown";
@@ -41,6 +39,20 @@ public class TrendingPackagesSnapshotRefresher(
             s.Transaction = transaction;
             s.SetTag("jobId", jobId);
         });
+
+        // Start Sentry cron check-in with monitor upsert (auto-creates/updates monitor config)
+        // Placed inside scope so check-in is bound to the same trace ID
+        var checkInId = hub.CaptureCheckIn(
+            JobScheduleConfig.TrendingSnapshotRefresher.MonitorSlug,
+            CheckInStatus.InProgress,
+            configureMonitorOptions: options =>
+            {
+                options.Interval(1, SentryMonitorInterval.Week);
+                options.CheckInMargin = TimeSpan.FromMinutes(JobScheduleConfig.TrendingSnapshotRefresher.CheckInMarginMinutes);
+                options.MaxRuntime = TimeSpan.FromMinutes(JobScheduleConfig.TrendingSnapshotRefresher.MaxRuntimeMinutes);
+                options.TimeZone = "Etc/UTC";
+                options.FailureIssueThreshold = JobScheduleConfig.TrendingSnapshotRefresher.FailureIssueThreshold;
+            });
 
         try
         {
@@ -74,11 +86,13 @@ public class TrendingPackagesSnapshotRefresher(
             logger.LogInformation("Job {JobId}: Trending packages snapshot refreshed with {Count} packages", jobId, count);
 
             transaction.Finish(SpanStatus.Ok);
+            hub.CaptureCheckIn(JobScheduleConfig.TrendingSnapshotRefresher.MonitorSlug, CheckInStatus.Ok, checkInId);
         }
         catch (OperationCanceledException)
         {
             logger.LogWarning("Job {JobId}: Trending packages snapshot refresh was cancelled", jobId);
             transaction.Finish(SpanStatus.Cancelled);
+            hub.CaptureCheckIn(JobScheduleConfig.TrendingSnapshotRefresher.MonitorSlug, CheckInStatus.Error, checkInId);
             throw;
         }
         catch (Exception ex)
@@ -86,11 +100,12 @@ public class TrendingPackagesSnapshotRefresher(
             logger.LogError(ex, "Job {JobId}: Failed to refresh trending packages snapshot", jobId);
             transaction.Finish(ex);
             hub.CaptureException(ex);
+            hub.CaptureCheckIn(JobScheduleConfig.TrendingSnapshotRefresher.MonitorSlug, CheckInStatus.Error, checkInId);
             throw;
         }
         finally
         {
-            await SentrySdk.FlushAsync(TimeSpan.FromSeconds(2));
+            await hub.FlushAsync(TimeSpan.FromSeconds(2));
         }
     }
 }
