@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
+import { retry, timer } from 'rxjs';
 import { PackagesService } from '../../../core/services/packages.service';
 import { ITrendingPackage } from '../../models/package-models';
 
@@ -14,6 +15,9 @@ export class TrendingPackagesComponent implements OnInit {
   isLoading = true;
   errorMessage: string | null = null;
 
+  private readonly maxRetries = 2;
+  private readonly retryDelayMs = 1000;
+
   constructor(
     private packagesService: PackagesService,
     private router: Router
@@ -27,13 +31,21 @@ export class TrendingPackagesComponent implements OnInit {
     this.isLoading = true;
     this.errorMessage = null;
 
-    this.packagesService.getTrendingPackages(10).subscribe({
+    this.packagesService.getTrendingPackages(10).pipe(
+      retry({
+        count: this.maxRetries,
+        delay: (_error, retryCount) => {
+          console.warn(`Trending packages request failed, retrying (${retryCount}/${this.maxRetries})...`);
+          return timer(this.retryDelayMs * retryCount);
+        }
+      })
+    ).subscribe({
       next: (packages) => {
         this.trendingPackages = packages;
         this.isLoading = false;
       },
       error: (error) => {
-        console.error('Failed to load trending packages', error);
+        console.error('Failed to load trending packages after retries', error);
         this.errorMessage = 'Unable to load trending packages. Please try again later.';
         this.isLoading = false;
       }
