@@ -299,10 +299,7 @@ public class DailyDownloadWorker : IHostedService
         {
             if (packageIds != null)
             {
-                for (var i = 0; i < packageIds.Count; i++)
-                {
-                    e.Data.Add("Package:#" + i.ToString("D2"), packageIds[i]);
-                }
+                e.Data["batch_size"] = packageIds.Count;
             }
             queueProcessSpan.Finish(e);
             transaction.Finish(e);

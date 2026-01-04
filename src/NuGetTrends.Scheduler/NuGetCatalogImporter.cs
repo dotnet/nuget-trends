@@ -1,6 +1,7 @@
 using Hangfire;
 using Hangfire.Server;
 using NuGet.Protocol.Catalog;
+using Polly.CircuitBreaker;
 using Sentry.Hangfire;
 
 namespace NuGetTrends.Scheduler;
@@ -99,6 +100,15 @@ public class NuGetCatalogImporter(
                 catch (HttpRequestException e)
                 {
                     // HTTP failure after resilience retries exhausted - mark NuGet as unavailable
+                    availabilityState.MarkUnavailable(e);
+                    processingSpan.Finish(e);
+                    transaction.Finish(e);
+                    hub.CaptureException(e);
+                    throw;
+                }
+                catch (BrokenCircuitException e)
+                {
+                    // Circuit breaker is open - NuGet API has been failing consistently
                     availabilityState.MarkUnavailable(e);
                     processingSpan.Finish(e);
                     transaction.Finish(e);
