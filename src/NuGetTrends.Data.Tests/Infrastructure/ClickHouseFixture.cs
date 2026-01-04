@@ -1,5 +1,5 @@
 using System.Runtime.CompilerServices;
-using ClickHouse.Client.ADO;
+using ClickHouse.Driver.ADO;
 using Testcontainers.ClickHouse;
 using Xunit;
 

@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Runtime.CompilerServices;
-using ClickHouse.Client.ADO;
-using ClickHouse.Client.Copy;
+using ClickHouse.Driver.ADO;
+using ClickHouse.Driver.Copy;
 using Microsoft.Extensions.Logging;
 
 namespace NuGetTrends.Data.ClickHouse;

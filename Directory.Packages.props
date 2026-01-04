@@ -15,7 +15,7 @@
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
     <PackageVersion Include="NuGet.Client" Version="4.3.0-beta1-2418" />
     <PackageVersion Include="NuGet.Protocol" Version="7.0.1" />
-    <PackageVersion Include="ClickHouse.Client" Version="7.14.0" />
+    <PackageVersion Include="ClickHouse.Driver" Version="0.9.0" />
     <PackageVersion Include="RabbitMQ.Client" Version="6.8.1" />
     <PackageVersion Include="Sentry" Version="$(SentryVersion)" />
     <PackageVersion Include="Sentry.AspNetCore" Version="$(SentryVersion)" />
