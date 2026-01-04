@@ -71,6 +71,7 @@ public class ClickHouseFixture : IAsyncLifetime
             "DROP VIEW IF EXISTS weekly_downloads_mv",
             "DROP TABLE IF EXISTS weekly_downloads",
             "DROP TABLE IF EXISTS trending_packages_snapshot",
+            "DROP TABLE IF EXISTS package_first_seen",
             "DROP TABLE IF EXISTS daily_downloads"
         };
 
@@ -142,6 +143,28 @@ public class ClickHouseFixture : IAsyncLifetime
 
         await using var cmd = connection.CreateCommand();
         cmd.CommandText = "OPTIMIZE TABLE daily_downloads FINAL";
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    /// <summary>
+    /// Populates package_first_seen with all packages from weekly_downloads.
+    /// This is needed for tests that use GetTrendingPackagesAsync, which joins against package_first_seen.
+    /// Call this after inserting test data into daily_downloads.
+    /// </summary>
+    public async Task PopulatePackageFirstSeenAsync()
+    {
+        await using var connection = new ClickHouseConnection(ConnectionString);
+        await connection.OpenAsync();
+
+        // Insert all packages from weekly_downloads that aren't already tracked
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = """
+            INSERT INTO package_first_seen (package_id, first_seen)
+            SELECT package_id, min(week) AS first_seen
+            FROM weekly_downloads
+            WHERE package_id NOT IN (SELECT package_id FROM package_first_seen)
+            GROUP BY package_id
+            """;
         await cmd.ExecuteNonQueryAsync();
     }
 

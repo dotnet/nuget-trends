@@ -236,17 +236,13 @@ public class ClickHouseService : IClickHouseService
         // To favor newer/emerging packages over established ones, we filter by first_seen date.
         // Growth rate = (week - comparison) / comparison
         //
-        // The query:
-        // 1. Gets first_seen date per package (min week in weekly_downloads)
-        // 2. Joins last week and week before data
-        // 3. Filters to packages first seen within maxPackageAgeMonths
-        // 4. Filters by minimum download threshold to reduce noise
-        // 5. Orders by growth rate descending
+        // The query joins against package_first_seen (pre-computed) to avoid the expensive
+        // subquery that computes min(week) for every package on each request.
         const string query = """
             WITH
                 toMonday(today() - INTERVAL 1 WEEK) AS data_week,
                 toMonday(today() - INTERVAL 2 WEEK) AS comparison_week,
-                today() - INTERVAL {maxAgeMonths:Int32} MONTH AS age_cutoff
+                toDate(today() - INTERVAL {maxAgeMonths:Int32} MONTH) AS age_cutoff
             SELECT
                 data_week AS week,
                 cur.package_id AS package_id,
@@ -256,11 +252,8 @@ public class ClickHouseService : IClickHouseService
             INNER JOIN weekly_downloads prev
                 ON cur.package_id = prev.package_id
                 AND prev.week = comparison_week
-            INNER JOIN (
-                SELECT package_id, min(week) AS first_seen
-                FROM weekly_downloads
-                GROUP BY package_id
-            ) first ON cur.package_id = first.package_id
+            INNER JOIN package_first_seen first
+                ON cur.package_id = first.package_id
             WHERE cur.week = data_week
               AND first.first_seen >= age_cutoff
             GROUP BY cur.package_id
@@ -396,13 +389,16 @@ public class ClickHouseService : IClickHouseService
         // IMPORTANT: We use LAST week vs WEEK BEFORE (not current vs previous)
         // This ensures we're comparing complete weeks, not partial data.
         // On Monday at 2 AM UTC, this computes trending for the week that just ended.
+        //
+        // The query joins against package_first_seen (pre-computed) to avoid the expensive
+        // subquery that computes min(week) for every package (which caused OOM).
         const string query = """
             INSERT INTO trending_packages_snapshot
                 (week, package_id, week_downloads, comparison_week_downloads, growth_rate)
             WITH
                 toMonday(today() - INTERVAL 1 WEEK) AS data_week,
                 toMonday(today() - INTERVAL 2 WEEK) AS comparison_week,
-                today() - INTERVAL {maxAgeMonths:Int32} MONTH AS age_cutoff
+                toDate(today() - INTERVAL {maxAgeMonths:Int32} MONTH) AS age_cutoff
             SELECT
                 data_week AS week,
                 cur.package_id AS package_id,
@@ -413,11 +409,8 @@ public class ClickHouseService : IClickHouseService
             INNER JOIN weekly_downloads prev
                 ON cur.package_id = prev.package_id
                 AND prev.week = comparison_week
-            INNER JOIN (
-                SELECT package_id, min(week) AS first_seen
-                FROM weekly_downloads
-                GROUP BY package_id
-            ) first ON cur.package_id = first.package_id
+            INNER JOIN package_first_seen first
+                ON cur.package_id = first.package_id
             WHERE cur.week = data_week
               AND first.first_seen >= age_cutoff
             GROUP BY cur.package_id
@@ -453,6 +446,49 @@ public class ClickHouseService : IClickHouseService
             span?.Finish(SpanStatus.Ok);
 
             _logger.LogInformation("Refreshed trending packages snapshot with {Count} packages", rowsAffected);
+            return rowsAffected;
+        }
+        catch (Exception ex)
+        {
+            span?.Finish(ex);
+            throw;
+        }
+    }
+
+    public async Task<int> UpdatePackageFirstSeenAsync(
+        CancellationToken ct = default,
+        ISpan? parentSpan = null)
+    {
+        // Add new packages from last week to package_first_seen table.
+        // This must be called BEFORE RefreshTrendingPackagesSnapshotAsync to ensure
+        // newly published packages are included in the trending calculation.
+        //
+        // The query is idempotent - packages already in the table are skipped.
+        // This allows safe retries without duplicating data.
+        const string query = """
+            INSERT INTO package_first_seen (package_id, first_seen)
+            SELECT DISTINCT package_id, toMonday(today() - INTERVAL 1 WEEK) AS first_seen
+            FROM weekly_downloads
+            WHERE week = toMonday(today() - INTERVAL 1 WEEK)
+              AND package_id NOT IN (SELECT package_id FROM package_first_seen)
+            """;
+
+        var span = StartDatabaseSpan(parentSpan, query, "INSERT");
+
+        try
+        {
+            await using var connection = new ClickHouseConnection(_connectionString);
+            await connection.OpenAsync(ct);
+
+            await using var cmd = connection.CreateCommand();
+            cmd.CommandText = query;
+
+            var rowsAffected = await cmd.ExecuteNonQueryAsync(ct);
+
+            span?.SetData("db.rows_affected", rowsAffected);
+            span?.Finish(SpanStatus.Ok);
+
+            _logger.LogInformation("Added {Count} new packages to package_first_seen", rowsAffected);
             return rowsAffected;
         }
         catch (Exception ex)

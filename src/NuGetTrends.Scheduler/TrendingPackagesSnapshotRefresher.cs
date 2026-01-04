@@ -46,6 +46,18 @@ public class TrendingPackagesSnapshotRefresher(
         {
             logger.LogInformation("Job {JobId}: Starting trending packages snapshot refresh", jobId);
 
+            // Step 1: Update package_first_seen with new packages from last week
+            // This must run before the snapshot refresh to include newly published packages
+            var firstSeenSpan = transaction.StartChild("clickhouse.update_first_seen", "Update package_first_seen");
+            var newPackages = await clickHouseService.UpdatePackageFirstSeenAsync(
+                ct: token.ShutdownToken,
+                parentSpan: firstSeenSpan);
+            firstSeenSpan.SetData("new_packages_count", newPackages);
+            firstSeenSpan.Finish(SpanStatus.Ok);
+
+            logger.LogInformation("Job {JobId}: Added {NewPackages} new packages to package_first_seen", jobId, newPackages);
+
+            // Step 2: Refresh the trending packages snapshot
             var refreshSpan = transaction.StartChild("clickhouse.refresh", "Refresh trending packages snapshot");
             refreshSpan.SetData("min_weekly_downloads", MinWeeklyDownloads);
             refreshSpan.SetData("max_package_age_months", MaxPackageAgeMonths);

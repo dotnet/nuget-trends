@@ -70,6 +70,7 @@ public interface IClickHouseService
     /// Refresh the trending packages snapshot by computing and storing current trending data.
     /// This runs the expensive query once and stores results in trending_packages_snapshot table.
     /// Should be called weekly (e.g., Monday morning) via a scheduled job.
+    /// Call <see cref="UpdatePackageFirstSeenAsync"/> before this to ensure new packages are included.
     /// </summary>
     /// <param name="minWeeklyDownloads">Minimum weekly downloads to filter noise</param>
     /// <param name="maxPackageAgeMonths">Maximum age of package in months (filters to newer packages)</param>
@@ -79,6 +80,19 @@ public interface IClickHouseService
     Task<int> RefreshTrendingPackagesSnapshotAsync(
         long minWeeklyDownloads = 1000,
         int maxPackageAgeMonths = 12,
+        CancellationToken ct = default,
+        ISpan? parentSpan = null);
+
+    /// <summary>
+    /// Updates the package_first_seen table with new packages from last week.
+    /// This must be called BEFORE <see cref="RefreshTrendingPackagesSnapshotAsync"/> to ensure
+    /// newly published packages are included in the trending calculation.
+    /// The operation is idempotent - packages already tracked are skipped.
+    /// </summary>
+    /// <param name="ct">Cancellation token</param>
+    /// <param name="parentSpan">Optional parent span for Sentry tracing</param>
+    /// <returns>Number of new packages added</returns>
+    Task<int> UpdatePackageFirstSeenAsync(
         CancellationToken ct = default,
         ISpan? parentSpan = null);
 }

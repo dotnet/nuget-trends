@@ -624,6 +624,9 @@ public class ClickHouseServiceTests : IAsyncLifetime
     [Fact]
     public async Task GetTrendingPackagesAsync_WithNoData_ReturnsEmptyList()
     {
+        // Arrange - Ensure package_first_seen is populated (will be empty since no data)
+        await _fixture.PopulatePackageFirstSeenAsync();
+
         // Act
         var result = await _sut.GetTrendingPackagesAsync(limit: 10, minWeeklyDownloads: 100, maxPackageAgeMonths: 12);
 
@@ -643,6 +646,7 @@ public class ClickHouseServiceTests : IAsyncLifetime
             (packageId, monday.AddDays(1), 5000),
         };
         await _sut.InsertDailyDownloadsAsync(downloads);
+        await _fixture.PopulatePackageFirstSeenAsync();
 
         // Act
         var result = await _sut.GetTrendingPackagesAsync(limit: 100, minWeeklyDownloads: 100, maxPackageAgeMonths: 12);
@@ -669,6 +673,7 @@ public class ClickHouseServiceTests : IAsyncLifetime
             (packageId, currentMonday, 100),
         };
         await _sut.InsertDailyDownloadsAsync(downloads);
+        await _fixture.PopulatePackageFirstSeenAsync();
 
         // Act - Set minimum to 1000 (which is > 700 weekly)
         var result = await _sut.GetTrendingPackagesAsync(limit: 100, minWeeklyDownloads: 1000, maxPackageAgeMonths: 12);
@@ -703,6 +708,7 @@ public class ClickHouseServiceTests : IAsyncLifetime
             (packageC, currentMonday, 2500),
         };
         await _sut.InsertDailyDownloadsAsync(downloads);
+        await _fixture.PopulatePackageFirstSeenAsync();
 
         // Act
         var result = await _sut.GetTrendingPackagesAsync(limit: 100, minWeeklyDownloads: 100, maxPackageAgeMonths: 12);
@@ -731,6 +737,7 @@ public class ClickHouseServiceTests : IAsyncLifetime
             downloads.Add((packageId, currentMonday, 1000 + i * 100)); // Increasing growth rates
         }
         await _sut.InsertDailyDownloadsAsync(downloads);
+        await _fixture.PopulatePackageFirstSeenAsync();
 
         // Act - Request only 5 packages
         var result = await _sut.GetTrendingPackagesAsync(limit: 5, minWeeklyDownloads: 100, maxPackageAgeMonths: 12);
@@ -762,6 +769,7 @@ public class ClickHouseServiceTests : IAsyncLifetime
             (newPackageId, currentMonday, 1500), // 50% growth
         };
         await _sut.InsertDailyDownloadsAsync(downloads);
+        await _fixture.PopulatePackageFirstSeenAsync();
 
         // Act - Filter to packages up to 12 months old
         var result = await _sut.GetTrendingPackagesAsync(limit: 100, minWeeklyDownloads: 100, maxPackageAgeMonths: 12);
@@ -790,6 +798,7 @@ public class ClickHouseServiceTests : IAsyncLifetime
             (packageId, currentMonday, 3000),
         };
         await _sut.InsertDailyDownloadsAsync(downloads);
+        await _fixture.PopulatePackageFirstSeenAsync();
 
         // Act
         var result = await _sut.GetTrendingPackagesAsync(limit: 100, minWeeklyDownloads: 100, maxPackageAgeMonths: 12);
@@ -818,6 +827,7 @@ public class ClickHouseServiceTests : IAsyncLifetime
             (packageId, currentMonday, 1500),
         };
         await _sut.InsertDailyDownloadsAsync(downloads);
+        await _fixture.PopulatePackageFirstSeenAsync();
 
         // Act
         var result = await _sut.GetTrendingPackagesAsync(limit: 100, minWeeklyDownloads: 100, maxPackageAgeMonths: 12);
@@ -842,6 +852,7 @@ public class ClickHouseServiceTests : IAsyncLifetime
             (packageId, currentMonday, 5000), // 0% growth
         };
         await _sut.InsertDailyDownloadsAsync(downloads);
+        await _fixture.PopulatePackageFirstSeenAsync();
 
         // Act
         var result = await _sut.GetTrendingPackagesAsync(limit: 100, minWeeklyDownloads: 100, maxPackageAgeMonths: 12);
@@ -866,6 +877,7 @@ public class ClickHouseServiceTests : IAsyncLifetime
             (packageId, currentMonday, 8000), // -20% growth
         };
         await _sut.InsertDailyDownloadsAsync(downloads);
+        await _fixture.PopulatePackageFirstSeenAsync();
 
         // Act
         var result = await _sut.GetTrendingPackagesAsync(limit: 100, minWeeklyDownloads: 100, maxPackageAgeMonths: 12);
