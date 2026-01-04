@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
-import { Observable } from 'rxjs';
+import { Observable, map, catchError, of } from 'rxjs';
 
 import { IPackageSearchResult, IPackageDownloadHistory } from '../../shared/models/package-models';
 
@@ -10,6 +10,7 @@ import { IPackageSearchResult, IPackageDownloadHistory } from '../../shared/mode
 })
 export class PackagesService {
   baseUrl = `${environment.API_URL}/api`;
+  private nugetApiUrl = 'https://api.nuget.org/v3-flatcontainer';
 
   constructor(private httpClient: HttpClient) {
   }
@@ -20,6 +21,19 @@ export class PackagesService {
 
   getPackageDownloadHistory(term: string, months: number = 12): Observable<IPackageDownloadHistory> {
     return this.httpClient.get<IPackageDownloadHistory>(`${this.baseUrl}/package/history/${term}?months=${months}`);
+  }
+
+  /**
+   * Checks if a package exists on nuget.org by querying the flat container API.
+   * Returns true if the package exists, false otherwise.
+   */
+  checkPackageExistsOnNuGet(packageId: string): Observable<boolean> {
+    // The flat container API returns package versions if the package exists
+    // URL format: https://api.nuget.org/v3-flatcontainer/{package-id}/index.json
+    return this.httpClient.get(`${this.nugetApiUrl}/${packageId.toLowerCase()}/index.json`).pipe(
+      map(() => true),
+      catchError(() => of(false))
+    );
   }
 
   searchFramework(term: string): Observable<IPackageSearchResult[]> {

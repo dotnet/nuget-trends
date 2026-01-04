@@ -1,4 +1,4 @@
-import { HttpClientModule, HttpResponse } from '@angular/common/http';
+import { HttpClientModule, HttpErrorResponse } from '@angular/common/http';
 import { CommonModule, DatePipe } from '@angular/common';
 import { Router, ActivatedRoute } from '@angular/router';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
@@ -36,6 +36,11 @@ class PackagesServiceMock {
 
   getPackageDownloadHistory(packageId: string, _months: number = 12): Observable<IPackageDownloadHistory> {
     return of(PackagesServiceMock.mockedDownloadHistory.find(p => p.id === packageId)!);
+  }
+
+  checkPackageExistsOnNuGet(_packageId: string): Observable<boolean> {
+    // Default mock returns false (package doesn't exist on nuget.org)
+    return of(false);
   }
 }
 
@@ -124,12 +129,14 @@ describe('PackagesComponent', () => {
     }));
 
     it('should show error message when request fails during initial history load', fakeAsync(() => {
-      // Fake the service returning an error
-      const response = new HttpResponse({
-        body: '{ "error": ""}',
-        status: 500
+      // Fake the service returning a 500 error
+      const response = new HttpErrorResponse({
+        error: '{ "error": ""}',
+        status: 500,
+        statusText: 'Internal Server Error',
+        url: 'http://test'
       });
-      spyOn(mockedPackageService, 'getPackageDownloadHistory').and.returnValue(throwError(response));
+      spyOn(mockedPackageService, 'getPackageDownloadHistory').and.returnValue(throwError(() => response));
       spyOn(mockedToastr, 'error').and.callThrough();
 
       const packages = ['EntityFramework'];
@@ -140,6 +147,58 @@ describe('PackagesComponent', () => {
       fixture.detectChanges();
 
       expect(mockedToastr.error).toHaveBeenCalled();
+    }));
+
+    it('should show warning that package does not exist when 404 and package not on nuget.org', fakeAsync(() => {
+      // Fake the service returning a 404 error
+      const response = new HttpErrorResponse({
+        error: 'Not Found',
+        status: 404,
+        statusText: 'Not Found',
+        url: 'http://test/api/package/history/InvalidPackage'
+      });
+      spyOn(mockedPackageService, 'getPackageDownloadHistory').and.returnValue(throwError(() => response));
+      // Package doesn't exist on nuget.org
+      spyOn(mockedPackageService, 'checkPackageExistsOnNuGet').and.returnValue(of(false));
+      spyOn(mockedToastr, 'warning').and.callThrough();
+      spyOn(mockedToastr, 'error').and.callThrough();
+      spyOn(router, 'navigate').and.callThrough();
+
+      const packages = ['InvalidPackage'];
+
+      activatedRoute.testParamMap = { months: 12, ids: packages };
+      fixture.detectChanges();
+      tick();
+      fixture.detectChanges();
+
+      expect(mockedToastr.warning).toHaveBeenCalledWith("Package 'InvalidPackage' doesn't exist.");
+      expect(mockedToastr.error).not.toHaveBeenCalled();
+    }));
+
+    it('should show warning that package exists on nuget.org but not tracked when 404', fakeAsync(() => {
+      // Fake the service returning a 404 error
+      const response = new HttpErrorResponse({
+        error: 'Not Found',
+        status: 404,
+        statusText: 'Not Found',
+        url: 'http://test/api/package/history/System.Diagnostics'
+      });
+      spyOn(mockedPackageService, 'getPackageDownloadHistory').and.returnValue(throwError(() => response));
+      // Package exists on nuget.org but NuGet Trends doesn't track it
+      spyOn(mockedPackageService, 'checkPackageExistsOnNuGet').and.returnValue(of(true));
+      spyOn(mockedToastr, 'warning').and.callThrough();
+      spyOn(mockedToastr, 'error').and.callThrough();
+      spyOn(router, 'navigate').and.callThrough();
+
+      const packages = ['System.Diagnostics'];
+
+      activatedRoute.testParamMap = { months: 12, ids: packages };
+      fixture.detectChanges();
+      tick();
+      fixture.detectChanges();
+
+      expect(mockedToastr.warning).toHaveBeenCalledWith("Package 'System.Diagnostics' exists on NuGet.org but is not yet tracked by NuGet Trends.");
+      expect(mockedToastr.error).not.toHaveBeenCalled();
     }));
 
     it('should load package from NuGet-style URL path parameter (/packages/:packageId)', fakeAsync(() => {
@@ -216,13 +275,15 @@ describe('PackagesComponent', () => {
       tick();
       fixture.detectChanges();
 
-      // Fake the service returning an error
-      const response = new HttpResponse({
-        body: '{ "error": ""}',
-        status: 500
+      // Fake the service returning a 500 error
+      const response = new HttpErrorResponse({
+        error: '{ "error": ""}',
+        status: 500,
+        statusText: 'Internal Server Error',
+        url: 'http://test'
       });
 
-      spyOn(mockedPackageService, 'getPackageDownloadHistory').and.returnValue(throwError(response));
+      spyOn(mockedPackageService, 'getPackageDownloadHistory').and.returnValue(throwError(() => response));
       spyOn(mockedToastr, 'error').and.callThrough();
 
       // trigger the change of the period via the service
@@ -232,6 +293,38 @@ describe('PackagesComponent', () => {
       fixture.detectChanges();
 
       expect(mockedToastr.error).toHaveBeenCalled();
+    }));
+
+    it('should show warning message when package returns 404 during period change', fakeAsync(() => {
+      // Initially start the page with a package in URL
+      const packages = ['EntityFramework'];
+      activatedRoute.testParamMap = { months: 12, ids: packages };
+      fixture.detectChanges();
+      tick();
+      fixture.detectChanges();
+
+      // Fake the service returning a 404 error
+      const response = new HttpErrorResponse({
+        error: 'Not Found',
+        status: 404,
+        statusText: 'Not Found',
+        url: 'http://test/api/package/history/EntityFramework'
+      });
+
+      spyOn(mockedPackageService, 'getPackageDownloadHistory').and.returnValue(throwError(() => response));
+      // Package doesn't exist on nuget.org
+      spyOn(mockedPackageService, 'checkPackageExistsOnNuGet').and.returnValue(of(false));
+      spyOn(mockedToastr, 'warning').and.callThrough();
+      spyOn(mockedToastr, 'error').and.callThrough();
+
+      // trigger the change of the period via the service
+      const newPeriod = 12;
+      packageInteractionService.changeSearchPeriod(newPeriod);
+      tick();
+      fixture.detectChanges();
+
+      expect(mockedToastr.warning).toHaveBeenCalledWith("Package 'EntityFramework' doesn't exist.");
+      expect(mockedToastr.error).not.toHaveBeenCalled();
     }));
   });
 
