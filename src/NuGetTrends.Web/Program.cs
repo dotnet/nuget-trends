@@ -53,9 +53,12 @@ try
                 // Ignore SPA default page middleware errors for POST requests
                 // The SPA middleware doesn't support POST requests to index.html and this is expected behavior
                 // See: https://nugettrends.sentry.io/issues/4968360400/
-                if (e.Exception is InvalidOperationException &&
-                    e.Message?.Formatted is { } message &&
-                    message.Contains("The SPA default page middleware could not return the default page") &&
+                // Note: We check SentryExceptions instead of Exception because when exceptions are
+                // captured via middleware, the Exception property may be null - the exception data
+                // is stored in the SentryExceptions collection instead.
+                var firstException = e.SentryExceptions?.FirstOrDefault();
+                if (firstException?.Type == "System.InvalidOperationException" &&
+                    firstException.Value?.Contains("The SPA default page middleware could not return the default page") == true &&
                     e.Request?.Method == "POST")
                 {
                     return null;
