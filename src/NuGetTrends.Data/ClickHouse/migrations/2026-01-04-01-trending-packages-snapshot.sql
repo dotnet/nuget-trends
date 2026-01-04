@@ -1,6 +1,5 @@
 -- ClickHouse Schema Migration: 2026-01-04-01-trending-packages-snapshot
 -- Pre-computed trending packages snapshot to avoid expensive real-time queries
--- See: https://github.com/dotnet/nuget-trends/issues/XXX
 --
 -- The trending packages query involves:
 -- 1. Self-join on weekly_downloads (current vs previous week)
