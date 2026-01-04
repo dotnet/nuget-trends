@@ -164,13 +164,17 @@ public class ClickHouseService : IClickHouseService
         CancellationToken ct = default,
         ISpan? parentSpan = null)
     {
+        // Query the pre-aggregated weekly_downloads table (populated by MV)
+        // Uses avgMerge() to finalize the pre-computed aggregate state
+        // GROUP BY is still needed as ClickHouse may not have merged all parts yet,
+        // but this is now a trivial merge of aggregate states, not full aggregation
         const string query = """
             SELECT
-                toMonday(date) AS week,
-                avg(download_count) AS download_count
-            FROM daily_downloads
+                week,
+                avgMerge(download_avg) AS download_count
+            FROM weekly_downloads
             WHERE package_id = {packageId:String}
-              AND date >= today() - INTERVAL {months:Int32} MONTH
+              AND week >= toMonday(today() - INTERVAL {months:Int32} MONTH)
             GROUP BY week
             ORDER BY week
             """;
