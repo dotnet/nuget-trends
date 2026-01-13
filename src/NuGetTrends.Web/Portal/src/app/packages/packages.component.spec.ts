@@ -605,5 +605,37 @@ describe('PackagesComponent', () => {
       component.notFoundPackages = [{ packageId: 'Test', existsOnNuGet: true }];
       expect(component.showEmptyState).toBeTrue();
     });
+
+    it('should show toast for failed packages when some packages load successfully (partial failure)', fakeAsync(() => {
+      // This test verifies the fix for the race condition where 404 could arrive
+      // before successful packages were plotted, causing silent failures
+      spyOn(mockedPackageService, 'getPackageDownloadHistory').and.callFake((packageId: string) => {
+        if (packageId === 'EntityFramework') {
+          return of(PackagesServiceMock.mockedDownloadHistory[0]);
+        }
+        return throwError(() => new HttpErrorResponse({
+          error: 'Not Found',
+          status: 404,
+          statusText: 'Not Found',
+          url: `http://test/api/package/history/${packageId}`
+        }));
+      });
+      spyOn(mockedPackageService, 'checkPackageExistsOnNuGet').and.returnValue(of(false));
+      spyOn(mockedToastr, 'warning').and.callThrough();
+
+      // Load both a valid package and an invalid one
+      activatedRoute.testParamMap = { months: 12, ids: ['EntityFramework', 'InvalidPackage'] };
+      fixture.detectChanges();
+      tick();
+      fixture.detectChanges();
+
+      // Toast should be shown for the failed package since some packages succeeded
+      expect(mockedToastr.warning).toHaveBeenCalledWith("Package 'InvalidPackage' doesn't exist.");
+      // Not in empty state since EntityFramework loaded
+      expect(component.showEmptyState).toBeFalse();
+      expect(component.hasLoadedPackages).toBeTrue();
+      // But we still track the failed package
+      expect(component.notFoundPackages.length).toBe(1);
+    }));
   });
 });

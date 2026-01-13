@@ -132,7 +132,7 @@ export class PackagesComponent implements OnInit, OnDestroy {
       } catch (error) {
         if (error instanceof HttpErrorResponse && error.status === 404) {
           // Show toast when changing period since user already has context
-          await this.handlePackageNotFound(packageId, true);
+          await this.handlePackageNotFound(packageId);
         } else {
           this.errorHandler.handleError(error);
           this.toastr.error('Our servers are too cool (or not) to handle your request at the moment.');
@@ -174,26 +174,20 @@ export class PackagesComponent implements OnInit, OnDestroy {
   /**
    * Handles a 404 error by checking if the package exists on nuget.org
    * and showing an appropriate message to the user.
-   * @param packageId The package ID that was not found
-   * @param forceToast If true, always show the toast notification (used when the user
-   *                   already has context, e.g., during period changes)
+   * Used by periodChanged where we always want to show toasts since the user
+   * already has context from previously viewing packages.
    */
-  private async handlePackageNotFound(packageId: string, forceToast = false): Promise<void> {
+  private async handlePackageNotFound(packageId: string): Promise<void> {
     const existsOnNuGet = await firstValueFrom(this.packagesService.checkPackageExistsOnNuGet(packageId));
 
-    // Track the not-found package for empty state display
+    // Track the not-found package for potential empty state display
     this.notFoundPackages.push({ packageId, existsOnNuGet });
 
-    // Show toast if:
-    // 1. Explicitly requested (e.g., during period changes when user already has context)
-    // 2. OR there are other packages successfully loaded (partial failure scenario)
-    // Otherwise, the empty state UI will handle the messaging
-    if (forceToast || this.hasLoadedPackages) {
-      if (existsOnNuGet) {
-        this.toastr.warning(`Package '${packageId}' exists on NuGet.org but is not yet tracked by NuGet Trends.`);
-      } else {
-        this.toastr.warning(`Package '${packageId}' doesn't exist.`);
-      }
+    // Always show toast in this context (period changes)
+    if (existsOnNuGet) {
+      this.toastr.warning(`Package '${packageId}' exists on NuGet.org but is not yet tracked by NuGet Trends.`);
+    } else {
+      this.toastr.warning(`Package '${packageId}' doesn't exist.`);
     }
 
     this.removePackageFromUrl(packageId);
@@ -388,16 +382,23 @@ export class PackagesComponent implements OnInit, OnDestroy {
     this.isLoading = true;
     this.notFoundPackages = [];
 
+    // Track successful and failed packages during the parallel load
+    let successCount = 0;
+    const pendingNotFoundPackages: NotFoundPackage[] = [];
+
     const loadPromises = packageIds.map(async (packageId: string) => {
       try {
         const downloadHistory = await firstValueFrom(this.packagesService.getPackageDownloadHistory(
           packageId, this.packageInteractionService.searchPeriod));
 
         this.packageInteractionService.addPackage(downloadHistory);
+        successCount++;
       } catch (error) {
         if (error instanceof HttpErrorResponse && error.status === 404) {
-          // Don't show toast during initial load - empty state will handle it
-          await this.handlePackageNotFound(packageId, false);
+          // Check if package exists on NuGet.org and collect for later processing
+          const existsOnNuGet = await firstValueFrom(this.packagesService.checkPackageExistsOnNuGet(packageId));
+          pendingNotFoundPackages.push({ packageId, existsOnNuGet });
+          this.removePackageFromUrl(packageId);
         } else {
           this.errorHandler.handleError(error);
           this.toastr.error('Our servers are too cool (or not) to handle your request at the moment.');
@@ -405,8 +406,25 @@ export class PackagesComponent implements OnInit, OnDestroy {
       }
     });
 
-    // Wait for all packages to be processed before updating loading state
+    // Wait for all packages to be processed
     await Promise.all(loadPromises);
+
+    // Now process not-found packages after all loads complete
+    // This avoids the race condition where 404 arrives before success
+    this.notFoundPackages = pendingNotFoundPackages;
+
+    // If some packages loaded successfully but others failed, show toasts for the failures
+    // Otherwise, the empty state UI will display the information
+    if (successCount > 0 && pendingNotFoundPackages.length > 0) {
+      for (const pkg of pendingNotFoundPackages) {
+        if (pkg.existsOnNuGet) {
+          this.toastr.warning(`Package '${pkg.packageId}' exists on NuGet.org but is not yet tracked by NuGet Trends.`);
+        } else {
+          this.toastr.warning(`Package '${pkg.packageId}' doesn't exist.`);
+        }
+      }
+    }
+
     this.isLoading = false;
   }
 
