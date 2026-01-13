@@ -6,10 +6,18 @@ import { ActivatedRoute, Params, Router } from '@angular/router';
 import { AppAnimations } from '../shared';
 import { ToastrService } from 'ngx-toastr';
 import * as Sentry from "@sentry/angular";
-import 'chartjs-adapter-date-fns'; 
+import 'chartjs-adapter-date-fns';
 
 import { PackagesService, PackageInteractionService, ThemeService } from '../core';
 import { IPackageDownloadHistory, IDownloadStats } from '../shared/models/package-models';
+
+/**
+ * Represents a package that was requested but could not be found
+ */
+export interface NotFoundPackage {
+  packageId: string;
+  existsOnNuGet: boolean;
+}
 import { 
   Chart, 
   ChartData, 
@@ -35,6 +43,11 @@ Chart.register(LineController, LineElement, PointElement, LinearScale, TimeScale
 })
 @Sentry.TraceClass({ name: 'HeaderComponent' })
 export class PackagesComponent implements OnInit, OnDestroy {
+  /** Indicates whether packages are being loaded from the URL */
+  isLoading = true;
+
+  /** List of packages that were requested but could not be found */
+  notFoundPackages: NotFoundPackage[] = [];
 
   private trendChart!: Chart;
   private canvas: any;
@@ -112,32 +125,75 @@ export class PackagesComponent implements OnInit, OnDestroy {
 
     this.chartData.datasets = [];
 
-    packageIds.forEach(async (packageId: string) => {
+    const loadPromises = packageIds.map(async (packageId: string) => {
       try {
         const downloadHistory = await firstValueFrom(this.packagesService.getPackageDownloadHistory(packageId, period));
         this.packageInteractionService.updatePackage(downloadHistory);
       } catch (error) {
         if (error instanceof HttpErrorResponse && error.status === 404) {
-          await this.handlePackageNotFound(packageId);
+          // Show toast when changing period since user already has context
+          await this.handlePackageNotFound(packageId, true);
         } else {
           this.errorHandler.handleError(error);
           this.toastr.error('Our servers are too cool (or not) to handle your request at the moment.');
         }
       }
     });
+
+    await Promise.all(loadPromises);
+  }
+
+  /**
+   * Checks if there are packages successfully loaded and displayed on the chart
+   */
+  get hasLoadedPackages(): boolean {
+    return this.chartData.datasets!.length > 0;
+  }
+
+  /**
+   * Checks if the empty state should be shown (no packages loaded and not loading)
+   */
+  get showEmptyState(): boolean {
+    return !this.isLoading && !this.hasLoadedPackages && this.notFoundPackages.length > 0;
+  }
+
+  /**
+   * Opens the NuGet.org page for the specified package
+   */
+  openNuGetPage(packageId: string): void {
+    window.open(`https://www.nuget.org/packages/${packageId}`, '_blank');
+  }
+
+  /**
+   * Navigates to the home page to search for packages
+   */
+  navigateHome(): void {
+    this.route.navigate(['/']);
   }
 
   /**
    * Handles a 404 error by checking if the package exists on nuget.org
    * and showing an appropriate message to the user.
+   * @param packageId The package ID that was not found
+   * @param forceToast If true, always show the toast notification (used when the user
+   *                   already has context, e.g., during period changes)
    */
-  private async handlePackageNotFound(packageId: string): Promise<void> {
+  private async handlePackageNotFound(packageId: string, forceToast = false): Promise<void> {
     const existsOnNuGet = await firstValueFrom(this.packagesService.checkPackageExistsOnNuGet(packageId));
 
-    if (existsOnNuGet) {
-      this.toastr.warning(`Package '${packageId}' exists on NuGet.org but is not yet tracked by NuGet Trends.`);
-    } else {
-      this.toastr.warning(`Package '${packageId}' doesn't exist.`);
+    // Track the not-found package for empty state display
+    this.notFoundPackages.push({ packageId, existsOnNuGet });
+
+    // Show toast if:
+    // 1. Explicitly requested (e.g., during period changes when user already has context)
+    // 2. OR there are other packages successfully loaded (partial failure scenario)
+    // Otherwise, the empty state UI will handle the messaging
+    if (forceToast || this.hasLoadedPackages) {
+      if (existsOnNuGet) {
+        this.toastr.warning(`Package '${packageId}' exists on NuGet.org but is not yet tracked by NuGet Trends.`);
+      } else {
+        this.toastr.warning(`Package '${packageId}' doesn't exist.`);
+      }
     }
 
     this.removePackageFromUrl(packageId);
@@ -324,10 +380,15 @@ export class PackagesComponent implements OnInit, OnDestroy {
       : queryPackageIds;
 
     if (!packageIds.length) {
+      this.isLoading = false;
       return;
     }
 
-    packageIds.forEach(async (packageId: string) => {
+    // Reset state for fresh load
+    this.isLoading = true;
+    this.notFoundPackages = [];
+
+    const loadPromises = packageIds.map(async (packageId: string) => {
       try {
         const downloadHistory = await firstValueFrom(this.packagesService.getPackageDownloadHistory(
           packageId, this.packageInteractionService.searchPeriod));
@@ -335,13 +396,18 @@ export class PackagesComponent implements OnInit, OnDestroy {
         this.packageInteractionService.addPackage(downloadHistory);
       } catch (error) {
         if (error instanceof HttpErrorResponse && error.status === 404) {
-          await this.handlePackageNotFound(packageId);
+          // Don't show toast during initial load - empty state will handle it
+          await this.handlePackageNotFound(packageId, false);
         } else {
           this.errorHandler.handleError(error);
           this.toastr.error('Our servers are too cool (or not) to handle your request at the moment.');
         }
       }
     });
+
+    // Wait for all packages to be processed before updating loading state
+    await Promise.all(loadPromises);
+    this.isLoading = false;
   }
 
   /**

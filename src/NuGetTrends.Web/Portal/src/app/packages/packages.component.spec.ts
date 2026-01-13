@@ -149,7 +149,7 @@ describe('PackagesComponent', () => {
       expect(mockedToastr.error).toHaveBeenCalled();
     }));
 
-    it('should show warning that package does not exist when 404 and package not on nuget.org', fakeAsync(() => {
+    it('should show empty state when package does not exist and 404 returned', fakeAsync(() => {
       // Fake the service returning a 404 error
       const response = new HttpErrorResponse({
         error: 'Not Found',
@@ -171,11 +171,16 @@ describe('PackagesComponent', () => {
       tick();
       fixture.detectChanges();
 
-      expect(mockedToastr.warning).toHaveBeenCalledWith("Package 'InvalidPackage' doesn't exist.");
+      // No toast during initial load - empty state handles the messaging
+      expect(mockedToastr.warning).not.toHaveBeenCalled();
       expect(mockedToastr.error).not.toHaveBeenCalled();
+      // Component should track the not-found package
+      expect(component.notFoundPackages.length).toBe(1);
+      expect(component.notFoundPackages[0]).toEqual({ packageId: 'InvalidPackage', existsOnNuGet: false });
+      expect(component.showEmptyState).toBeTrue();
     }));
 
-    it('should show warning that package exists on nuget.org but not tracked when 404', fakeAsync(() => {
+    it('should show empty state when package exists on nuget.org but not tracked', fakeAsync(() => {
       // Fake the service returning a 404 error
       const response = new HttpErrorResponse({
         error: 'Not Found',
@@ -197,8 +202,13 @@ describe('PackagesComponent', () => {
       tick();
       fixture.detectChanges();
 
-      expect(mockedToastr.warning).toHaveBeenCalledWith("Package 'System.Diagnostics' exists on NuGet.org but is not yet tracked by NuGet Trends.");
+      // No toast during initial load - empty state handles the messaging
+      expect(mockedToastr.warning).not.toHaveBeenCalled();
       expect(mockedToastr.error).not.toHaveBeenCalled();
+      // Component should track the not-found package
+      expect(component.notFoundPackages.length).toBe(1);
+      expect(component.notFoundPackages[0]).toEqual({ packageId: 'System.Diagnostics', existsOnNuGet: true });
+      expect(component.showEmptyState).toBeTrue();
     }));
 
     it('should load package from NuGet-style URL path parameter (/packages/:packageId)', fakeAsync(() => {
@@ -515,5 +525,85 @@ describe('PackagesComponent', () => {
       expect(navigateActualParams[1].queryParams[queryParamName]).toEqual(['EntityFramework', 'Dapper']);
       expect(navigateActualParams[1].replaceUrl).toBeTruthy();
     }));
+  });
+
+  describe('Empty State', () => {
+
+    it('should set isLoading to false when no packages in URL', fakeAsync(() => {
+      fixture.detectChanges();
+      tick();
+      fixture.detectChanges();
+
+      expect(component.isLoading).toBeFalse();
+      expect(component.showEmptyState).toBeFalse();
+    }));
+
+    it('should track not-found packages for empty state display', fakeAsync(() => {
+      const response = new HttpErrorResponse({
+        error: 'Not Found',
+        status: 404,
+        statusText: 'Not Found',
+        url: 'http://test/api/package/history/NewPackage'
+      });
+      spyOn(mockedPackageService, 'getPackageDownloadHistory').and.returnValue(throwError(() => response));
+      spyOn(mockedPackageService, 'checkPackageExistsOnNuGet').and.returnValue(of(true));
+
+      activatedRoute.testParamMap = { months: 12, ids: ['NewPackage'] };
+      fixture.detectChanges();
+      tick();
+      fixture.detectChanges();
+
+      // Component should track the not-found package
+      expect(component.notFoundPackages.length).toBe(1);
+      expect(component.notFoundPackages[0]).toEqual({ packageId: 'NewPackage', existsOnNuGet: true });
+      expect(component.showEmptyState).toBeTrue();
+      expect(component.isLoading).toBeFalse();
+    }));
+
+    it('should track non-existent packages for empty state display', fakeAsync(() => {
+      const response = new HttpErrorResponse({
+        error: 'Not Found',
+        status: 404,
+        statusText: 'Not Found',
+        url: 'http://test/api/package/history/FakePackage'
+      });
+      spyOn(mockedPackageService, 'getPackageDownloadHistory').and.returnValue(throwError(() => response));
+      spyOn(mockedPackageService, 'checkPackageExistsOnNuGet').and.returnValue(of(false));
+
+      activatedRoute.testParamMap = { months: 12, ids: ['FakePackage'] };
+      fixture.detectChanges();
+      tick();
+      fixture.detectChanges();
+
+      // Component should track the not-found package
+      expect(component.notFoundPackages.length).toBe(1);
+      expect(component.notFoundPackages[0]).toEqual({ packageId: 'FakePackage', existsOnNuGet: false });
+      expect(component.showEmptyState).toBeTrue();
+      expect(component.isLoading).toBeFalse();
+    }));
+
+    it('should open NuGet.org page when openNuGetPage is called', () => {
+      const windowOpenSpy = spyOn(window, 'open');
+      component.openNuGetPage('TestPackage');
+      expect(windowOpenSpy).toHaveBeenCalledWith('https://www.nuget.org/packages/TestPackage', '_blank');
+    });
+
+    it('should correctly compute hasLoadedPackages based on chart datasets', () => {
+      // Initially no packages loaded
+      expect(component.hasLoadedPackages).toBeFalse();
+    });
+
+    it('should correctly compute showEmptyState', () => {
+      // Initially isLoading is true and no not-found packages
+      expect(component.showEmptyState).toBeFalse();
+
+      // Simulate loading complete with no packages
+      component.isLoading = false;
+      expect(component.showEmptyState).toBeFalse(); // Still false because no notFoundPackages
+
+      // Add a not-found package
+      component.notFoundPackages = [{ packageId: 'Test', existsOnNuGet: true }];
+      expect(component.showEmptyState).toBeTrue();
+    });
   });
 });

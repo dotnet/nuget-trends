@@ -4,7 +4,75 @@
       <app-package-list></app-package-list>
     </div>
   </section>
-  <div class="columns is-vcentered is-centered">
+
+  <!-- Loading state -->
+  <div *ngIf="isLoading" class="section">
+    <div class="columns is-centered">
+      <div class="column is-8 has-text-centered">
+        <p class="is-size-5 has-text-grey">Loading package data...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Empty state when package(s) not found -->
+  <div *ngIf="showEmptyState" class="section">
+    <div class="columns is-centered">
+      <div class="column is-8">
+        <div class="empty-state-card">
+          <div class="empty-state-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 512 512" fill="currentColor">
+              <path d="M400 32H112C67.8 32 32 67.8 32 112v288c0 44.2 35.8 80 80 80h288c44.2 0 80-35.8 80-80V112c0-44.2-35.8-80-80-80zM178.6 409.6c-52.4 0-94.8-42.5-94.8-94.8s42.5-94.8 94.8-94.8 94.8 42.5 94.8 94.8-42.4 94.8-94.8 94.8zm46.5-224.8c-36.1 0-65.4-29.3-65.4-65.4s29.3-65.4 65.4-65.4 65.4 29.3 65.4 65.4-29.3 65.4-65.4 65.4zm158.8 131.6c-47.8 0-86.6-38.8-86.6-86.6s38.8-86.6 86.6-86.6 86.6 38.8 86.6 86.6-38.8 86.6-86.6 86.6z"/>
+            </svg>
+          </div>
+
+          <!-- Show different messages based on whether package exists on NuGet.org -->
+          <ng-container *ngFor="let pkg of notFoundPackages">
+            <div class="empty-state-content" *ngIf="pkg.existsOnNuGet">
+              <h3 class="title is-4">Package Not Yet Tracked</h3>
+              <p class="subtitle is-6">
+                <strong>{{ pkg.packageId }}</strong> exists on NuGet.org but NuGet Trends
+                doesn't have download statistics for it yet.
+              </p>
+              <p class="empty-state-hint">
+                New packages typically appear within a few days after their first downloads are recorded.
+              </p>
+              <div class="empty-state-actions">
+                <button class="button is-primary" (click)="openNuGetPage(pkg.packageId)">
+                  <span class="icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 512 512" fill="currentColor">
+                      <path d="M400 32H112C67.8 32 32 67.8 32 112v288c0 44.2 35.8 80 80 80h288c44.2 0 80-35.8 80-80V112c0-44.2-35.8-80-80-80zM178.6 409.6c-52.4 0-94.8-42.5-94.8-94.8s42.5-94.8 94.8-94.8 94.8 42.5 94.8 94.8-42.4 94.8-94.8 94.8zm46.5-224.8c-36.1 0-65.4-29.3-65.4-65.4s29.3-65.4 65.4-65.4 65.4 29.3 65.4 65.4-29.3 65.4-65.4 65.4zm158.8 131.6c-47.8 0-86.6-38.8-86.6-86.6s38.8-86.6 86.6-86.6 86.6 38.8 86.6 86.6-38.8 86.6-86.6 86.6z"/>
+                    </svg>
+                  </span>
+                  <span>View on NuGet.org</span>
+                </button>
+                <button class="button is-light" (click)="navigateHome()">
+                  <span>Search for packages</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="empty-state-content" *ngIf="!pkg.existsOnNuGet">
+              <h3 class="title is-4">Package Not Found</h3>
+              <p class="subtitle is-6">
+                <strong>{{ pkg.packageId }}</strong> doesn't exist on NuGet.org.
+              </p>
+              <p class="empty-state-hint">
+                Please check the package name and try again, or search for a different package.
+              </p>
+              <div class="empty-state-actions">
+                <button class="button is-primary" (click)="navigateHome()">
+                  <span>Search for packages</span>
+                </button>
+              </div>
+            </div>
+          </ng-container>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart view - always render for Chart.js but hide when loading or empty -->
+  <div class="columns is-vcentered is-centered" [class.is-hidden]="isLoading || showEmptyState || !hasLoadedPackages">
     <div class="column has-text-right has-text-centered-mobile is-narrow">
       <label for="period" class="title is-5">Showing results for the last: </label>
     </div>
@@ -12,7 +80,7 @@
       <app-search-period></app-search-period>
     </div>
   </div>
-  <section class="section chart-section">
+  <section class="section chart-section" [class.is-hidden]="isLoading || showEmptyState || !hasLoadedPackages">
     <div class="columns is-centered has-text-centered">
       <div class="column is-8">
         <div class="box is-shadowless">
