@@ -25,3 +25,4 @@ src/NuGetTrends.Scheduler/nuget-trends-worker/
 
 # ignore the host directory folder used on docker-compose
 sql-data/
+.direnv
