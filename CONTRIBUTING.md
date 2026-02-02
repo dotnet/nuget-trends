@@ -9,6 +9,16 @@ Please raise an issue to discuss changes before raising large PRs.
 - Node.js 20.10.0 (might also work with higher versions)
 - NPM
 
+### Using Nix (optional)
+
+If you use Nix, the `flake.nix` provides all dependencies:
+
+```bash
+nix develop  # or use direnv
+```
+
+Note: Docker daemon must still be running on your system.
+
 ## Running Locally with .NET Aspire
 
 The project uses [.NET Aspire](https://learn.microsoft.com/en-us/dotnet/aspire/) for local development orchestration. A single command starts all services:
