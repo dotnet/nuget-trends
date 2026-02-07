@@ -1,7 +1,7 @@
-import { Component, ErrorHandler, OnInit } from '@angular/core';
+import { Component, ErrorHandler, OnDestroy, OnInit } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
+import { Subscription, firstValueFrom } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import * as Sentry from '@sentry/angular';
 
@@ -17,7 +17,11 @@ import { IPackageDetails, SearchType } from '../shared/models/package-models';
   standalone: false
 })
 @Sentry.TraceClass({ name: 'PackageDetailsComponent' })
-export class PackageDetailsComponent implements OnInit {
+export class PackageDetailsComponent implements OnInit, OnDestroy {
+  private readonly fallbackIconUrl = 'https://nuget.org/Content/Images/packageDefaultIcon-50x50.png';
+  private routeParamSubscription: Subscription | null = null;
+  private loadRequestId = 0;
+
   packageId = '';
   packageDetails: IPackageDetails | null = null;
   isLoading = true;
@@ -33,7 +37,14 @@ export class PackageDetailsComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    void this.loadPackageDetails();
+    this.routeParamSubscription = this.activatedRoute.paramMap.subscribe(params => {
+      const packageId = params.get('packageId')?.trim() ?? '';
+      void this.loadPackageDetails(packageId);
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.routeParamSubscription?.unsubscribe();
   }
 
   addToTrends(): void {
@@ -137,21 +148,42 @@ export class PackageDetailsComponent implements OnInit {
     return null;
   }
 
-  private async loadPackageDetails(): Promise<void> {
-    this.packageId = this.activatedRoute.snapshot.paramMap.get('packageId') ?? '';
+  setPackageIconFallback(event: Event): void {
+    const image = event.target as HTMLImageElement | null;
+    if (!image || image.src.includes(this.fallbackIconUrl)) {
+      return;
+    }
 
-    if (!this.packageId) {
+    image.src = this.fallbackIconUrl;
+  }
+
+  private async loadPackageDetails(packageId: string): Promise<void> {
+    this.packageId = packageId;
+
+    if (!packageId) {
       await this.router.navigate(['/']);
       return;
     }
 
+    const currentRequestId = ++this.loadRequestId;
     this.isLoading = true;
     this.isNotFound = false;
+    this.packageDetails = null;
 
     try {
-      this.packageDetails = await firstValueFrom(this.packagesService.getPackageDetails(this.packageId));
+      const packageDetails = await firstValueFrom(this.packagesService.getPackageDetails(packageId));
+
+      if (currentRequestId !== this.loadRequestId) {
+        return;
+      }
+
+      this.packageDetails = packageDetails;
       this.packageInteractionService.searchType = SearchType.NuGetPackage;
     } catch (error) {
+      if (currentRequestId !== this.loadRequestId) {
+        return;
+      }
+
       if (error instanceof HttpErrorResponse && error.status === 404) {
         this.isNotFound = true;
       } else {
@@ -159,7 +191,9 @@ export class PackageDetailsComponent implements OnInit {
         this.toastr.error('Our servers are too cool (or not) to handle your request at the moment.');
       }
     } finally {
-      this.isLoading = false;
+      if (currentRequestId === this.loadRequestId) {
+        this.isLoading = false;
+      }
     }
   }
 }

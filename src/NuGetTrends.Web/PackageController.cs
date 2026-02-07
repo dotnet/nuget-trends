@@ -80,45 +80,91 @@ public class PackageController(
         [FromRoute] string id,
         CancellationToken cancellationToken)
     {
+        var now = DateTimeOffset.UtcNow;
+        var releasesWindowStart = now.AddMonths(-12);
         var packageIdLowered = id.Trim().ToLower(CultureInfo.InvariantCulture);
 
         var packageDownloadTask = context.PackageDownloads
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.PackageIdLowered == packageIdLowered, cancellationToken);
 
-        var packageLeavesTask = context.PackageDetailsCatalogLeafs
+        // Aggregate package stats in SQL to avoid loading every catalog leaf into memory.
+        var packageStatsTask = context.PackageDetailsCatalogLeafs
+            .AsNoTracking()
+            .Where(p => p.PackageIdLowered == packageIdLowered)
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                TotalVersionCount = g.Count(),
+                StableVersionCount = g.Count(p => !p.IsPrerelease),
+                PrereleaseVersionCount = g.Count(p => p.IsPrerelease),
+                ReleasesInLast12Months = g.Count(p => p.Created >= releasesWindowStart),
+                FirstVersionPublishedUtc = g.Min(p => (DateTimeOffset?)p.Created),
+                LastCatalogCommitUtc = g.Max(p => (DateTimeOffset?)p.CommitTimestamp)
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var latestLeafTask = context.PackageDetailsCatalogLeafs
             .AsNoTracking()
             .AsSplitQuery()
             .Where(p => p.PackageIdLowered == packageIdLowered)
+            .OrderByDescending(p => p.Created)
+            .ThenByDescending(p => p.CommitTimestamp)
             .Include(p => p.DependencyGroups)
             .ThenInclude(g => g.Dependencies)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var listingStateTask = context.PackageDetailsCatalogLeafs
+            .AsNoTracking()
+            .Where(p => p.PackageIdLowered == packageIdLowered)
+            .Select(p => new PackageListingState
+            {
+                Listed = p.Listed,
+                Published = p.Published
+            })
             .ToListAsync(cancellationToken);
 
-        await Task.WhenAll(packageDownloadTask, packageLeavesTask);
-        var packageDownload = packageDownloadTask.Result;
-        var packageLeaves = packageLeavesTask.Result;
+        var allFrameworkNamesTask = context.PackageDetailsCatalogLeafs
+            .AsNoTracking()
+            .Where(p => p.PackageIdLowered == packageIdLowered)
+            .SelectMany(p => p.DependencyGroups.Select(g => g.TargetFramework))
+            .ToListAsync(cancellationToken);
 
-        if (packageDownload == null && packageLeaves.Count == 0)
+        var distinctDependencyCountTask = context.PackageDetailsCatalogLeafs
+            .AsNoTracking()
+            .Where(p => p.PackageIdLowered == packageIdLowered)
+            .SelectMany(p => p.DependencyGroups)
+            .SelectMany(g => g.Dependencies)
+            .Where(d => !string.IsNullOrWhiteSpace(d.DependencyId))
+            .Select(d => d.DependencyId!)
+            .Distinct()
+            .CountAsync(cancellationToken);
+
+        await Task.WhenAll(
+            packageDownloadTask,
+            packageStatsTask,
+            latestLeafTask,
+            listingStateTask,
+            allFrameworkNamesTask,
+            distinctDependencyCountTask);
+
+        var packageDownload = packageDownloadTask.Result;
+        var packageStats = packageStatsTask.Result;
+        var latestLeaf = latestLeafTask.Result;
+        var listingState = listingStateTask.Result;
+        var allFrameworkNames = allFrameworkNamesTask.Result;
+        var distinctDependencyCount = distinctDependencyCountTask.Result;
+
+        if (packageDownload == null && packageStats == null && latestLeaf == null)
         {
             return NotFound();
         }
 
         var canonicalPackageId = packageDownload?.PackageId
-            ?? packageLeaves
-                .Select(p => p.PackageId)
-                .FirstOrDefault(p => !string.IsNullOrWhiteSpace(p))
+            ?? latestLeaf?.PackageId
             ?? id.Trim();
 
-        var latestLeaf = packageLeaves
-            .OrderByDescending(p => p.Created)
-            .ThenByDescending(p => p.CommitTimestamp)
-            .FirstOrDefault();
-
-        var now = DateTimeOffset.UtcNow;
-        var allDependencyGroups = packageLeaves.SelectMany(p => p.DependencyGroups).ToList();
-        var allFrameworks = allDependencyGroups
-            .Select(g => NormalizeTargetFramework(g.TargetFramework))
-            .ToList();
+        var allFrameworks = allFrameworkNames.Select(NormalizeTargetFramework).ToList();
         var latestVersionFrameworks = latestLeaf?.DependencyGroups
                 .Select(g => NormalizeTargetFramework(g.TargetFramework))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -138,15 +184,12 @@ public class PackageController(
             .Take(12)
             .ToList();
 
-        var listedVersionCount = packageLeaves.Count(IsListed);
+        var listedVersionCount = listingState.Count(IsListed);
+        var totalVersionCount = packageStats?.TotalVersionCount ?? 0;
         var latestVersion = latestLeaf?.PackageVersion;
         var latestVersionPublishedUtc = latestLeaf?.Created;
-        var firstVersionPublishedUtc = packageLeaves.Count != 0
-            ? packageLeaves.Min(p => p.Created)
-            : (DateTimeOffset?)null;
-        var lastCatalogCommitUtc = packageLeaves.Count != 0
-            ? packageLeaves.Max(p => p.CommitTimestamp)
-            : (DateTimeOffset?)null;
+        var firstVersionPublishedUtc = packageStats?.FirstVersionPublishedUtc;
+        var lastCatalogCommitUtc = packageStats?.LastCatalogCommitUtc;
 
         return Ok(new PackageDetailsDto
         {
@@ -166,23 +209,20 @@ public class PackageController(
                 ? null
                 : (int?)Math.Max(0, (now - lastCatalogCommitUtc.Value).TotalDays),
             LatestDownloadCount = packageDownload?.LatestDownloadCount,
-            LatestDownloadCountCheckedUtc = packageDownload?.LatestDownloadCountCheckedUtc,
-            TotalVersionCount = packageLeaves.Count,
-            StableVersionCount = packageLeaves.Count(p => !p.IsPrerelease),
-            PrereleaseVersionCount = packageLeaves.Count(p => p.IsPrerelease),
+            LatestDownloadCountCheckedUtc = packageDownload == null
+                ? null
+                : ToDateTimeOffsetUtc(packageDownload.LatestDownloadCountCheckedUtc),
+            TotalVersionCount = totalVersionCount,
+            StableVersionCount = packageStats?.StableVersionCount ?? 0,
+            PrereleaseVersionCount = packageStats?.PrereleaseVersionCount ?? 0,
             ListedVersionCount = listedVersionCount,
-            UnlistedVersionCount = packageLeaves.Count - listedVersionCount,
-            ReleasesInLast12Months = packageLeaves.Count(p => p.Created >= now.AddMonths(-12)),
+            UnlistedVersionCount = Math.Max(0, totalVersionCount - listedVersionCount),
+            ReleasesInLast12Months = packageStats?.ReleasesInLast12Months ?? 0,
             SupportedTargetFrameworkCount = allFrameworks
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .Count(),
             LatestVersionTargetFrameworkCount = latestVersionFrameworks.Count,
-            DistinctDependencyCount = allDependencyGroups
-                .SelectMany(g => g.Dependencies)
-                .Select(d => d.DependencyId)
-                .Where(id => !string.IsNullOrWhiteSpace(id))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Count(),
+            DistinctDependencyCount = distinctDependencyCount,
             LatestPackageSizeBytes = latestLeaf?.PackageSize,
             IconUrl = packageDownload?.IconUrl ?? latestLeaf?.IconUrl ?? DefaultPackageIconUrl,
             ProjectUrl = latestLeaf?.ProjectUrl,
@@ -202,7 +242,7 @@ public class PackageController(
         });
     }
 
-    private static bool IsListed(PackageDetailsCatalogLeaf packageVersion)
+    private static bool IsListed(PackageListingState packageVersion)
     {
         if (packageVersion.Listed.HasValue)
         {
@@ -220,6 +260,24 @@ public class PackageController(
         }
 
         return framework.Trim();
+    }
+
+    private static DateTimeOffset ToDateTimeOffsetUtc(DateTime value)
+    {
+        var utcDateTime = value.Kind switch
+        {
+            DateTimeKind.Utc => value,
+            DateTimeKind.Local => value.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+        };
+
+        return new DateTimeOffset(utcDateTime);
+    }
+
+    private sealed class PackageListingState
+    {
+        public bool? Listed { get; init; }
+        public DateTimeOffset Published { get; init; }
     }
 
     private const int MaxTrendingLimit = 100;
@@ -262,7 +320,7 @@ public sealed class PackageDetailsDto
     public DateTimeOffset? LastCatalogCommitUtc { get; init; }
     public int? LastCatalogCommitAgeDays { get; init; }
     public long? LatestDownloadCount { get; init; }
-    public DateTime? LatestDownloadCountCheckedUtc { get; init; }
+    public DateTimeOffset? LatestDownloadCountCheckedUtc { get; init; }
     public int TotalVersionCount { get; init; }
     public int StableVersionCount { get; init; }
     public int PrereleaseVersionCount { get; init; }

@@ -18,8 +18,7 @@
     <mat-option *ngFor="let package of results$ | async" [value]="package.packageId" class="search-option">
       <div class="search-option-content">
         <div class="search-option-main">
-          <img class="package-img" src="{{package.iconUrl}}"
-               onerror="this.onerror=null;this.src='https://nuget.org/Content/Images/packageDefaultIcon-50x50.png';"/>
+          <img class="package-img" [src]="package.iconUrl" (error)="setPackageIconFallback($event)"/>
           <span>{{package.packageId}}</span>
         </div>
         <button

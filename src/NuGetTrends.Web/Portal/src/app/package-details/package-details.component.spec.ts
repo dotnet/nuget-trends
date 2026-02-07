@@ -10,9 +10,9 @@ import { PackagesService } from '../core';
 import { MockedActivatedRoute, MockedRouter, ToastrMock } from '../mocks';
 
 class PackagesServiceMock {
-  getPackageDetails(_id: string) {
+  getPackageDetails(packageId: string) {
     const details: IPackageDetails = {
-      packageId: 'EntityFramework',
+      packageId,
       title: 'Entity Framework',
       summary: 'A modern object-database mapper for .NET.',
       description: 'Entity Framework package details',
@@ -38,8 +38,8 @@ class PackagesServiceMock {
       iconUrl: 'https://example.test/icon.png',
       projectUrl: 'https://github.com/dotnet/efcore',
       licenseUrl: 'https://licenses.nuget.org/MIT',
-      nuGetUrl: 'https://www.nuget.org/packages/EntityFramework',
-      nuGetInfoUrl: 'https://nuget.info/packages/EntityFramework/6.4.4',
+      nuGetUrl: `https://www.nuget.org/packages/${packageId}`,
+      nuGetInfoUrl: `https://nuget.info/packages/${packageId}/6.4.4`,
       topTargetFrameworks: [{ framework: 'netstandard2.0', versionCount: 26 }],
       latestVersionTargetFrameworks: ['net6.0', 'net7.0', 'net8.0'],
       tags: ['orm', 'database']
@@ -71,6 +71,7 @@ describe('PackageDetailsComponent', () => {
   beforeEach(() => {
     router = MockedRouter.injectMockRouter();
     activatedRoute = MockedActivatedRoute.injectMockActivatedRoute();
+    activatedRoute.testParamMap = { packageId: 'EntityFramework' };
     activatedRoute.testPathParamMap = { packageId: 'EntityFramework' };
 
     fixture = TestBed.createComponent(PackageDetailsComponent);
@@ -101,5 +102,19 @@ describe('PackageDetailsComponent', () => {
     component.addToTrends();
 
     expect(router.navigate).toHaveBeenCalledWith(['/packages', 'EntityFramework']);
+  }));
+
+  it('should reload package details when route param changes', fakeAsync(() => {
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    expect(component.packageDetails?.packageId).toBe('EntityFramework');
+
+    activatedRoute.testParamMap = { packageId: 'Dapper' };
+    tick();
+    fixture.detectChanges();
+
+    expect(component.packageDetails?.packageId).toBe('Dapper');
   }));
 });

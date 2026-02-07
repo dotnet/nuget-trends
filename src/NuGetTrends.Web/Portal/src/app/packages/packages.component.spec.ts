@@ -344,7 +344,7 @@ describe('PackagesComponent', () => {
 
       // Act - Removes the "Dapper" package
       const removePackageButtons: Array<HTMLElement>
-        = fixture.nativeElement.querySelectorAll('.tags span button');
+        = fixture.nativeElement.querySelectorAll('.tags span .delete');
 
       removePackageButtons[1].click();
       tick();
@@ -372,7 +372,7 @@ describe('PackagesComponent', () => {
 
       // Act
       const removePackageButton: HTMLElement
-        = fixture.nativeElement.querySelector('.tags span button');
+        = fixture.nativeElement.querySelector('.tags span .delete');
 
       removePackageButton.click();
       tick();

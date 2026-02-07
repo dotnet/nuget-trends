@@ -20,7 +20,7 @@
               [src]="details.iconUrl"
               [alt]="details.packageId + ' icon'"
               loading="lazy"
-              onerror="this.onerror=null;this.src='https://nuget.org/Content/Images/packageDefaultIcon-50x50.png';"/>
+              (error)="setPackageIconFallback($event)"/>
             <div class="hero-copy">
               <p class="eyebrow">Package Details</p>
               <h1 class="title is-3">{{details.packageId}}</h1>
