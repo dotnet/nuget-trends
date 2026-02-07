@@ -112,6 +112,12 @@ public class CatalogLeafProcessor : ICatalogLeafProcessor
 
         _logger.LogDebug("Adding {NewCount} new packages out of {TotalCount} in batch.", newLeaves.Count, leaves.Count);
 
+        // Ensure PackageIdLowered is set for all new leaves
+        foreach (var leaf in newLeaves)
+        {
+            leaf.PackageIdLowered = leaf.PackageId?.ToLowerInvariant();
+        }
+
         Context.PackageDetailsCatalogLeafs.AddRange(newLeaves);
 
         try
@@ -145,6 +151,9 @@ public class CatalogLeafProcessor : ICatalogLeafProcessor
 
         if (!exists)
         {
+            // Ensure PackageIdLowered is set
+            leaf.PackageIdLowered = leaf.PackageId?.ToLowerInvariant();
+            
             Context.PackageDetailsCatalogLeafs.Add(leaf);
             try
             {

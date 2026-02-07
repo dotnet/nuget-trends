@@ -82,6 +82,7 @@ public class PostgreSqlFixture : IAsyncLifetime
             context.PackageDetailsCatalogLeafs.Add(new NuGet.Protocol.Catalog.Models.PackageDetailsCatalogLeaf
             {
                 PackageId = packageId,
+                PackageIdLowered = packageId.ToLowerInvariant(),
                 PackageVersion = "1.0.0",
                 CommitTimestamp = DateTimeOffset.UtcNow,
             });
