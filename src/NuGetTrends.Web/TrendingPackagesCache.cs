@@ -59,10 +59,10 @@ public class TrendingPackagesCache : ITrendingPackagesCache
     private readonly NuGetTrendsContext _dbContext;
     private readonly IMemoryCache _cache;
     private readonly ILogger<TrendingPackagesCache> _logger;
+    private readonly TimeSpan _cacheDuration;
 
     // Cache configuration
     private const string CacheKey = "trending_packages";
-    private static readonly TimeSpan CacheDuration = TimeSpan.FromHours(1);
 
     // Trending query configuration - favor newer packages
     private const long MinWeeklyDownloads = 1000;
@@ -73,12 +73,16 @@ public class TrendingPackagesCache : ITrendingPackagesCache
         IClickHouseService clickHouseService,
         NuGetTrendsContext dbContext,
         IMemoryCache cache,
-        ILogger<TrendingPackagesCache> logger)
+        ILogger<TrendingPackagesCache> logger,
+        IHostEnvironment hostEnvironment)
     {
         _clickHouseService = clickHouseService;
         _dbContext = dbContext;
         _cache = cache;
         _logger = logger;
+        _cacheDuration = hostEnvironment.IsProduction()
+            ? TimeSpan.FromHours(1)
+            : TimeSpan.FromSeconds(30);
     }
 
     public async Task<List<TrendingPackageDto>> GetTrendingPackagesAsync(
@@ -114,12 +118,12 @@ public class TrendingPackagesCache : ITrendingPackagesCache
             try
             {
                 var cacheOptions = new MemoryCacheEntryOptions()
-                    .SetAbsoluteExpiration(CacheDuration);
+                    .SetAbsoluteExpiration(_cacheDuration);
 
                 _cache.Set(CacheKey, freshData, cacheOptions);
 
                 putSpan?.SetData("cache.item_size", freshData.Count);
-                putSpan?.SetData("cache.ttl", (int)CacheDuration.TotalSeconds);
+                putSpan?.SetData("cache.ttl", (int)_cacheDuration.TotalSeconds);
                 putSpan?.Finish(SpanStatus.Ok);
             }
             catch (Exception ex)

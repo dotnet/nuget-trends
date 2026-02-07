@@ -37,36 +37,3 @@ window.themeInterop = {
         });
     }
 };
-
-// Loading indicator interop
-window.loadingInterop = {
-    dotNetRef: null,
-    originalFetch: null,
-
-    initialize: function (dotNetRef) {
-        this.dotNetRef = dotNetRef;
-
-        // Intercept fetch requests
-        this.originalFetch = window.fetch;
-        window.fetch = async (...args) => {
-            if (this.dotNetRef) {
-                await this.dotNetRef.invokeMethodAsync('OnRequestStarted');
-            }
-
-            try {
-                return await this.originalFetch(...args);
-            } finally {
-                if (this.dotNetRef) {
-                    await this.dotNetRef.invokeMethodAsync('OnRequestEnded');
-                }
-            }
-        };
-    },
-
-    dispose: function () {
-        if (this.originalFetch) {
-            window.fetch = this.originalFetch;
-        }
-        this.dotNetRef = null;
-    }
-};

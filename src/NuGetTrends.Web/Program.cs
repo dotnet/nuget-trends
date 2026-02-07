@@ -5,7 +5,7 @@ using NuGetTrends.Data;
 using NuGetTrends.Data.ClickHouse;
 using NuGetTrends.Web;
 using NuGetTrends.Web.Components;
-using NuGetTrends.Web.Services;
+using NuGetTrends.Web.Client.Services;
 using Serilog;
 using Swashbuckle.AspNetCore.SwaggerUI;
 using SystemEnvironment = System.Environment;
@@ -77,6 +77,7 @@ try
     builder.Services.AddBlazoredToast();
 
     // Add app state services (scoped for Blazor)
+    builder.Services.AddScoped<LoadingState>();
     builder.Services.AddScoped<PackageState>();
     builder.Services.AddScoped<ThemeState>();
 

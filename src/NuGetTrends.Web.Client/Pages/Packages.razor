@@ -59,6 +59,8 @@
         {
             PackageState.SearchPeriod = Months.Value;
         }
+
+        await Task.CompletedTask;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -152,72 +154,100 @@
 
     private async void OnPackagePlotted(object? sender, PackageDownloadHistory history)
     {
-        await InvokeAsync(async () =>
+        try
         {
-            if (!_chartInitialized)
+            await InvokeAsync(async () =>
             {
-                await InitializeChart(history);
-                _chartInitialized = true;
-            }
-            else
-            {
-                await AddDataset(history);
-            }
+                if (!_chartInitialized)
+                {
+                    await InitializeChart(history);
+                    _chartInitialized = true;
+                }
+                else
+                {
+                    await AddDataset(history);
+                }
 
-            UpdateUrl();
-            StateHasChanged();
-        });
+                UpdateUrl();
+                StateHasChanged();
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error plotting package: {ex.Message}");
+        }
     }
 
     private async void OnPackageRemoved(object? sender, string packageId)
     {
-        await InvokeAsync(async () =>
+        try
         {
-            await JSRuntime.InvokeVoidAsync("chartInterop.removeDataset", packageId);
-            RemovePackageFromUrl(packageId);
-
-            if (PackageState.Packages.Count == 0)
+            await InvokeAsync(async () =>
             {
-                Navigation.NavigateTo("/");
-            }
+                await JSRuntime.InvokeVoidAsync("chartInterop.removeDataset", packageId);
+                RemovePackageFromUrl(packageId);
 
-            StateHasChanged();
-        });
+                if (PackageState.Packages.Count == 0)
+                {
+                    Navigation.NavigateTo("/");
+                }
+
+                StateHasChanged();
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error removing package: {ex.Message}");
+        }
     }
 
     private async void OnSearchPeriodChanged(object? sender, int period)
     {
-        await InvokeAsync(async () =>
+        try
         {
-            // Reload all packages with new period
-            var packageIds = PackageState.Packages.Select(p => p.Id).ToList();
-
-            foreach (var id in packageIds)
+            await InvokeAsync(async () =>
             {
-                try
-                {
-                    var history = await Http.GetFromJsonAsync<PackageDownloadHistory>(
-                        $"/api/package/history/{Uri.EscapeDataString(id)}?months={period}");
+                // Reload all packages with new period
+                var packageIds = PackageState.Packages.Select(p => p.Id).ToList();
 
-                    if (history != null)
+                foreach (var id in packageIds)
+                {
+                    try
                     {
-                        PackageState.UpdatePackage(history);
+                        var history = await Http.GetFromJsonAsync<PackageDownloadHistory>(
+                            $"/api/package/history/{Uri.EscapeDataString(id)}?months={period}");
+
+                        if (history != null)
+                        {
+                            PackageState.UpdatePackage(history);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.Error.WriteLine($"Error reloading package {id}: {ex.Message}");
                     }
                 }
-                catch (Exception ex)
-                {
-                    Console.Error.WriteLine($"Error reloading package {id}: {ex.Message}");
-                }
-            }
-        });
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error changing search period: {ex.Message}");
+        }
     }
 
     private async void OnThemeChanged(object? sender, string theme)
     {
-        await InvokeAsync(async () =>
+        try
         {
-            await JSRuntime.InvokeVoidAsync("chartInterop.updateTheme", ThemeState.IsDark);
-        });
+            await InvokeAsync(async () =>
+            {
+                await JSRuntime.InvokeVoidAsync("chartInterop.updateTheme", ThemeState.IsDark);
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error updating theme: {ex.Message}");
+        }
     }
 
     private async Task InitializeChart(PackageDownloadHistory history)

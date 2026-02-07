@@ -1,7 +1,7 @@
 using Xunit;
 using FluentAssertions;
-using NuGetTrends.Web.Models;
-using NuGetTrends.Web.Services;
+using NuGetTrends.Web.Client.Models;
+using NuGetTrends.Web.Client.Services;
 
 namespace NuGetTrends.Web.Tests;
 

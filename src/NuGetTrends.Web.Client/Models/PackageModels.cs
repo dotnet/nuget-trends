@@ -1,4 +1,4 @@
-namespace NuGetTrends.Web.Models;
+namespace NuGetTrends.Web.Client.Models;
 
 /// <summary>
 /// Search result from the package search API.

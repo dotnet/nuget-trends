@@ -25,7 +25,9 @@
 </head>
 
 <body class="site">
-    <Routes @rendermode="new InteractiveWebAssemblyRenderMode(prerender: true)" />
+    <CascadingValue Value="@_appVersion" Name="AppVersion">
+        <Routes @rendermode="new InteractiveWebAssemblyRenderMode(prerender: true)" />
+    </CascadingValue>
 
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
@@ -38,3 +40,22 @@
 </body>
 
 </html>
+
+@code {
+    private string _appVersion = "unknown";
+
+    protected override void OnInitialized()
+    {
+        var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+        var informationalVersion = assembly
+            .GetCustomAttributes<System.Reflection.AssemblyInformationalVersionAttribute>()
+            .FirstOrDefault()?
+            .InformationalVersion;
+
+        if (!string.IsNullOrEmpty(informationalVersion))
+        {
+            var parts = informationalVersion.Split('+');
+            _appVersion = parts.Length > 1 ? parts[1] : informationalVersion;
+        }
+    }
+}

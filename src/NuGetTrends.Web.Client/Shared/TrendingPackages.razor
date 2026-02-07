@@ -1,5 +1,7 @@
 @inject HttpClient Http
 @inject NavigationManager Navigation
+@inject PersistentComponentState PersistentState
+@implements IDisposable
 
 <section class="section trending-section">
     <div class="container">
@@ -94,13 +96,31 @@
 </section>
 
 @code {
+    private const string PersistenceKey = "trending-packages";
     private List<TrendingPackage> _trendingPackages = [];
     private bool _isLoading = true;
     private string? _errorMessage;
+    private PersistingComponentStateSubscription _persistingSubscription;
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadTrendingPackages();
+        _persistingSubscription = PersistentState.RegisterOnPersisting(PersistData);
+
+        if (PersistentState.TryTakeFromJson<List<TrendingPackage>>(PersistenceKey, out var restored) && restored is not null)
+        {
+            _trendingPackages = restored;
+            _isLoading = false;
+        }
+        else
+        {
+            await LoadTrendingPackages();
+        }
+    }
+
+    private Task PersistData()
+    {
+        PersistentState.PersistAsJson(PersistenceKey, _trendingPackages);
+        return Task.CompletedTask;
     }
 
     private async Task LoadTrendingPackages()
@@ -171,5 +191,10 @@
             >= 1_000 => $"{count / 1_000.0:F1}K",
             _ => count.ToString()
         };
+    }
+
+    public void Dispose()
+    {
+        _persistingSubscription.Dispose();
     }
 }

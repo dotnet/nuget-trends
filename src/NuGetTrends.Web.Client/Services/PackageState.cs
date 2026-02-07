@@ -1,6 +1,6 @@
-using NuGetTrends.Web.Models;
+using NuGetTrends.Web.Client.Models;
 
-namespace NuGetTrends.Web.Services;
+namespace NuGetTrends.Web.Client.Services;
 
 /// <summary>
 /// State management for packages displayed on the chart.

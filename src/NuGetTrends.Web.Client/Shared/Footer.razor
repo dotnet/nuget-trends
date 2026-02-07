@@ -1,6 +1,3 @@
-@using System.Reflection
-@inject IConfiguration Configuration
-
 <footer>
     <div class="container">
         <div class="columns">
@@ -37,27 +34,11 @@
                 Hosted by <img src="images/sentry-logo.svg" alt="Sentry" class="sentry-logo" />
             </a>
         </p>
-        <p class="version-info">@_version</p>
+        <p class="version-info">@AppVersion</p>
     </div>
 </footer>
 
 @code {
-    private string _version = "unknown";
-
-    protected override void OnInitialized()
-    {
-        // Try to get version from assembly
-        var assembly = Assembly.GetExecutingAssembly();
-        var informationalVersion = assembly
-            .GetCustomAttributes<AssemblyInformationalVersionAttribute>()
-            .FirstOrDefault()?
-            .InformationalVersion;
-
-        if (!string.IsNullOrEmpty(informationalVersion))
-        {
-            // Extract commit hash from version string (after the + sign)
-            var parts = informationalVersion.Split('+');
-            _version = parts.Length > 1 ? parts[1] : informationalVersion;
-        }
-    }
+    [CascadingParameter(Name = "AppVersion")]
+    public string? AppVersion { get; set; }
 }
