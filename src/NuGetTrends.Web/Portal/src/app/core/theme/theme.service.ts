@@ -1,4 +1,5 @@
 import { Injectable, signal, effect, computed } from '@angular/core';
+import * as Sentry from "@sentry/angular";
 
 export type ThemePreference = 'system' | 'light' | 'dark';
 export type ResolvedTheme = 'light' | 'dark';
@@ -30,7 +31,9 @@ export class ThemeService {
     this.loadSavedPreference();
 
     effect(() => {
-      this.applyTheme(this.resolvedTheme());
+      const theme = this.resolvedTheme();
+      this.applyTheme(theme);
+      this.updateSentryTheme(theme);
     });
   }
 
@@ -71,6 +74,18 @@ export class ThemeService {
     } else {
       body.classList.add('light-theme');
       body.classList.remove('dark-theme');
+    }
+  }
+
+  private updateSentryTheme(theme: ResolvedTheme): void {
+    if (typeof document === 'undefined') return;
+
+    // Update Sentry feedback widget theme
+    const feedback = Sentry.getFeedback();
+    if (feedback) {
+      feedback.attachTo(document.body, {
+        colorScheme: theme,
+      });
     }
   }
 

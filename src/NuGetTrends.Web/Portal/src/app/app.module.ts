@@ -36,7 +36,7 @@ Sentry.init({
     }),
     Sentry.replayCanvasIntegration(),
     Sentry.feedbackIntegration({
-      colorScheme: "system", // auto-detect system theme
+      colorScheme: "system",
       themeLight: {
         accentBackground: "#215C84",
       },
