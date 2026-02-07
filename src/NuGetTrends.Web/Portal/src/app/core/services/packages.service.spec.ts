@@ -1,7 +1,12 @@
 import { TestBed, inject, fakeAsync, tick, waitForAsync } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { PackagesService } from './packages.service';
-import { IPackageSearchResult, IPackageDownloadHistory, ITrendingPackage } from 'src/app/shared/models/package-models';
+import {
+  IPackageSearchResult,
+  IPackageDownloadHistory,
+  ITrendingPackage,
+  IPackageDetails
+} from 'src/app/shared/models/package-models';
 
 describe('PackagesService', () => {
 
@@ -56,6 +61,53 @@ describe('PackagesService', () => {
     });
 
     const req = httpMock.expectOne(`${service.baseUrl}/package/history/${packageId}?months=${12}`);
+    req.flush(data);
+    tick();
+
+    expect(req.request.method).toEqual('GET');
+  }));
+
+  it('should call the getPackageDetails endpoint', fakeAsync(() => {
+    const packageId = 'EntityFramework';
+    const data: IPackageDetails = {
+      packageId: 'EntityFramework',
+      title: 'Entity Framework',
+      summary: null,
+      description: null,
+      authors: 'Microsoft',
+      latestVersion: '6.4.4',
+      latestVersionPublishedUtc: '2025-11-20T00:00:00Z',
+      latestVersionAgeDays: 79,
+      firstVersionPublishedUtc: '2013-10-10T00:00:00Z',
+      lastCatalogCommitUtc: '2025-11-21T00:00:00Z',
+      lastCatalogCommitAgeDays: 78,
+      latestDownloadCount: 550000000,
+      latestDownloadCountCheckedUtc: '2026-02-07T00:00:00Z',
+      totalVersionCount: 120,
+      stableVersionCount: 110,
+      prereleaseVersionCount: 10,
+      listedVersionCount: 110,
+      unlistedVersionCount: 10,
+      releasesInLast12Months: 4,
+      supportedTargetFrameworkCount: 18,
+      latestVersionTargetFrameworkCount: 3,
+      distinctDependencyCount: 30,
+      latestPackageSizeBytes: 830000,
+      iconUrl: 'https://example.com/icon.png',
+      projectUrl: null,
+      licenseUrl: null,
+      nuGetUrl: 'https://www.nuget.org/packages/EntityFramework',
+      nuGetInfoUrl: 'https://nuget.info/packages/EntityFramework/6.4.4',
+      topTargetFrameworks: [{ framework: 'net8.0', versionCount: 30 }],
+      latestVersionTargetFrameworks: ['net8.0'],
+      tags: ['orm']
+    };
+
+    service.getPackageDetails(packageId).subscribe((details: IPackageDetails) => {
+      expect(details).toEqual(data);
+    });
+
+    const req = httpMock.expectOne(`${service.baseUrl}/package/details/${packageId}`);
     req.flush(data);
     tick();
 

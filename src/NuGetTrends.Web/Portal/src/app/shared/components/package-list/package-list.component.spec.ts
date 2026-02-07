@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
+import { Router } from '@angular/router';
+import { RouterTestingModule } from '@angular/router/testing';
 import { ToastrModule, ToastrService } from 'ngx-toastr';
 
 import { ToastrMock } from 'src/app/mocks';
@@ -13,11 +15,13 @@ describe('PackageListComponent', () => {
 
   let mockedToastr: ToastrMock;
   let packageInteractionService: PackageInteractionService;
+  let router: Router;
 
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       declarations: [PackageListComponent],
       imports: [
+        RouterTestingModule.withRoutes([]),
         ToastrModule.forRoot({
           positionClass: 'toast-bottom-right',
           preventDuplicates: true,
@@ -35,6 +39,7 @@ describe('PackageListComponent', () => {
     component = fixture.componentInstance;
     mockedToastr = TestBed.inject(ToastrService);
     packageInteractionService = TestBed.inject(PackageInteractionService);
+    router = TestBed.inject(Router);
   });
 
   it('should create', () => {
@@ -148,7 +153,7 @@ describe('PackageListComponent', () => {
 
     // Assert
     const removePackageButtons: Array<HTMLElement>
-      = fixture.nativeElement.querySelectorAll('.tags span button');
+      = fixture.nativeElement.querySelectorAll('.tags span .delete');
 
     removePackageButtons[1].click();
     fixture.detectChanges();
@@ -181,5 +186,18 @@ describe('PackageListComponent', () => {
     expect(component.packageList.length).toBe(1);
     expect(packageHistory.color).toBe(packageAssignedColor);
     expect(packageInteractionService.plotPackage).toHaveBeenCalledTimes(2);
+  });
+
+  it('should navigate to package details when details icon is clicked', () => {
+    spyOn(router, 'navigate').and.callThrough();
+
+    fixture.detectChanges();
+    packageInteractionService.addPackage({ id: 'Dapper', downloads: [] });
+    fixture.detectChanges();
+
+    const detailsButton: HTMLButtonElement = fixture.nativeElement.querySelector('.tag-details-button');
+    detailsButton.click();
+
+    expect(router.navigate).toHaveBeenCalledWith(['/packages', 'Dapper', 'details']);
   });
 });

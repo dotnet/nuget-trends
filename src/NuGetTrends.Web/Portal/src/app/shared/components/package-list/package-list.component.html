@@ -4,6 +4,13 @@
       [ngStyle]="{'background-color': packageHistory.color}"
       *ngFor="let packageHistory of packageList">
       {{packageHistory.id}}
+      <button
+        type="button"
+        class="tag-details-button"
+        title="View package details"
+        (click)="viewPackageDetails(packageHistory)">
+        <i class="fa fa-info-circle"></i>
+      </button>
       <button class="delete" (click)="removePackage(packageHistory)"></button>
     </span>
 </div>

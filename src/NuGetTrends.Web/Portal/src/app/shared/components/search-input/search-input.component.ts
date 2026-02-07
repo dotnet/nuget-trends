@@ -82,6 +82,19 @@ export class SearchInputComponent implements AfterViewInit {
     }
   }
 
+  get isPackageSearch(): boolean {
+    return this.packageInteractionService.searchType === SearchType.NuGetPackage;
+  }
+
+  navigateToPackageDetails(event: MouseEvent, packageId: string): void {
+    event.preventDefault();
+    event.stopPropagation();
+
+    this.queryField.setValue('');
+    this.showResults = false;
+    this.router.navigate(['/packages', packageId, 'details']);
+  }
+
   /**
    * Call the endpoint to search for either packages or frameworks
    */

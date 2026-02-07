@@ -224,6 +224,23 @@ describe('SearchInputComponent', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/packages']);
   }));
 
+  it('should navigate to details without adding package to the chart', fakeAsync(() => {
+    spyOn(mockedPackageService, 'getPackageDownloadHistory').and.callThrough();
+    spyOn(router, 'navigate').and.callThrough();
+
+    router.url = '/';
+
+    fixture.detectChanges();
+    dispatchMatAutocompleteEvents('entity', component);
+
+    const detailsButton: HTMLButtonElement = document.querySelector('.details-link')!;
+    detailsButton.click();
+    tick(300);
+
+    expect(mockedPackageService.getPackageDownloadHistory).not.toHaveBeenCalled();
+    expect(router.navigate).toHaveBeenCalledWith(['/packages', 'EntityFramework', 'details']);
+  }));
+
   it('should clear results when removing text and leaving the field', fakeAsync(() => {
     fixture.detectChanges();
 

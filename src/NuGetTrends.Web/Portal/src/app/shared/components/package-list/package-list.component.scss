@@ -1,0 +1,27 @@
+.tags {
+  gap: 0.6rem;
+}
+
+.tag {
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.tag-details-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.95);
+  cursor: pointer;
+  border-radius: 999px;
+  width: 1.35rem;
+  height: 1.35rem;
+  transition: background-color 0.15s ease, color 0.15s ease;
+
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.22);
+    color: #fff;
+  }
+}

@@ -11,16 +11,20 @@ class MockHomeComponent {}
 @Component({ selector: 'app-mock-packages', template: '<div>Packages</div>', standalone: false })
 class MockPackagesComponent {}
 
+@Component({ selector: 'app-mock-package-details', template: '<div>Package details</div>', standalone: false })
+class MockPackageDetailsComponent {}
+
 describe('AppRoutingModule', () => {
   let router: Router;
   let location: Location;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [MockHomeComponent, MockPackagesComponent],
+      declarations: [MockHomeComponent, MockPackagesComponent, MockPackageDetailsComponent],
       imports: [
         RouterTestingModule.withRoutes([
           { path: '', component: MockHomeComponent, pathMatch: 'full' },
+          { path: 'packages/:packageId/details', component: MockPackageDetailsComponent },
           { path: 'packages/:packageId', component: MockPackagesComponent },
           { path: 'packages', component: MockPackagesComponent },
           { path: '**', redirectTo: '', pathMatch: 'full' }
@@ -48,6 +52,12 @@ describe('AppRoutingModule', () => {
     router.navigate(['packages', 'Newtonsoft.Json']);
     tick();
     expect(location.path()).toBe('/packages/Newtonsoft.Json');
+  }));
+
+  it('should navigate to package details', fakeAsync(() => {
+    router.navigate(['packages', 'Newtonsoft.Json', 'details']);
+    tick();
+    expect(location.path()).toBe('/packages/Newtonsoft.Json/details');
   }));
 
   describe('catch-all route', () => {

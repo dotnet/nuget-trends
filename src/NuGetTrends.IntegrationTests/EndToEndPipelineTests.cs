@@ -91,6 +91,9 @@ public class EndToEndPipelineTests : IAsyncLifetime
 
         // Verify history API
         await VerifyHistoryEndpoint();
+
+        // Verify package details API
+        await VerifyDetailsEndpoint();
     }
 
     [Fact]
@@ -445,6 +448,30 @@ public class EndToEndPipelineTests : IAsyncLifetime
 
         _output.WriteLine("History API verified.");
     }
+
+    private async Task VerifyDetailsEndpoint()
+    {
+        _output.WriteLine("Verifying package details API endpoint...");
+
+        var packageId = _fixture.ImportedPackages[0].PackageId;
+        var response = await _client.GetAsync($"/api/package/details/{Uri.EscapeDataString(packageId)}");
+        response.EnsureSuccessStatusCode();
+
+        var json = await response.Content.ReadAsStringAsync();
+        var details = JsonSerializer.Deserialize<PackageDetails>(json, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
+
+        details.Should().NotBeNull();
+        details!.PackageId.Should().NotBeNullOrWhiteSpace();
+        details.TotalVersionCount.Should().BeGreaterThan(0);
+        details.SupportedTargetFrameworkCount.Should().BeGreaterOrEqualTo(0);
+        details.NuGetUrl.Should().Contain(packageId);
+
+        _output.WriteLine($"  - Details for '{packageId}': {details.TotalVersionCount} versions, {details.SupportedTargetFrameworkCount} frameworks");
+        _output.WriteLine("Package details API verified.");
+    }
 }
 
 /// <summary>
@@ -474,6 +501,17 @@ public class WeeklyDownload
 {
     public DateTime Week { get; set; }
     public long? Count { get; set; }
+}
+
+/// <summary>
+/// DTO for package details API results.
+/// </summary>
+public class PackageDetails
+{
+    public string PackageId { get; set; } = "";
+    public int TotalVersionCount { get; set; }
+    public int SupportedTargetFrameworkCount { get; set; }
+    public string NuGetUrl { get; set; } = "";
 }
 
 /// <summary>
