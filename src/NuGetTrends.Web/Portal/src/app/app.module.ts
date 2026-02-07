@@ -13,6 +13,7 @@ import { PackagesModule } from "./packages/packages.module";
 import { SharedModule } from "./shared/shared.module";
 import { HomeModule } from "./home/home.module";
 import { CoreModule } from "./core/core.module";
+import { PackageDetailsModule } from "./package-details/package-details.module";
 import { filterNoisyErrors } from "./core/sentry-error-filter";
 
 Sentry.init({
@@ -49,8 +50,10 @@ Sentry.init({
       beforeStartSpan: (context) => {
         return {
           ...context,
-          // Parameterize the /packages/:packageId route to avoid high-cardinality transaction names
-          name: location.pathname.replace(/^\/packages\/[^/?]+$/, '/packages/:packageId'),
+          // Parameterize package routes to avoid high-cardinality transaction names
+          name: location.pathname
+            .replace(/^\/packages\/[^/?]+\/details$/, '/packages/:packageId/details')
+            .replace(/^\/packages\/[^/?]+$/, '/packages/:packageId'),
         };
       },
     }),
@@ -69,6 +72,7 @@ Sentry.init({
     CoreModule,
     SharedModule,
     PackagesModule,
+    PackageDetailsModule,
     HomeModule,
   ],
   providers: [

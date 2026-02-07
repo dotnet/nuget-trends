@@ -15,10 +15,22 @@
     <span class="icon is-medium is-left"><i class="fa fa-search"></i></span>
   </div>
   <mat-autocomplete #auto="matAutocomplete" (optionSelected)='searchItemSelected($event)'>
-    <mat-option *ngFor="let package of results$ | async" [value]="package.packageId">
-      <img class="package-img" src="{{package.iconUrl}}"
-           onerror="this.onerror=null;this.src='https://nuget.org/Content/Images/packageDefaultIcon-50x50.png';"/>
-      <span>{{package.packageId}}</span>
+    <mat-option *ngFor="let package of results$ | async" [value]="package.packageId" class="search-option">
+      <div class="search-option-content">
+        <div class="search-option-main">
+          <img class="package-img" [src]="package.iconUrl" (error)="setPackageIconFallback($event)"/>
+          <span>{{package.packageId}}</span>
+        </div>
+        <button
+          *ngIf="isPackageSearch"
+          type="button"
+          class="details-link"
+          title="View package details"
+          (mousedown)="$event.preventDefault(); $event.stopPropagation()"
+          (click)="navigateToPackageDetails($event, package.packageId)">
+          Details
+        </button>
+      </div>
     </mat-option>
   </mat-autocomplete>
 </section>

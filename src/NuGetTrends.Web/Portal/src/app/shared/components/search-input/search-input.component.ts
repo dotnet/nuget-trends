@@ -22,6 +22,7 @@ export class SearchInputComponent implements AfterViewInit {
   @ViewChild(MatAutocomplete) autoComplete!: MatAutocomplete;
   @ViewChild('searchBox') searchBox!: ElementRef;
 
+  private readonly fallbackIconUrl = 'https://nuget.org/Content/Images/packageDefaultIcon-50x50.png';
   queryField: UntypedFormControl = new UntypedFormControl('');
   results$!: Observable<IPackageSearchResult[]>;
   isSearching = false;
@@ -80,6 +81,28 @@ export class SearchInputComponent implements AfterViewInit {
     if (!this.queryField.value) {
       this.searchClear$.next([]);
     }
+  }
+
+  get isPackageSearch(): boolean {
+    return this.packageInteractionService.searchType === SearchType.NuGetPackage;
+  }
+
+  navigateToPackageDetails(event: MouseEvent, packageId: string): void {
+    event.preventDefault();
+    event.stopPropagation();
+
+    this.queryField.setValue('');
+    this.showResults = false;
+    this.router.navigate(['/packages', packageId, 'details']);
+  }
+
+  setPackageIconFallback(event: Event): void {
+    const image = event.target as HTMLImageElement | null;
+    if (!image || image.src.includes(this.fallbackIconUrl)) {
+      return;
+    }
+
+    image.src = this.fallbackIconUrl;
   }
 
   /**

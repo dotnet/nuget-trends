@@ -3,7 +3,12 @@ import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { Observable, map, catchError, of } from 'rxjs';
 
-import { IPackageSearchResult, IPackageDownloadHistory, ITrendingPackage } from '../../shared/models/package-models';
+import {
+  IPackageSearchResult,
+  IPackageDownloadHistory,
+  ITrendingPackage,
+  IPackageDetails
+} from '../../shared/models/package-models';
 
 @Injectable({
   providedIn: 'root'
@@ -21,6 +26,10 @@ export class PackagesService {
 
   getPackageDownloadHistory(term: string, months: number = 12): Observable<IPackageDownloadHistory> {
     return this.httpClient.get<IPackageDownloadHistory>(`${this.baseUrl}/package/history/${term}?months=${months}`);
+  }
+
+  getPackageDetails(packageId: string): Observable<IPackageDetails> {
+    return this.httpClient.get<IPackageDetails>(`${this.baseUrl}/package/details/${packageId}`);
   }
 
   /**

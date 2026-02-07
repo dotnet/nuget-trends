@@ -46,6 +46,45 @@ export interface ITrendingPackage {
   gitHubUrl: string | null;
 }
 
+export interface ITargetFrameworkSupport {
+  framework: string;
+  versionCount: number;
+}
+
+export interface IPackageDetails {
+  packageId: string;
+  title: string | null;
+  summary: string | null;
+  description: string | null;
+  authors: string | null;
+  latestVersion: string | null;
+  latestVersionPublishedUtc: string | null;
+  latestVersionAgeDays: number | null;
+  firstVersionPublishedUtc: string | null;
+  lastCatalogCommitUtc: string | null;
+  lastCatalogCommitAgeDays: number | null;
+  latestDownloadCount: number | null;
+  latestDownloadCountCheckedUtc: string | null;
+  totalVersionCount: number;
+  stableVersionCount: number;
+  prereleaseVersionCount: number;
+  listedVersionCount: number;
+  unlistedVersionCount: number;
+  releasesInLast12Months: number;
+  supportedTargetFrameworkCount: number;
+  latestVersionTargetFrameworkCount: number;
+  distinctDependencyCount: number;
+  latestPackageSizeBytes: number | null;
+  iconUrl: string;
+  projectUrl: string | null;
+  licenseUrl: string | null;
+  nuGetUrl: string;
+  nuGetInfoUrl: string;
+  topTargetFrameworks: ITargetFrameworkSupport[];
+  latestVersionTargetFrameworks: string[];
+  tags: string[];
+}
+
 export class TagColor {
   code: string;
   private used: boolean;

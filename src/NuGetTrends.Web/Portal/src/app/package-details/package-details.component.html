@@ -1,0 +1,163 @@
+<div [@slideInOut] class="package-details-page">
+  <section class="section package-details-section">
+    <div class="container">
+      <article *ngIf="isLoading" class="state-card has-text-centered">
+        <h1 class="title is-5">Loading package details...</h1>
+        <p class="subtitle is-6">Crunching metadata from the catalog.</p>
+      </article>
+
+      <article *ngIf="!isLoading && isNotFound" class="state-card has-text-centered">
+        <h1 class="title is-4">Package details unavailable</h1>
+        <p class="subtitle is-6">Could not find metadata for <strong>{{packageId}}</strong>.</p>
+        <button type="button" class="button is-primary" (click)="addToTrends()">Try trend view</button>
+      </article>
+
+      <ng-container *ngIf="!isLoading && !isNotFound && packageDetails as details">
+        <article class="hero-card">
+          <div class="hero-main">
+            <img
+              class="package-icon"
+              [src]="details.iconUrl"
+              [alt]="details.packageId + ' icon'"
+              loading="lazy"
+              (error)="setPackageIconFallback($event)"/>
+            <div class="hero-copy">
+              <p class="eyebrow">Package Details</p>
+              <h1 class="title is-3">{{details.packageId}}</h1>
+              <p class="subtitle is-6 hero-description" *ngIf="getHeadline(details)">{{getHeadline(details)}}</p>
+              <div class="inline-chips">
+                <span class="chip">Latest {{details.latestVersion || 'Unknown'}}</span>
+                <span class="chip" [ngClass]="getFreshnessClass(details.latestVersionAgeDays)">
+                  {{formatAge(details.latestVersionAgeDays)}} since release
+                </span>
+                <span class="chip">{{formatCount(details.latestDownloadCount)}} total downloads</span>
+              </div>
+            </div>
+          </div>
+          <div class="hero-actions">
+            <button type="button" class="button is-primary is-medium" (click)="addToTrends()">
+              Add to Trends Graph
+            </button>
+            <a
+              class="button is-light is-medium"
+              [href]="details.nuGetUrl"
+              target="_blank"
+              rel="noopener noreferrer">
+              NuGet.org
+            </a>
+            <a
+              class="button is-light is-medium"
+              [href]="details.nuGetInfoUrl"
+              target="_blank"
+              rel="noopener noreferrer">
+              NuGet.info
+            </a>
+          </div>
+        </article>
+
+        <section class="stats-grid">
+          <article class="stat-card">
+            <p class="stat-label">Latest release</p>
+            <p class="stat-value">{{formatAge(details.latestVersionAgeDays)}}</p>
+            <p class="stat-foot">{{formatDate(details.latestVersionPublishedUtc)}}</p>
+          </article>
+
+          <article class="stat-card">
+            <p class="stat-label">Releases (12m)</p>
+            <p class="stat-value">{{details.releasesInLast12Months}}</p>
+            <p class="stat-foot">New versions in last year</p>
+          </article>
+
+          <article class="stat-card">
+            <p class="stat-label">Framework support</p>
+            <p class="stat-value">{{details.supportedTargetFrameworkCount}}</p>
+            <p class="stat-foot">Distinct target frameworks</p>
+          </article>
+
+          <article class="stat-card">
+            <p class="stat-label">Dependency graph</p>
+            <p class="stat-value">{{details.distinctDependencyCount}}</p>
+            <p class="stat-foot">Unique dependencies seen</p>
+          </article>
+
+          <article class="stat-card">
+            <p class="stat-label">Version history</p>
+            <p class="stat-value">{{details.totalVersionCount}}</p>
+            <p class="stat-foot">{{details.stableVersionCount}} stable / {{details.prereleaseVersionCount}} prerelease</p>
+          </article>
+
+          <article class="stat-card">
+            <p class="stat-label">Latest package size</p>
+            <p class="stat-value">{{formatFileSize(details.latestPackageSizeBytes)}}</p>
+            <p class="stat-foot">Catalog metadata value</p>
+          </article>
+        </section>
+
+        <section class="insights-grid">
+          <article class="insight-card">
+            <h2 class="title is-5">Maintenance Signals</h2>
+            <ul class="signal-list">
+              <li>
+                <span>Package age (first publish)</span>
+                <strong>{{formatDate(details.firstVersionPublishedUtc)}}</strong>
+              </li>
+              <li>
+                <span>Catalog freshness</span>
+                <strong>{{formatAge(details.lastCatalogCommitAgeDays)}} ago</strong>
+              </li>
+              <li>
+                <span>Latest download check</span>
+                <strong>{{formatDate(details.latestDownloadCountCheckedUtc)}}</strong>
+              </li>
+              <li>
+                <span>Listed versions</span>
+                <strong>{{details.listedVersionCount}} listed / {{details.unlistedVersionCount}} unlisted</strong>
+              </li>
+            </ul>
+          </article>
+
+          <article class="insight-card">
+            <h2 class="title is-5">Top Framework Coverage</h2>
+            <p class="subtitle is-6">How often each target framework appears across package versions.</p>
+            <div *ngIf="details.topTargetFrameworks.length > 0; else noFrameworks" class="framework-list">
+              <div class="framework-row" *ngFor="let framework of details.topTargetFrameworks">
+                <span class="framework-name">{{framework.framework}}</span>
+                <span class="framework-count">{{framework.versionCount}}</span>
+              </div>
+            </div>
+            <ng-template #noFrameworks>
+              <p class="empty-note">No framework metadata available.</p>
+            </ng-template>
+          </article>
+
+          <article class="insight-card">
+            <h2 class="title is-5">Latest Version Targets</h2>
+            <div *ngIf="details.latestVersionTargetFrameworks.length > 0; else noLatestTargets" class="chip-wrap">
+              <span class="framework-chip" *ngFor="let framework of details.latestVersionTargetFrameworks">{{framework}}</span>
+            </div>
+            <ng-template #noLatestTargets>
+              <p class="empty-note">Latest version does not declare explicit framework groups.</p>
+            </ng-template>
+
+            <h3 class="title is-6 metadata-title">Metadata</h3>
+            <div class="metadata-lines">
+              <p><span>Authors</span><strong>{{details.authors || 'Unknown'}}</strong></p>
+              <p><span>Project URL</span>
+                <a *ngIf="details.projectUrl" [href]="details.projectUrl" target="_blank" rel="noopener noreferrer">Open project</a>
+                <strong *ngIf="!details.projectUrl">N/A</strong>
+              </p>
+              <p><span>License URL</span>
+                <a *ngIf="details.licenseUrl" [href]="details.licenseUrl" target="_blank" rel="noopener noreferrer">Open license</a>
+                <strong *ngIf="!details.licenseUrl">N/A</strong>
+              </p>
+            </div>
+
+            <div class="chip-wrap" *ngIf="details.tags.length > 0">
+              <span class="tag-chip" *ngFor="let tag of details.tags">{{tag}}</span>
+            </div>
+          </article>
+        </section>
+      </ng-container>
+    </div>
+  </section>
+</div>

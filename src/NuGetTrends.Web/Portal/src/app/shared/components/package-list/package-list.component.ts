@@ -4,6 +4,7 @@ import { IPackageDownloadHistory, IPackageColor, TagColor } from '../../models/p
 import { PackageInteractionService } from '../../../core';
 import { environment } from '../../../../environments/environment.prod';
 import { ToastrService } from 'ngx-toastr';
+import { Router } from '@angular/router';
 import * as Sentry from "@sentry/angular";
 
 @Component({
@@ -30,6 +31,7 @@ export class PackageListComponent implements OnDestroy {
 
   constructor(
     private packageInteractionService: PackageInteractionService,
+    private router: Router,
     private toastr: ToastrService) {
     this.packageList = [];
 
@@ -59,6 +61,14 @@ export class PackageListComponent implements OnDestroy {
       this.packageInteractionService.removePackage(packageColor.id);
       this.packageList = this.packageList.filter(p => p.id !== packageColor.id);
     }
+  }
+
+  viewPackageDetails(packageColor: IPackageColor): void {
+    if (!packageColor) {
+      return;
+    }
+
+    this.router.navigate(['/packages', packageColor.id, 'details']);
   }
 
   /**
