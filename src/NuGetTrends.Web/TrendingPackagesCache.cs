@@ -171,24 +171,14 @@ public class TrendingPackagesCache : ITrendingPackagesCache
     private async Task<TrendingPackagesResponse> FetchTrendingPackagesAsync(CancellationToken ct)
     {
         // Get trending packages from pre-computed ClickHouse snapshot (fast, milliseconds)
-        // Falls back to real-time query if snapshot is empty (first run or stale data)
         var trendingPackages = await _clickHouseService.GetTrendingPackagesFromSnapshotAsync(
             limit: MaxCachedResults,
             ct: ct);
 
         if (trendingPackages.Count == 0)
         {
-            _logger.LogWarning("No trending packages in snapshot, falling back to real-time query");
-            trendingPackages = await _clickHouseService.GetTrendingPackagesAsync(
-                limit: MaxCachedResults,
-                minWeeklyDownloads: MinWeeklyDownloads,
-                maxPackageAgeMonths: MaxPackageAgeMonths,
-                ct: ct);
-        }
-
-        if (trendingPackages.Count == 0)
-        {
             // Return empty response with a default week (last Monday)
+            _logger.LogWarning("No trending packages in snapshot, returning empty result");
             var today = DateOnly.FromDateTime(DateTime.UtcNow);
             var daysFromMonday = ((int)today.DayOfWeek - (int)DayOfWeek.Monday + 7) % 7;
             var lastMonday = today.AddDays(-daysFromMonday - 7); // Previous week's Monday
