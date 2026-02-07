@@ -454,6 +454,8 @@ public class EndToEndPipelineTests : IAsyncLifetime
         _output.WriteLine("Verifying package details API endpoint...");
 
         var packageId = _fixture.ImportedPackages[0].PackageId;
+        var trimmedPackageId = packageId.Trim();
+        var packageIdLowered = trimmedPackageId.ToLowerInvariant();
         var response = await _client.GetAsync($"/api/package/details/{Uri.EscapeDataString(packageId)}");
         response.EnsureSuccessStatusCode();
 
@@ -465,12 +467,174 @@ public class EndToEndPipelineTests : IAsyncLifetime
 
         details.Should().NotBeNull();
         details!.PackageId.Should().NotBeNullOrWhiteSpace();
-        details.TotalVersionCount.Should().BeGreaterThan(0);
-        details.SupportedTargetFrameworkCount.Should().BeGreaterOrEqualTo(0);
-        details.NuGetUrl.Should().Contain(packageId);
 
-        _output.WriteLine($"  - Details for '{packageId}': {details.TotalVersionCount} versions, {details.SupportedTargetFrameworkCount} frameworks");
+        await using var context = _fixture.CreateDbContext();
+        var packageDownload = await context.PackageDownloads
+            .AsNoTracking()
+            .SingleOrDefaultAsync(p => p.PackageIdLowered == packageIdLowered);
+        var leaves = await context.PackageDetailsCatalogLeafs
+            .AsNoTracking()
+            .Where(p => p.PackageIdLowered == packageIdLowered)
+            .Include(p => p.DependencyGroups)
+            .ThenInclude(g => g.Dependencies)
+            .ToListAsync();
+
+        leaves.Should().NotBeEmpty();
+
+        var latestLeaf = leaves
+            .OrderByDescending(p => p.Created)
+            .ThenByDescending(p => p.CommitTimestamp)
+            .FirstOrDefault();
+        var canonicalPackageId = packageDownload?.PackageId
+            ?? latestLeaf?.PackageId
+            ?? trimmedPackageId;
+
+        var allFrameworks = leaves
+            .SelectMany(p => p.DependencyGroups.Select(g => NormalizeTargetFramework(g.TargetFramework)))
+            .ToList();
+        var latestVersionFrameworks = latestLeaf?.DependencyGroups
+                .Select(g => NormalizeTargetFramework(g.TargetFramework))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
+                .ToList()
+            ?? [];
+        var topTargetFrameworks = allFrameworks
+            .GroupBy(f => f, StringComparer.OrdinalIgnoreCase)
+            .Select(g => new TargetFrameworkSupport
+            {
+                Framework = g.Key,
+                VersionCount = g.Count()
+            })
+            .OrderByDescending(g => g.VersionCount)
+            .ThenBy(g => g.Framework, StringComparer.OrdinalIgnoreCase)
+            .Take(12)
+            .ToList();
+
+        var listedVersionCount = leaves.Count(IsListed);
+        var totalVersionCount = leaves.Count;
+        var latestVersionPublishedUtc = latestLeaf?.Created;
+        var firstVersionPublishedUtc = leaves.Count != 0
+            ? leaves.Min(p => p.Created)
+            : (DateTimeOffset?)null;
+        var lastCatalogCommitUtc = leaves.Count != 0
+            ? leaves.Max(p => p.CommitTimestamp)
+            : (DateTimeOffset?)null;
+        var now = DateTimeOffset.UtcNow;
+        var expectedLatestVersionAgeDays = latestVersionPublishedUtc == null
+            ? null
+            : (int?)Math.Max(0, (now - latestVersionPublishedUtc.Value).TotalDays);
+        var expectedLastCatalogCommitAgeDays = lastCatalogCommitUtc == null
+            ? null
+            : (int?)Math.Max(0, (now - lastCatalogCommitUtc.Value).TotalDays);
+        var releasesInLast12Months = leaves.Count(p => p.Created >= now.AddMonths(-12));
+        var distinctDependencyCount = leaves
+            .SelectMany(p => p.DependencyGroups)
+            .SelectMany(g => g.Dependencies)
+            .Where(d => !string.IsNullOrWhiteSpace(d.DependencyId))
+            .Select(d => d.DependencyId!.ToLower())
+            .Distinct()
+            .Count();
+        var expectedTags = latestLeaf?.Tags?
+                .Where(t => !string.IsNullOrWhiteSpace(t))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(t => t, StringComparer.OrdinalIgnoreCase)
+                .Take(20)
+                .ToList()
+            ?? [];
+        var expectedNuGetUrl = $"https://www.nuget.org/packages/{Uri.EscapeDataString(canonicalPackageId)}";
+        var expectedNuGetInfoUrl = latestLeaf?.PackageVersion is { Length: > 0 } latestVersion
+            ? $"https://nuget.info/packages/{Uri.EscapeDataString(canonicalPackageId)}/{Uri.EscapeDataString(latestVersion)}"
+            : $"https://nuget.info/packages/{Uri.EscapeDataString(canonicalPackageId)}";
+
+        details.PackageId.Should().Be(canonicalPackageId);
+        details.Title.Should().Be(latestLeaf?.Title);
+        details.Summary.Should().Be(latestLeaf?.Summary);
+        details.Description.Should().Be(latestLeaf?.Description);
+        details.Authors.Should().Be(latestLeaf?.Authors);
+        details.LatestVersion.Should().Be(latestLeaf?.PackageVersion);
+        details.LatestVersionPublishedUtc.Should().Be(latestVersionPublishedUtc);
+        if (expectedLatestVersionAgeDays.HasValue)
+        {
+            details.LatestVersionAgeDays.Should().BeInRange(expectedLatestVersionAgeDays.Value - 1, expectedLatestVersionAgeDays.Value + 1);
+        }
+        else
+        {
+            details.LatestVersionAgeDays.Should().BeNull();
+        }
+
+        details.FirstVersionPublishedUtc.Should().Be(firstVersionPublishedUtc);
+        details.LastCatalogCommitUtc.Should().Be(lastCatalogCommitUtc);
+        if (expectedLastCatalogCommitAgeDays.HasValue)
+        {
+            details.LastCatalogCommitAgeDays.Should().BeInRange(expectedLastCatalogCommitAgeDays.Value - 1, expectedLastCatalogCommitAgeDays.Value + 1);
+        }
+        else
+        {
+            details.LastCatalogCommitAgeDays.Should().BeNull();
+        }
+
+        details.LatestDownloadCount.Should().Be(packageDownload?.LatestDownloadCount);
+        details.LatestDownloadCountCheckedUtc.Should().Be(
+            packageDownload == null
+                ? null
+                : ToDateTimeOffsetUtc(packageDownload.LatestDownloadCountCheckedUtc));
+        details.TotalVersionCount.Should().Be(totalVersionCount);
+        details.StableVersionCount.Should().Be(leaves.Count(p => !p.IsPrerelease));
+        details.PrereleaseVersionCount.Should().Be(leaves.Count(p => p.IsPrerelease));
+        details.ListedVersionCount.Should().Be(listedVersionCount);
+        details.UnlistedVersionCount.Should().Be(Math.Max(0, totalVersionCount - listedVersionCount));
+        details.ReleasesInLast12Months.Should().Be(releasesInLast12Months);
+        details.SupportedTargetFrameworkCount.Should().Be(allFrameworks
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Count());
+        details.LatestVersionTargetFrameworkCount.Should().Be(latestVersionFrameworks.Count);
+        details.DistinctDependencyCount.Should().Be(distinctDependencyCount);
+        details.LatestPackageSizeBytes.Should().Be(latestLeaf?.PackageSize);
+        details.IconUrl.Should().Be(packageDownload?.IconUrl
+            ?? latestLeaf?.IconUrl
+            ?? "https://www.nuget.org/Content/gallery/img/default-package-icon.svg");
+        details.ProjectUrl.Should().Be(latestLeaf?.ProjectUrl);
+        details.LicenseUrl.Should().Be(latestLeaf?.LicenseUrl);
+        details.NuGetUrl.Should().Be(expectedNuGetUrl);
+        details.NuGetInfoUrl.Should().Be(expectedNuGetInfoUrl);
+        details.TopTargetFrameworks.Should().BeEquivalentTo(topTargetFrameworks, options => options.WithStrictOrdering());
+        details.LatestVersionTargetFrameworks.Should().Equal(latestVersionFrameworks);
+        details.Tags.Should().Equal(expectedTags);
+
+        _output.WriteLine($"  - Details for '{canonicalPackageId}': {details.TotalVersionCount} versions, {details.SupportedTargetFrameworkCount} frameworks");
         _output.WriteLine("Package details API verified.");
+    }
+
+    private static bool IsListed(NuGet.Protocol.Catalog.Models.PackageDetailsCatalogLeaf packageVersion)
+    {
+        if (packageVersion.Listed.HasValue)
+        {
+            return packageVersion.Listed.Value;
+        }
+
+        return packageVersion.Published.Year != 1900;
+    }
+
+    private static string NormalizeTargetFramework(string? framework)
+    {
+        if (string.IsNullOrWhiteSpace(framework))
+        {
+            return "any";
+        }
+
+        return framework.Trim();
+    }
+
+    private static DateTimeOffset ToDateTimeOffsetUtc(DateTime value)
+    {
+        var utcDateTime = value.Kind switch
+        {
+            DateTimeKind.Utc => value,
+            DateTimeKind.Local => value.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+        };
+
+        return new DateTimeOffset(utcDateTime);
     }
 }
 
@@ -509,9 +673,42 @@ public class WeeklyDownload
 public class PackageDetails
 {
     public string PackageId { get; set; } = "";
+    public string? Title { get; set; }
+    public string? Summary { get; set; }
+    public string? Description { get; set; }
+    public string? Authors { get; set; }
+    public string? LatestVersion { get; set; }
+    public DateTimeOffset? LatestVersionPublishedUtc { get; set; }
+    public int? LatestVersionAgeDays { get; set; }
+    public DateTimeOffset? FirstVersionPublishedUtc { get; set; }
+    public DateTimeOffset? LastCatalogCommitUtc { get; set; }
+    public int? LastCatalogCommitAgeDays { get; set; }
+    public long? LatestDownloadCount { get; set; }
+    public DateTimeOffset? LatestDownloadCountCheckedUtc { get; set; }
     public int TotalVersionCount { get; set; }
+    public int StableVersionCount { get; set; }
+    public int PrereleaseVersionCount { get; set; }
+    public int ListedVersionCount { get; set; }
+    public int UnlistedVersionCount { get; set; }
+    public int ReleasesInLast12Months { get; set; }
     public int SupportedTargetFrameworkCount { get; set; }
+    public int LatestVersionTargetFrameworkCount { get; set; }
+    public int DistinctDependencyCount { get; set; }
+    public long? LatestPackageSizeBytes { get; set; }
+    public string IconUrl { get; set; } = "";
+    public string? ProjectUrl { get; set; }
+    public string? LicenseUrl { get; set; }
     public string NuGetUrl { get; set; } = "";
+    public string NuGetInfoUrl { get; set; } = "";
+    public List<TargetFrameworkSupport> TopTargetFrameworks { get; set; } = [];
+    public List<string> LatestVersionTargetFrameworks { get; set; } = [];
+    public List<string> Tags { get; set; } = [];
+}
+
+public class TargetFrameworkSupport
+{
+    public string Framework { get; set; } = "";
+    public int VersionCount { get; set; }
 }
 
 /// <summary>
