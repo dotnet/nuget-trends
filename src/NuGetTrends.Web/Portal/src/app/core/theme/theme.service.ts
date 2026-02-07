@@ -85,26 +85,25 @@ export class ThemeService {
     // Only update if theme has changed to avoid unnecessary re-attachments
     if (this.lastSentryTheme === theme) return;
 
+    // Get Sentry feedback integration
+    const feedback = Sentry.getFeedback();
+    if (!feedback) return;
+
     try {
-      // Update Sentry feedback widget theme
-      const feedback = Sentry.getFeedback();
-      if (feedback) {
-        // Clean up previous attachment if it exists
-        if (this.sentryCleanup) {
-          this.sentryCleanup();
-        }
-
-        // Attach with new theme and store cleanup function
-        this.sentryCleanup = feedback.attachTo(document.body, {
-          colorScheme: theme,
-        });
-
-        this.lastSentryTheme = theme;
+      // Clean up previous attachment if it exists
+      if (this.sentryCleanup) {
+        this.sentryCleanup();
       }
+
+      // Attach with new theme and store cleanup function
+      this.sentryCleanup = feedback.attachTo(document.body, {
+        colorScheme: theme,
+      });
+
+      this.lastSentryTheme = theme;
     } catch (error) {
-      // Feedback integration might not be available or configured
-      // Silently fail as this is not critical functionality
-      console.debug('Sentry feedback widget not available:', error);
+      // Attachment might fail if widget is not properly initialized
+      console.debug('Sentry feedback widget could not be updated: feedback integration may not be initialized or configured', error);
     }
   }
 
