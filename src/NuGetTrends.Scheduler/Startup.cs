@@ -40,16 +40,19 @@ public class Startup(
             var connString = config.GetConnectionString("clickhouse")
                 ?? config.GetConnectionString("ClickHouse")
                 ?? throw new InvalidOperationException("ClickHouse connection string not configured.");
+            // Aspire injects endpoint URLs (http://host:port) - normalize to Key=Value format
+            connString = ClickHouseConnectionInfo.NormalizeConnectionString(connString);
             return ClickHouseConnectionInfo.Parse(connString);
         });
 
         services.AddSingleton<IClickHouseService>(sp =>
         {
             var config = sp.GetRequiredService<IConfiguration>();
-            // Aspire injects connection strings via ConnectionStrings__<name> environment variables
             var connString = config.GetConnectionString("clickhouse")
                 ?? config.GetConnectionString("ClickHouse")
                 ?? throw new InvalidOperationException("ClickHouse connection string not configured.");
+            // Aspire injects endpoint URLs (http://host:port) - normalize to Key=Value format
+            connString = ClickHouseConnectionInfo.NormalizeConnectionString(connString);
             var logger = sp.GetRequiredService<ILogger<ClickHouseService>>();
             var connectionInfo = sp.GetRequiredService<ClickHouseConnectionInfo>();
             return new ClickHouseService(connString, logger, connectionInfo);
@@ -202,6 +205,27 @@ public class Startup(
         finally
         {
             SentrySdk.FlushAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
+        }
+
+        // Seed sample data for local development (idempotent - checks if data exists)
+        if (hostingEnvironment.IsDevelopment())
+        {
+            try
+            {
+                using var seedScope = app.ApplicationServices.CreateScope();
+                var seedDb = seedScope.ServiceProvider.GetRequiredService<NuGetTrendsContext>();
+                var clickHouse = seedScope.ServiceProvider.GetRequiredService<IClickHouseService>();
+                var logger = seedScope.ServiceProvider.GetRequiredService<ILogger<Startup>>();
+                logger.LogInformation("[Seeder] Checking if seed data is needed...");
+                DevelopmentDataSeeder.SeedPostgresIfEmpty(seedDb);
+                DevelopmentDataSeeder.SeedClickHouseIfEmptyAsync(clickHouse).GetAwaiter().GetResult();
+                logger.LogInformation("[Seeder] Seed check complete.");
+            }
+            catch (Exception e)
+            {
+                var logger = app.ApplicationServices.GetService<ILogger<Startup>>();
+                logger?.LogError(e, "[Seeder] Failed to seed development data");
+            }
         }
 
         if (hostingEnvironment.IsDevelopment())

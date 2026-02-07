@@ -17,6 +17,36 @@ public sealed class ClickHouseConnectionInfo
     public string? Database { get; init; }
 
     /// <summary>
+    /// Converts to Key=Value format connection string for ClickHouse.Driver.ADO.
+    /// </summary>
+    public string ToConnectionString()
+    {
+        var parts = new List<string>();
+        if (Host is not null) parts.Add($"Host={Host}");
+        if (Port is not null) parts.Add($"Port={Port}");
+        if (Database is not null) parts.Add($"Database={Database}");
+        return string.Join(";", parts);
+    }
+
+    /// <summary>
+    /// Normalizes a connection string to Key=Value format.
+    /// Aspire injects endpoint URLs (http://host:port) but ClickHouse.Driver.ADO needs Key=Value format.
+    /// If already in Key=Value format, returns as-is.
+    /// </summary>
+    public static string NormalizeConnectionString(string connectionString, string defaultDatabase = "nugettrends")
+    {
+        if (Uri.TryCreate(connectionString, UriKind.Absolute, out var uri) &&
+            uri.Scheme.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+        {
+            var info = Parse(connectionString);
+            var database = info.Database ?? defaultDatabase;
+            return $"Host={info.Host};Port={info.Port};Database={database}";
+        }
+
+        return connectionString;
+    }
+
+    /// <summary>
     /// Parses a ClickHouse connection string to extract host, port, and database.
     /// Supports URI formats (http://, https://, clickhouse://, tcp://) and Key=Value format.
     /// </summary>

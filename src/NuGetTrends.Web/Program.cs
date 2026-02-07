@@ -120,16 +120,19 @@ try
          var connString = config.GetConnectionString("clickhouse")
              ?? config.GetConnectionString("ClickHouse")
              ?? throw new InvalidOperationException("ClickHouse connection string not configured.");
+         // Aspire injects endpoint URLs (http://host:port) - normalize to Key=Value format
+         connString = ClickHouseConnectionInfo.NormalizeConnectionString(connString);
          return ClickHouseConnectionInfo.Parse(connString);
      });
 
      builder.Services.AddSingleton<IClickHouseService>(sp =>
      {
          var config = sp.GetRequiredService<IConfiguration>();
-         // Aspire injects the connection string via ConnectionStrings__clickhouse environment variable
          var connString = config.GetConnectionString("clickhouse")
              ?? config.GetConnectionString("ClickHouse")
              ?? throw new InvalidOperationException("ClickHouse connection string not configured.");
+         // Aspire injects endpoint URLs (http://host:port) - normalize to Key=Value format
+         connString = ClickHouseConnectionInfo.NormalizeConnectionString(connString);
          var logger = sp.GetRequiredService<ILogger<ClickHouseService>>();
          var connectionInfo = sp.GetRequiredService<ClickHouseConnectionInfo>();
          return new ClickHouseService(connString, logger, connectionInfo);
@@ -209,7 +212,8 @@ try
         if (app.Environment.IsDevelopment())
         {
             // use the external angular CLI server instead
-            spa.UseProxyToSpaDevelopmentServer("http://localhost:4200");
+            var spaDevUrl = app.Configuration["SPA_DEV_SERVER_URL"] ?? "http://localhost:4200";
+            spa.UseProxyToSpaDevelopmentServer(spaDevUrl);
         }
     });
 
