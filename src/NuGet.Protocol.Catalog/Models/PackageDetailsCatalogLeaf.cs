@@ -71,4 +71,11 @@ public class PackageDetailsCatalogLeaf : CatalogLeaf
 
     [JsonProperty("verbatimVersion")]
     public string? VerbatimVersion { get; set; }
+
+    /// <summary>
+    /// Lowercase version of PackageId for efficient case-insensitive joins.
+    /// This is a computed/database-only property and is ignored by JSON serialization.
+    /// </summary>
+    [JsonIgnore]
+    public string PackageIdLowered { get; set; } = null!;
 }

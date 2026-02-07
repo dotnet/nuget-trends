@@ -1,12 +1,9 @@
 using System.Reflection;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.OpenApi.Models;
 using NuGetTrends.Data;
 using NuGetTrends.Data.ClickHouse;
+using NuGetTrends.Web;
 using Serilog;
-using Shortr;
-using Shortr.Npgsql;
 using Swashbuckle.AspNetCore.SwaggerUI;
 using SystemEnvironment = System.Environment;
 
@@ -41,12 +38,32 @@ try
     Log.Information("Starting.");
 
     var builder = WebApplication.CreateBuilder(args);
+
+    // Add Aspire service defaults (OpenTelemetry, health checks, service discovery)
+    builder.AddServiceDefaults();
+
     builder.Host.UseSerilog();
     builder.WebHost.UseConfiguration(configuration)
         .UseSentry(o =>
         {
+            // Mark ClickHouse driver frames as not in-app for cleaner stack traces
+            o.AddInAppExclude("ClickHouse.Driver");
             o.SetBeforeSend(e =>
             {
+                // Ignore SPA default page middleware errors for POST requests
+                // The SPA middleware doesn't support POST requests to index.html and this is expected behavior
+                // See: https://nugettrends.sentry.io/issues/4968360400/
+                // Note: We check SentryExceptions instead of Exception because when exceptions are
+                // captured via middleware, the Exception property may be null - the exception data
+                // is stored in the SentryExceptions collection instead.
+                var firstException = e.SentryExceptions?.FirstOrDefault();
+                if (firstException?.Type == "System.InvalidOperationException" &&
+                    firstException.Value?.Contains("The SPA default page middleware could not return the default page") == true &&
+                    e.Request?.Method == "POST")
+                {
+                    return null;
+                }
+
                 if (e.Message?.Formatted is { } msg && msg.Contains(
                         "An error occurred using the connection to database '\"nugettrends\"' on server"))
                 {
@@ -76,9 +93,9 @@ try
          builder.Services.AddCors(options =>
          {
              options.AddPolicy("AllowAll",
-                 builder =>
+                 corsPolicyBuilder =>
                  {
-                     builder
+                     corsPolicyBuilder
                          .AllowAnyOrigin()
                          .AllowAnyMethod()
                          .AllowAnyHeader()
@@ -87,23 +104,43 @@ try
          });
      }
 
-     builder.Services.AddDbContext<NuGetTrendsContext>(options =>
+     // Use Aspire's PostgreSQL integration for automatic connection string injection and health checks
+     builder.AddNpgsqlDbContext<NuGetTrendsContext>("nugettrends", configureDbContextOptions: options =>
      {
-         var connString = configuration.GetNuGetTrendsConnectionString();
-         options.UseNpgsql(connString);
          if (environment != Production)
          {
              options.EnableSensitiveDataLogging();
          }
      });
 
+     // ClickHouse connection - parse connection info once as singleton
+     builder.Services.AddSingleton(sp =>
+     {
+         var config = sp.GetRequiredService<IConfiguration>();
+         var connString = config.GetConnectionString("clickhouse")
+             ?? config.GetConnectionString("ClickHouse")
+             ?? throw new InvalidOperationException("ClickHouse connection string not configured.");
+         // Aspire injects endpoint URLs (http://host:port) - normalize to Key=Value format
+         connString = ClickHouseConnectionInfo.NormalizeConnectionString(connString);
+         return ClickHouseConnectionInfo.Parse(connString);
+     });
+
      builder.Services.AddSingleton<IClickHouseService>(sp =>
      {
-         var connString = configuration.GetConnectionString("ClickHouse")
+         var config = sp.GetRequiredService<IConfiguration>();
+         var connString = config.GetConnectionString("clickhouse")
+             ?? config.GetConnectionString("ClickHouse")
              ?? throw new InvalidOperationException("ClickHouse connection string not configured.");
+         // Aspire injects endpoint URLs (http://host:port) - normalize to Key=Value format
+         connString = ClickHouseConnectionInfo.NormalizeConnectionString(connString);
          var logger = sp.GetRequiredService<ILogger<ClickHouseService>>();
-         return new ClickHouseService(connString, logger);
+         var connectionInfo = sp.GetRequiredService<ClickHouseConnectionInfo>();
+         return new ClickHouseService(connString, logger, connectionInfo);
      });
+
+     // Add caching services
+     builder.Services.AddMemoryCache();
+     builder.Services.AddScoped<ITrendingPackagesCache, TrendingPackagesCache>();
 
      builder.Services.AddSwaggerGen(c =>
      {
@@ -113,23 +150,24 @@ try
          c.IncludeXmlComments(xmlPath);
      });
 
-     builder.Services.AddShortr();
-     if (environment == Production)
-     {
-         builder.Services.Replace(ServiceDescriptor.Singleton<IShortrStore, NpgsqlShortrStore>());
-         builder.Services.AddSingleton(_ => new NpgsqlShortrOptions
-         {
-             ConnectionString = configuration.GetNuGetTrendsConnectionString()
-         });
-     }
 
     var app = builder.Build();
+
+    // Map Aspire health check endpoints
+    app.MapDefaultEndpoints();
+
+    // Get app version from assembly (set via SourceRevisionId at build time)
+    var appVersion = Assembly.GetExecutingAssembly()
+        .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+        ?.InformationalVersion?.Split('+').LastOrDefault() ?? "unknown";
 
     app.Use(async (context, next) => {
         context.Response.OnStarting(() => {
             // Sentry Browser Profiling
             // https://docs.sentry.io/platforms/javascript/profiling/
             context.Response.Headers.Append("Document-Policy", "js-profiling");
+            // App version header
+            context.Response.Headers.Append("X-Version", appVersion);
             return Task.CompletedTask;
         });
         await next();
@@ -174,11 +212,10 @@ try
         if (app.Environment.IsDevelopment())
         {
             // use the external angular CLI server instead
-            spa.UseProxyToSpaDevelopmentServer("http://localhost:4200");
+            var spaDevUrl = app.Configuration["SPA_DEV_SERVER_URL"] ?? "http://localhost:4200";
+            spa.UseProxyToSpaDevelopmentServer(spaDevUrl);
         }
     });
-
-    app.UseShortr();
 
     app.Run();
 

@@ -1,5 +1,5 @@
 using System.Runtime.CompilerServices;
-using ClickHouse.Client.ADO;
+using ClickHouse.Driver.ADO;
 using Testcontainers.ClickHouse;
 using Xunit;
 
@@ -50,17 +50,71 @@ public class ClickHouseFixture : IAsyncLifetime
     private string AdminConnectionString => $"Host={_container.Hostname};Port={_container.GetMappedPublicPort(8123)};Username={Username};Password={Password}";
 
     /// <summary>
-    /// Resets the daily_downloads table by truncating all data.
+    /// Resets all tables by dropping and recreating them.
     /// Call this at the start of each test for isolation.
     /// </summary>
+    /// <remarks>
+    /// We use DROP + CREATE instead of TRUNCATE because:
+    /// 1. The weekly_downloads table uses AggregatingMergeTree with a Materialized View
+    /// 2. TRUNCATE on AggregatingMergeTree doesn't properly reset aggregate state
+    /// 3. The MV continues to accumulate data even after truncate
+    /// Dropping and recreating ensures a completely clean slate for each test.
+    /// </remarks>
     public async Task ResetTableAsync()
     {
         await using var connection = new ClickHouseConnection(ConnectionString);
         await connection.OpenAsync();
 
-        await using var truncateCmd = connection.CreateCommand();
-        truncateCmd.CommandText = "TRUNCATE TABLE daily_downloads";
-        await truncateCmd.ExecuteNonQueryAsync();
+        // Drop in reverse dependency order: MV first, then tables
+        var dropStatements = new[]
+        {
+            "DROP VIEW IF EXISTS weekly_downloads_mv",
+            "DROP TABLE IF EXISTS weekly_downloads",
+            "DROP TABLE IF EXISTS trending_packages_snapshot",
+            "DROP TABLE IF EXISTS package_first_seen",
+            "DROP TABLE IF EXISTS daily_downloads"
+        };
+
+        foreach (var sql in dropStatements)
+        {
+            await using var cmd = connection.CreateCommand();
+            cmd.CommandText = sql;
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        // Recreate tables by running migrations
+        await using var adminConnection = new ClickHouseConnection(AdminConnectionString);
+        await adminConnection.OpenAsync();
+
+        var migrationScripts = GetMigrationScripts();
+        foreach (var script in migrationScripts)
+        {
+            var statements = script.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            foreach (var statement in statements)
+            {
+                var trimmed = statement.Trim();
+                if (string.IsNullOrWhiteSpace(trimmed))
+                {
+                    continue;
+                }
+
+                var lines = trimmed.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+                var hasNonCommentLine = lines.Any(line =>
+                {
+                    var l = line.Trim();
+                    return !string.IsNullOrEmpty(l) && !l.StartsWith("--");
+                });
+
+                if (!hasNonCommentLine)
+                {
+                    continue;
+                }
+
+                await using var cmd = adminConnection.CreateCommand();
+                cmd.CommandText = trimmed;
+                await cmd.ExecuteNonQueryAsync();
+            }
+        }
     }
 
     /// <summary>
@@ -89,6 +143,28 @@ public class ClickHouseFixture : IAsyncLifetime
 
         await using var cmd = connection.CreateCommand();
         cmd.CommandText = "OPTIMIZE TABLE daily_downloads FINAL";
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    /// <summary>
+    /// Populates package_first_seen with all packages from weekly_downloads.
+    /// This is needed for tests that use GetTrendingPackagesAsync, which joins against package_first_seen.
+    /// Call this after inserting test data into daily_downloads.
+    /// </summary>
+    public async Task PopulatePackageFirstSeenAsync()
+    {
+        await using var connection = new ClickHouseConnection(ConnectionString);
+        await connection.OpenAsync();
+
+        // Insert all packages from weekly_downloads that aren't already tracked
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = """
+            INSERT INTO package_first_seen (package_id, first_seen)
+            SELECT package_id, min(week) AS first_seen
+            FROM weekly_downloads
+            WHERE package_id NOT IN (SELECT package_id FROM package_first_seen)
+            GROUP BY package_id
+            """;
         await cmd.ExecuteNonQueryAsync();
     }
 

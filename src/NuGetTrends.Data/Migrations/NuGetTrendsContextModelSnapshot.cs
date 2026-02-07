@@ -146,6 +146,11 @@ namespace NuGetTrends.Data.Migrations
                         .HasColumnType("text")
                         .HasColumnName("package_id");
 
+                    b.Property<string>("PackageIdLowered")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("package_id_lowered");
+
                     b.Property<long>("PackageSize")
                         .HasColumnType("bigint")
                         .HasColumnName("package_size");
@@ -194,6 +199,8 @@ namespace NuGetTrends.Data.Migrations
                         .HasName("pk_package_details_catalog_leafs");
 
                     b.HasIndex("PackageId");
+
+                    b.HasIndex("PackageIdLowered");
 
                     b.HasIndex("PackageId", "PackageVersion")
                         .IsUnique();

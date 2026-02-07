@@ -1,12 +1,17 @@
+using System.Reflection;
 using Hangfire;
 using Hangfire.Dashboard;
 using Hangfire.MemoryStorage;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
 using NuGetTrends.Data;
 using NuGetTrends.Data.ClickHouse;
+using Polly;
+using Polly.Timeout;
 using RabbitMQ.Client;
 using Sentry.Extensibility;
+using Sentry.Hangfire;
 
 namespace NuGetTrends.Scheduler;
 
@@ -16,6 +21,9 @@ public class Startup(
 {
     public void ConfigureServices(IServiceCollection services)
     {
+        // NuGet API availability tracking - shared state for all jobs and workers
+        services.AddSingleton<NuGetAvailabilityState>();
+
         services.AddHostedService<DailyDownloadWorker>();
 
         services.AddSingleton<INuGetSearchService, NuGetSearchService>();
@@ -24,52 +32,142 @@ public class Startup(
         services.Configure<DailyDownloadWorkerOptions>(configuration.GetSection("DailyDownloadWorker"));
         services.Configure<RabbitMqOptions>(configuration.GetSection("RabbitMq"));
         services.Configure<BackgroundJobServerOptions>(configuration.GetSection("Hangfire"));
-        services.AddSingleton<IClickHouseService>(sp =>
+
+        // ClickHouse connection - parse connection info once as singleton
+        services.AddSingleton(sp =>
         {
-            var connString = configuration.GetConnectionString("ClickHouse")
+            var config = sp.GetRequiredService<IConfiguration>();
+            var connString = config.GetConnectionString("clickhouse")
+                ?? config.GetConnectionString("ClickHouse")
                 ?? throw new InvalidOperationException("ClickHouse connection string not configured.");
-            var logger = sp.GetRequiredService<ILogger<ClickHouseService>>();
-            return new ClickHouseService(connString, logger);
+            // Aspire injects endpoint URLs (http://host:port) - normalize to Key=Value format
+            connString = ClickHouseConnectionInfo.NormalizeConnectionString(connString);
+            return ClickHouseConnectionInfo.Parse(connString);
         });
 
-        services.AddSingleton<IConnectionFactory>(c =>
+        services.AddSingleton<IClickHouseService>(sp =>
         {
-            var options = c.GetRequiredService<IOptions<RabbitMqOptions>>().Value;
-            var factory = new ConnectionFactory
+            var config = sp.GetRequiredService<IConfiguration>();
+            var connString = config.GetConnectionString("clickhouse")
+                ?? config.GetConnectionString("ClickHouse")
+                ?? throw new InvalidOperationException("ClickHouse connection string not configured.");
+            // Aspire injects endpoint URLs (http://host:port) - normalize to Key=Value format
+            connString = ClickHouseConnectionInfo.NormalizeConnectionString(connString);
+            var logger = sp.GetRequiredService<ILogger<ClickHouseService>>();
+            var connectionInfo = sp.GetRequiredService<ClickHouseConnectionInfo>();
+            return new ClickHouseService(connString, logger, connectionInfo);
+        });
+
+        // RabbitMQ connection factory - supports both Aspire service discovery and manual config
+        services.AddSingleton<IConnectionFactory>(sp =>
+        {
+            var config = sp.GetRequiredService<IConfiguration>();
+
+            // Check for Aspire-injected connection string first (format: amqp://user:pass@host:port)
+            var connectionString = config.GetConnectionString("rabbitmq");
+            if (!string.IsNullOrEmpty(connectionString))
+            {
+                var factory = new ConnectionFactory
+                {
+                    Uri = new Uri(connectionString),
+                    // For some reason you have to opt-in to have async code:
+                    // If you don't set this, subscribing to Received with AsyncEventingBasicConsumer will silently fail.
+                    DispatchConsumersAsync = true
+                };
+                return factory;
+            }
+
+            // Fall back to manual configuration
+            var options = sp.GetRequiredService<IOptions<RabbitMqOptions>>().Value;
+            return new ConnectionFactory
             {
                 HostName = options.Hostname,
                 Port = options.Port,
                 Password = options.Password,
                 UserName = options.Username,
-                // For some reason you have to opt-in to have async code:
-                // If you don't set this, subscribing to Received with AsyncEventingBasicConsumer will silently fail.
-                // DefaultConsumer doesn't fire either!
                 DispatchConsumersAsync = true
             };
-
-            return factory;
         });
 
-        services
-            .AddDbContext<NuGetTrendsContext>(options =>
-            {
-                options
-                    .UseNpgsql(configuration.GetNuGetTrendsConnectionString());
+        // PostgreSQL - supports both Aspire service discovery and manual config
+        services.AddDbContext<NuGetTrendsContext>((sp, options) =>
+        {
+            var config = sp.GetRequiredService<IConfiguration>();
+            // Aspire injects as "nugettrends" (database name), fallback to "NuGetTrends" for manual config
+            var connString = config.GetConnectionString("nugettrends")
+                ?? config.GetNuGetTrendsConnectionString();
 
-                if (hostingEnvironment.IsDevelopment())
-                {
-                    options.EnableSensitiveDataLogging();
-                }
-            });
+            options.UseNpgsql(connString);
+
+            if (hostingEnvironment.IsDevelopment())
+            {
+                options.EnableSensitiveDataLogging();
+            }
+        });
 
         // TODO: Use Postgres storage instead:
         // Install: Hangfire.PostgreSql
         // Configure: config.UsePostgreSqlStorage(Configuration.GetConnectionString("HangfireConnection")
-        services.AddHangfire(config => config.UseStorage(new MemoryStorage()))
-            .AddSentry();
+        services.AddHangfire(config => config
+            .UseStorage(new MemoryStorage())
+            .UseFilter(new SkipConcurrentExecutionFilter())
+            .UseSentry());
         services.AddHangfireServer();
 
-        services.AddHttpClient("nuget"); // TODO: typed client? will be shared across all jobs
+        // Bind NuGet resilience options from configuration
+        var resilienceOptions = new NuGetResilienceOptions();
+        configuration.GetSection(NuGetResilienceOptions.SectionName).Bind(resilienceOptions);
+
+        // Configure resilient HttpClient for NuGet API calls
+        services.AddHttpClient("nuget")
+            .AddResilienceHandler("nuget-resilience", builder =>
+            {
+                // Retry with exponential backoff
+                builder.AddRetry(new HttpRetryStrategyOptions
+                {
+                    MaxRetryAttempts = resilienceOptions.MaxRetryAttempts,
+                    Delay = resilienceOptions.RetryDelay,
+                    UseJitter = true,
+                    BackoffType = DelayBackoffType.Exponential,
+                    ShouldHandle = static args => ValueTask.FromResult(
+                        args.Outcome.Exception is HttpRequestException or TaskCanceledException or TimeoutRejectedException
+                        || args.Outcome.Result?.StatusCode is
+                            System.Net.HttpStatusCode.RequestTimeout or
+                            System.Net.HttpStatusCode.TooManyRequests or
+                            >= System.Net.HttpStatusCode.InternalServerError)
+                });
+
+                // Circuit breaker: open after repeated failures
+                builder.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
+                {
+                    FailureRatio = 0.5,
+                    SamplingDuration = TimeSpan.FromSeconds(30),
+                    MinimumThroughput = 3,
+                    BreakDuration = TimeSpan.FromSeconds(30),
+                    ShouldHandle = static args => ValueTask.FromResult(
+                        args.Outcome.Exception is HttpRequestException or TaskCanceledException or TimeoutRejectedException
+                        || args.Outcome.Result?.StatusCode is
+                            System.Net.HttpStatusCode.RequestTimeout or
+                            System.Net.HttpStatusCode.TooManyRequests or
+                            >= System.Net.HttpStatusCode.InternalServerError)
+                });
+
+                // Per-attempt timeout: retries use extended timeout
+                var baseTimeout = resilienceOptions.Timeout;
+                var retryTimeout = resilienceOptions.RetryTimeout;
+                builder.AddTimeout(new HttpTimeoutStrategyOptions
+                {
+                    Timeout = baseTimeout,
+                    TimeoutGenerator = args =>
+                    {
+                        // First attempt (0) uses base timeout, retries use extended timeout
+                        var timeout = args.Context.Properties.TryGetValue(new ResiliencePropertyKey<int>("Polly.Retry.AttemptNumber"), out var attempt) && attempt > 0
+                            ? retryTimeout
+                            : baseTimeout;
+                        return ValueTask.FromResult(timeout);
+                    }
+                });
+            });
 
         services.AddScoped<CatalogCursorStore>();
         services.AddScoped<CatalogLeafProcessor>();
@@ -78,15 +176,73 @@ public class Startup(
 
     public void Configure(IApplicationBuilder app)
     {
+        // Auto-apply EF Core migrations on startup. Safe with a single scheduler instance.
+        // 10-minute timeout: some migrations backfill data across the entire catalog leafs table
+        // (millions of rows), which far exceeds the default 30-second command timeout.
+        var migrationTransaction = SentrySdk.StartTransaction("ef-core-migrate", "db.migrate");
+        SentrySdk.ConfigureScope(s => s.Transaction = migrationTransaction);
+        try
+        {
+            using var scope = app.ApplicationServices.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<NuGetTrendsContext>();
+            db.Database.SetCommandTimeout(TimeSpan.FromMinutes(10));
+
+            var pending = db.Database.GetPendingMigrations().ToList();
+            migrationTransaction.SetTag("pending_count", pending.Count.ToString());
+            if (pending.Count > 0)
+            {
+                migrationTransaction.SetData("pending_migrations", pending);
+            }
+
+            db.Database.Migrate();
+            migrationTransaction.Finish(SpanStatus.Ok);
+        }
+        catch (Exception e)
+        {
+            migrationTransaction.Finish(e);
+            throw;
+        }
+        finally
+        {
+            SentrySdk.FlushAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
+        }
+
+        // Seed sample data for local development (idempotent - checks if data exists)
+        if (hostingEnvironment.IsDevelopment())
+        {
+            try
+            {
+                using var seedScope = app.ApplicationServices.CreateScope();
+                var seedDb = seedScope.ServiceProvider.GetRequiredService<NuGetTrendsContext>();
+                var clickHouse = seedScope.ServiceProvider.GetRequiredService<IClickHouseService>();
+                var logger = seedScope.ServiceProvider.GetRequiredService<ILogger<Startup>>();
+                logger.LogInformation("[Seeder] Checking if seed data is needed...");
+                DevelopmentDataSeeder.SeedPostgresIfEmpty(seedDb);
+                DevelopmentDataSeeder.SeedClickHouseIfEmptyAsync(clickHouse).GetAwaiter().GetResult();
+                logger.LogInformation("[Seeder] Seed check complete.");
+            }
+            catch (Exception e)
+            {
+                var logger = app.ApplicationServices.GetService<ILogger<Startup>>();
+                logger?.LogError(e, "[Seeder] Failed to seed development data");
+            }
+        }
+
         if (hostingEnvironment.IsDevelopment())
         {
             app.UseDeveloperExceptionPage();
         }
 
+        // Get app version from assembly (set via SourceRevisionId at build time)
+        var appVersion = Assembly.GetExecutingAssembly()
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion?.Split('+').LastOrDefault() ?? "unknown";
+
         app.UseHangfireDashboard(
             pathMatch: "",
             options: new DashboardOptions
             {
+                DashboardTitle = $"NuGet Trends Scheduler ({appVersion})",
                 Authorization = new IDashboardAuthorizationFilter[]
                 {
                     // Process not expected to be exposed to the internet

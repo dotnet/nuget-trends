@@ -1,4 +1,4 @@
-import { HttpClientModule, HttpResponse } from '@angular/common/http';
+import { HttpClientModule, HttpErrorResponse } from '@angular/common/http';
 import { CommonModule, DatePipe } from '@angular/common';
 import { Router, ActivatedRoute } from '@angular/router';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
@@ -10,7 +10,7 @@ import { of, Observable, throwError } from 'rxjs';
 
 import { PackagesService, PackageInteractionService } from '../core';
 import { MockedRouter, ToastrMock, MockedActivatedRoute } from '../mocks';
-import { PackageListComponent, SearchPeriodComponent, SharePopoverComponent } from '../shared/components';
+import { PackageListComponent, SearchPeriodComponent } from '../shared/components';
 import { IPackageDownloadHistory } from '../shared/models/package-models';
 import { PackagesComponent } from './packages.component';
 
@@ -37,6 +37,11 @@ class PackagesServiceMock {
   getPackageDownloadHistory(packageId: string, _months: number = 12): Observable<IPackageDownloadHistory> {
     return of(PackagesServiceMock.mockedDownloadHistory.find(p => p.id === packageId)!);
   }
+
+  checkPackageExistsOnNuGet(_packageId: string): Observable<boolean> {
+    // Default mock returns false (package doesn't exist on nuget.org)
+    return of(false);
+  }
 }
 
 describe('PackagesComponent', () => {
@@ -52,7 +57,7 @@ describe('PackagesComponent', () => {
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       declarations: [
-        PackagesComponent, PackageListComponent, SearchPeriodComponent, SharePopoverComponent
+        PackagesComponent, PackageListComponent, SearchPeriodComponent
       ],
       imports: [
         CommonModule,
@@ -124,12 +129,14 @@ describe('PackagesComponent', () => {
     }));
 
     it('should show error message when request fails during initial history load', fakeAsync(() => {
-      // Fake the service returning an error
-      const response = new HttpResponse({
-        body: '{ "error": ""}',
-        status: 500
+      // Fake the service returning a 500 error
+      const response = new HttpErrorResponse({
+        error: '{ "error": ""}',
+        status: 500,
+        statusText: 'Internal Server Error',
+        url: 'http://test'
       });
-      spyOn(mockedPackageService, 'getPackageDownloadHistory').and.returnValue(throwError(response));
+      spyOn(mockedPackageService, 'getPackageDownloadHistory').and.returnValue(throwError(() => response));
       spyOn(mockedToastr, 'error').and.callThrough();
 
       const packages = ['EntityFramework'];
@@ -140,6 +147,77 @@ describe('PackagesComponent', () => {
       fixture.detectChanges();
 
       expect(mockedToastr.error).toHaveBeenCalled();
+    }));
+
+    it('should show warning that package does not exist when 404 and package not on nuget.org', fakeAsync(() => {
+      // Fake the service returning a 404 error
+      const response = new HttpErrorResponse({
+        error: 'Not Found',
+        status: 404,
+        statusText: 'Not Found',
+        url: 'http://test/api/package/history/InvalidPackage'
+      });
+      spyOn(mockedPackageService, 'getPackageDownloadHistory').and.returnValue(throwError(() => response));
+      // Package doesn't exist on nuget.org
+      spyOn(mockedPackageService, 'checkPackageExistsOnNuGet').and.returnValue(of(false));
+      spyOn(mockedToastr, 'warning').and.callThrough();
+      spyOn(mockedToastr, 'error').and.callThrough();
+      spyOn(router, 'navigate').and.callThrough();
+
+      const packages = ['InvalidPackage'];
+
+      activatedRoute.testParamMap = { months: 12, ids: packages };
+      fixture.detectChanges();
+      tick();
+      fixture.detectChanges();
+
+      expect(mockedToastr.warning).toHaveBeenCalledWith("Package 'InvalidPackage' doesn't exist.");
+      expect(mockedToastr.error).not.toHaveBeenCalled();
+    }));
+
+    it('should show warning that package exists on nuget.org but not tracked when 404', fakeAsync(() => {
+      // Fake the service returning a 404 error
+      const response = new HttpErrorResponse({
+        error: 'Not Found',
+        status: 404,
+        statusText: 'Not Found',
+        url: 'http://test/api/package/history/System.Diagnostics'
+      });
+      spyOn(mockedPackageService, 'getPackageDownloadHistory').and.returnValue(throwError(() => response));
+      // Package exists on nuget.org but NuGet Trends doesn't track it
+      spyOn(mockedPackageService, 'checkPackageExistsOnNuGet').and.returnValue(of(true));
+      spyOn(mockedToastr, 'warning').and.callThrough();
+      spyOn(mockedToastr, 'error').and.callThrough();
+      spyOn(router, 'navigate').and.callThrough();
+
+      const packages = ['System.Diagnostics'];
+
+      activatedRoute.testParamMap = { months: 12, ids: packages };
+      fixture.detectChanges();
+      tick();
+      fixture.detectChanges();
+
+      expect(mockedToastr.warning).toHaveBeenCalledWith("Package 'System.Diagnostics' exists on NuGet.org but is not yet tracked by NuGet Trends.");
+      expect(mockedToastr.error).not.toHaveBeenCalled();
+    }));
+
+    it('should load package from NuGet-style URL path parameter (/packages/:packageId)', fakeAsync(() => {
+      spyOn(mockedPackageService, 'getPackageDownloadHistory').and.callThrough();
+      spyOn(packageInteractionService, 'addPackage').and.callThrough();
+      spyOn(packageInteractionService, 'plotPackage').and.callThrough();
+
+      // Set path parameter (NuGet-style URL: /packages/EntityFramework)
+      activatedRoute.testPathParamMap = { packageId: 'EntityFramework' };
+      fixture.detectChanges();
+      tick();
+      fixture.detectChanges();
+
+      const actualPackageElements: HTMLElement[] = fixture.nativeElement.querySelectorAll('.tags span');
+
+      expect(actualPackageElements.length).toBe(1);
+      expect(mockedPackageService.getPackageDownloadHistory).toHaveBeenCalledTimes(1);
+      expect(packageInteractionService.addPackage).toHaveBeenCalledTimes(1);
+      expect(packageInteractionService.plotPackage).toHaveBeenCalledTimes(1);
     }));
   });
 
@@ -197,13 +275,15 @@ describe('PackagesComponent', () => {
       tick();
       fixture.detectChanges();
 
-      // Fake the service returning an error
-      const response = new HttpResponse({
-        body: '{ "error": ""}',
-        status: 500
+      // Fake the service returning a 500 error
+      const response = new HttpErrorResponse({
+        error: '{ "error": ""}',
+        status: 500,
+        statusText: 'Internal Server Error',
+        url: 'http://test'
       });
 
-      spyOn(mockedPackageService, 'getPackageDownloadHistory').and.returnValue(throwError(response));
+      spyOn(mockedPackageService, 'getPackageDownloadHistory').and.returnValue(throwError(() => response));
       spyOn(mockedToastr, 'error').and.callThrough();
 
       // trigger the change of the period via the service
@@ -213,6 +293,38 @@ describe('PackagesComponent', () => {
       fixture.detectChanges();
 
       expect(mockedToastr.error).toHaveBeenCalled();
+    }));
+
+    it('should show warning message when package returns 404 during period change', fakeAsync(() => {
+      // Initially start the page with a package in URL
+      const packages = ['EntityFramework'];
+      activatedRoute.testParamMap = { months: 12, ids: packages };
+      fixture.detectChanges();
+      tick();
+      fixture.detectChanges();
+
+      // Fake the service returning a 404 error
+      const response = new HttpErrorResponse({
+        error: 'Not Found',
+        status: 404,
+        statusText: 'Not Found',
+        url: 'http://test/api/package/history/EntityFramework'
+      });
+
+      spyOn(mockedPackageService, 'getPackageDownloadHistory').and.returnValue(throwError(() => response));
+      // Package doesn't exist on nuget.org
+      spyOn(mockedPackageService, 'checkPackageExistsOnNuGet').and.returnValue(of(false));
+      spyOn(mockedToastr, 'warning').and.callThrough();
+      spyOn(mockedToastr, 'error').and.callThrough();
+
+      // trigger the change of the period via the service
+      const newPeriod = 12;
+      packageInteractionService.changeSearchPeriod(newPeriod);
+      tick();
+      fixture.detectChanges();
+
+      expect(mockedToastr.warning).toHaveBeenCalledWith("Package 'EntityFramework' doesn't exist.");
+      expect(mockedToastr.error).not.toHaveBeenCalled();
     }));
   });
 
@@ -270,6 +382,74 @@ describe('PackagesComponent', () => {
     }));
   });
 
+  describe('Chart Safety', () => {
+
+    it('should clear active chart elements before updating to prevent tooltip errors', fakeAsync(() => {
+      // Arrange - Initialize with a package to create the chart
+      const packages = ['EntityFramework'];
+      activatedRoute.testParamMap = { months: 12, ids: packages };
+      fixture.detectChanges();
+      tick();
+      fixture.detectChanges();
+
+      // Access the chart instance via the component
+      const chart = (component as any).trendChart;
+      expect(chart).toBeTruthy();
+
+      // Spy on setActiveElements to verify it's called before update
+      const setActiveElementsSpy = spyOn(chart, 'setActiveElements').and.callThrough();
+      const updateSpy = spyOn(chart, 'update').and.callThrough();
+
+      // Act - Add a second package which triggers chart update
+      packageInteractionService.plotPackage(PackagesServiceMock.mockedDownloadHistory[1]);
+      tick();
+      fixture.detectChanges();
+
+      // Assert - setActiveElements should be called before update
+      expect(setActiveElementsSpy).toHaveBeenCalledWith([]);
+      expect(updateSpy).toHaveBeenCalled();
+    }));
+
+    it('should clear active chart elements when removing a package', fakeAsync(() => {
+      // Arrange - Initialize with two packages
+      const packages = ['EntityFramework', 'Dapper'];
+      activatedRoute.testParamMap = { months: 12, ids: packages };
+      fixture.detectChanges();
+      tick();
+      fixture.detectChanges();
+
+      const chart = (component as any).trendChart;
+      const setActiveElementsSpy = spyOn(chart, 'setActiveElements').and.callThrough();
+
+      // Act - Remove one package
+      packageInteractionService.removePackage('Dapper');
+      tick();
+      fixture.detectChanges();
+
+      // Assert - setActiveElements should be called to clear tooltip state
+      expect(setActiveElementsSpy).toHaveBeenCalledWith([]);
+    }));
+
+    it('should nullify chart reference on destroy to prevent stale access', fakeAsync(() => {
+      // Arrange - Initialize with a package to create the chart
+      const packages = ['EntityFramework'];
+      activatedRoute.testParamMap = { months: 12, ids: packages };
+      fixture.detectChanges();
+      tick();
+      fixture.detectChanges();
+
+      // Verify chart exists
+      expect((component as any).trendChart).toBeTruthy();
+
+      // Act - Destroy the component
+      component.ngOnDestroy();
+
+      // Assert - Chart reference should be null
+      expect((component as any).trendChart).toBeNull();
+    }));
+
+  });
+
   describe('Plot Package', () => {
 
     it('should react to package plotted event by adding it to the chart', fakeAsync(() => {
@@ -312,6 +492,28 @@ describe('PackagesComponent', () => {
       expect(navigateActualParams[1].queryParams[queryParamName]).toEqual(['EntityFramework', 'Dapper']);
       expect(navigateActualParams[1].replaceUrl).toBeTruthy();
       expect(navigateActualParams[1].queryParamsHandling).toBe('merge');
+    }));
+
+    it('should transition from NuGet-style URL to query params when adding second package', fakeAsync(() => {
+      const spy = spyOn(router, 'navigate').and.callThrough();
+
+      // Start with NuGet-style URL (/packages/EntityFramework)
+      activatedRoute.testPathParamMap = { packageId: 'EntityFramework' };
+      fixture.detectChanges();
+      tick();
+      fixture.detectChanges();
+
+      // Act - Add a second package via plotPackage
+      packageInteractionService.plotPackage(PackagesServiceMock.mockedDownloadHistory[1]);
+      fixture.detectChanges();
+      tick();
+
+      const navigateActualParams: any[] = spy.calls.mostRecent().args;
+
+      // Should navigate to /packages with both packages as query params
+      expect(navigateActualParams[0]).toEqual(['/packages']);
+      expect(navigateActualParams[1].queryParams[queryParamName]).toEqual(['EntityFramework', 'Dapper']);
+      expect(navigateActualParams[1].replaceUrl).toBeTruthy();
     }));
   });
 });

@@ -1,5 +1,5 @@
 using System.Runtime.CompilerServices;
-using ClickHouse.Client.ADO;
+using ClickHouse.Driver.ADO;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NuGet.Protocol.Catalog;
@@ -144,9 +144,11 @@ public class IntegrationTestFixture : IAsyncLifetime
     /// </summary>
     public IClickHouseService CreateClickHouseService()
     {
+        var connectionInfo = ClickHouseConnectionInfo.Parse(ClickHouseConnectionString);
         return new ClickHouseService(
             ClickHouseConnectionString,
-            NullLogger<ClickHouseService>.Instance);
+            NullLogger<ClickHouseService>.Instance,
+            connectionInfo);
     }
 
     /// <summary>
@@ -289,6 +291,7 @@ public class IntegrationTestFixture : IAsyncLifetime
                 context.PackageDetailsCatalogLeafs.Add(new PackageDetailsCatalogLeaf
                 {
                     PackageId = package.PackageId,
+                    PackageIdLowered = package.PackageId.ToLowerInvariant(),
                     PackageVersion = package.PackageVersion,
                     CommitTimestamp = package.CommitTimestamp,
                     Listed = true,

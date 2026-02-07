@@ -13,6 +13,7 @@ import { PackagesModule } from "./packages/packages.module";
 import { SharedModule } from "./shared/shared.module";
 import { HomeModule } from "./home/home.module";
 import { CoreModule } from "./core/core.module";
+import { filterNoisyErrors } from "./core/sentry-error-filter";
 
 Sentry.init({
   dsn: environment.SENTRY_DSN,
@@ -23,6 +24,7 @@ Sentry.init({
   replaysSessionSampleRate: 1.0,
   replaysOnErrorSampleRate: 1.0,
   profileSessionSampleRate: 1.0,
+  beforeSend: filterNoisyErrors,
   integrations: [
     Sentry.replayIntegration({
       // No PII here so lets get the texts
@@ -34,13 +36,23 @@ Sentry.init({
     }),
     Sentry.replayCanvasIntegration(),
     Sentry.feedbackIntegration({
-      colorScheme: "light", // no dark theme yet
+      colorScheme: "system", // auto-detect system theme
       themeLight: {
         accentBackground: "#215C84",
+      },
+      themeDark: {
+        accentBackground: "#4a9fd4",
       },
     }),
     Sentry.browserTracingIntegration({
       idleTimeout: 30000,
+      beforeStartSpan: (context) => {
+        return {
+          ...context,
+          // Parameterize the /packages/:packageId route to avoid high-cardinality transaction names
+          name: location.pathname.replace(/^\/packages\/[^/?]+$/, '/packages/:packageId'),
+        };
+      },
     }),
     Sentry.browserProfilingIntegration(),
   ],

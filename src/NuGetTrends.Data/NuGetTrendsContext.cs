@@ -50,6 +50,10 @@ public class NuGetTrendsContext(DbContextOptions<NuGetTrendsContext> options) : 
 
         modelBuilder
             .Entity<PackageDetailsCatalogLeaf>()
+            .HasIndex(p => p.PackageIdLowered);
+
+        modelBuilder
+            .Entity<PackageDetailsCatalogLeaf>()
             .HasMany(p => p.DependencyGroups)
             .WithOne().HasConstraintName("fk_package_dependency_group_package_details_catalog_leafs_id") //so it doesn't get truncated
             .OnDelete(DeleteBehavior.Cascade);

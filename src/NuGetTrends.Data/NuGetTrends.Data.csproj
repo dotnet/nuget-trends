@@ -10,10 +10,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="ClickHouse.Client" />
+    <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="ClickHouse.Driver" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Sentry" />
   </ItemGroup>
 
 </Project>

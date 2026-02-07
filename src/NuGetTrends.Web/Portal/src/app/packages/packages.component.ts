@@ -1,5 +1,6 @@
-import { Component, ErrorHandler, OnDestroy, OnInit } from '@angular/core';
+import { Component, ErrorHandler, OnDestroy, OnInit, effect } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom, Subscription } from 'rxjs';
 import { ActivatedRoute, Params, Router } from '@angular/router';
 import { AppAnimations } from '../shared';
@@ -7,7 +8,7 @@ import { ToastrService } from 'ngx-toastr';
 import * as Sentry from "@sentry/angular";
 import 'chartjs-adapter-date-fns'; 
 
-import { PackagesService, PackageInteractionService } from '../core';
+import { PackagesService, PackageInteractionService, ThemeService } from '../core';
 import { IPackageDownloadHistory, IDownloadStats } from '../shared/models/package-models';
 import { 
   Chart, 
@@ -51,7 +52,8 @@ export class PackagesComponent implements OnInit, OnDestroy {
     private packageInteractionService: PackageInteractionService,
     private datePipe: DatePipe,
     private toastr: ToastrService,
-    private errorHandler: ErrorHandler) {
+    private errorHandler: ErrorHandler,
+    private themeService: ThemeService) {
 
     this.plotPackageSubscription = this.packageInteractionService.packagePlotted$.subscribe(
       (packageHistory: IPackageDownloadHistory) => {
@@ -62,6 +64,12 @@ export class PackagesComponent implements OnInit, OnDestroy {
 
     this.searchPeriodSubscription = this.packageInteractionService.searchPeriodChanged$.subscribe(
       (searchPeriod: number) => this.periodChanged(searchPeriod));
+
+    // Update chart colors when theme changes
+    effect(() => {
+      const isDark = this.themeService.isDark();
+      this.updateChartTheme(isDark);
+    });
   }
 
   ngOnInit() {
@@ -75,6 +83,21 @@ export class PackagesComponent implements OnInit, OnDestroy {
 
     if (this.trendChart) {
       this.trendChart.destroy();
+      this.trendChart = null!;
+    }
+  }
+
+  /**
+   * Safely updates the chart, clearing active elements first to prevent
+   * tooltip errors when datasets are modified during user interaction.
+   * This prevents "Cannot read properties of null (reading 'getLabelAndValue')"
+   * errors that occur when Chart.js tries to render tooltips for datasets
+   * that were just modified or removed.
+   */
+  private safeChartUpdate(): void {
+    if (this.trendChart?.canvas) {
+      this.trendChart.setActiveElements([]);
+      this.trendChart.update();
     }
   }
 
@@ -94,10 +117,30 @@ export class PackagesComponent implements OnInit, OnDestroy {
         const downloadHistory = await firstValueFrom(this.packagesService.getPackageDownloadHistory(packageId, period));
         this.packageInteractionService.updatePackage(downloadHistory);
       } catch (error) {
-        this.errorHandler.handleError(error);
-        this.toastr.error('Our servers are too cool (or not) to handle your request at the moment.');
+        if (error instanceof HttpErrorResponse && error.status === 404) {
+          await this.handlePackageNotFound(packageId);
+        } else {
+          this.errorHandler.handleError(error);
+          this.toastr.error('Our servers are too cool (or not) to handle your request at the moment.');
+        }
       }
     });
+  }
+
+  /**
+   * Handles a 404 error by checking if the package exists on nuget.org
+   * and showing an appropriate message to the user.
+   */
+  private async handlePackageNotFound(packageId: string): Promise<void> {
+    const existsOnNuGet = await firstValueFrom(this.packagesService.checkPackageExistsOnNuGet(packageId));
+
+    if (existsOnNuGet) {
+      this.toastr.warning(`Package '${packageId}' exists on NuGet.org but is not yet tracked by NuGet Trends.`);
+    } else {
+      this.toastr.warning(`Package '${packageId}' doesn't exist.`);
+    }
+
+    this.removePackageFromUrl(packageId);
   }
 
   /**
@@ -112,7 +155,7 @@ export class PackagesComponent implements OnInit, OnDestroy {
           this.initializeChart(packageHistory);
         } else {
           this.chartData.datasets!.push(dataset);
-          this.trendChart.update();
+          this.safeChartUpdate();
         }
         this.addPackageToUrl(packageHistory.id);
       }, 0);
@@ -124,7 +167,7 @@ export class PackagesComponent implements OnInit, OnDestroy {
    */
   private removePackage(packageId: string): void {
     this.chartData.datasets = this.chartData.datasets!.filter(d => d.label !== packageId);
-    this.trendChart.update();
+    this.safeChartUpdate();
     this.removePackageFromUrl(packageId);
 
     if (!this.chartData.datasets.length) {
@@ -144,6 +187,9 @@ export class PackagesComponent implements OnInit, OnDestroy {
     this.chartData.datasets!.push(this.parseDataSet(firstPackageData));
     Chart.defaults.font.size = 13;
 
+    const colors = this.getThemeColors();
+    Chart.defaults.color = colors.text;
+
     const chartOptions: ChartOptions = {
       responsive: true,
       maintainAspectRatio: false,
@@ -153,6 +199,9 @@ export class PackagesComponent implements OnInit, OnDestroy {
         },
         tooltip: {
           animation: false,
+          backgroundColor: colors.tooltipBg,
+          titleColor: colors.tooltipText,
+          bodyColor: colors.tooltipText,
           callbacks: {
             title: (tooltipItems) => {
               const rawData = tooltipItems[0].raw as { x: number; y: number }; 
@@ -189,14 +238,22 @@ export class PackagesComponent implements OnInit, OnDestroy {
               year: 'yyyy',
             },
           },
+          grid: {
+            color: colors.grid,
+          },
           ticks: {
             source: 'auto',
             autoSkip: true,
+            color: colors.text,
           },
         },
         y: {
           display: true,
+          grid: {
+            color: colors.grid,
+          },
           ticks: {
+            color: colors.text,
             callback: (tickValue: string | number) => {
               if (typeof tickValue === 'number') {
                 return tickValue.toLocaleString();
@@ -251,10 +308,21 @@ export class PackagesComponent implements OnInit, OnDestroy {
   
   /**
    * Reads the packages from the URL and initialize the chart
+   * Supports both NuGet-style URLs (/packages/PackageName) and query param URLs (/packages?ids=...)
    * Useful when sharing the URL with others
    */
   private async loadPackagesFromUrl(): Promise<void> {
-    const packageIds: string[] = this.activatedRoute.snapshot.queryParamMap.getAll(this.urlParamName);
+    // Check for path parameter (NuGet-style URL: /packages/Newtonsoft.Json)
+    const pathPackageId = this.activatedRoute.snapshot.paramMap.get('packageId');
+
+    // Check for query parameters (existing format: /packages?ids=...)
+    const queryPackageIds: string[] = this.activatedRoute.snapshot.queryParamMap.getAll(this.urlParamName);
+
+    // Combine: path param first, then query params (excluding duplicates)
+    const packageIds = pathPackageId
+      ? [pathPackageId, ...queryPackageIds.filter(id => id.toLowerCase() !== pathPackageId.toLowerCase())]
+      : queryPackageIds;
+
     if (!packageIds.length) {
       return;
     }
@@ -266,27 +334,53 @@ export class PackagesComponent implements OnInit, OnDestroy {
 
         this.packageInteractionService.addPackage(downloadHistory);
       } catch (error) {
-        this.errorHandler.handleError(error);
-        this.toastr.error('Our servers are too cool (or not) to handle your request at the moment.');
+        if (error instanceof HttpErrorResponse && error.status === 404) {
+          await this.handlePackageNotFound(packageId);
+        } else {
+          this.errorHandler.handleError(error);
+          this.toastr.error('Our servers are too cool (or not) to handle your request at the moment.');
+        }
       }
     });
   }
 
   /**
    * Add the selected packageId to the URL making it shareable
+   * Handles transition from NuGet-style URLs (/packages/Foo) to query param format when adding more packages
    */
   private addPackageToUrl(packageId: string) {
-    const packageIds: string[] = this.activatedRoute.snapshot.queryParamMap.getAll(this.urlParamName);
+    const pathPackageId = this.activatedRoute.snapshot.paramMap.get('packageId');
+    const queryPackageIds: string[] = this.activatedRoute.snapshot.queryParamMap.getAll(this.urlParamName);
 
-    if (packageIds.includes(packageId)) {
+    // Check if package already exists (case-insensitive)
+    const allCurrentIds = pathPackageId
+      ? [pathPackageId, ...queryPackageIds]
+      : queryPackageIds;
+
+    if (allCurrentIds.some(id => id.toLowerCase() === packageId.toLowerCase())) {
       return;
     }
+
+    // If we're on a NuGet-style URL (/packages/SomePackage), transition to query param format
+    if (pathPackageId) {
+      const allIds = [pathPackageId, packageId];
+      this.route.navigate(['/packages'], {
+        replaceUrl: true,
+        queryParams: {
+          [this.urlParamName]: allIds,
+          months: this.packageInteractionService.searchPeriod
+        }
+      });
+      return;
+    }
+
+    // Standard query param handling
     const queryParams: Params = { ...this.activatedRoute.snapshot.queryParams };
 
     // if packageIds exists, append the new package to the URL
     // otherwise initialize the param
-    if (packageIds.length) {
-      queryParams[this.urlParamName] = [...packageIds, packageId];
+    if (queryPackageIds.length) {
+      queryParams[this.urlParamName] = [...queryPackageIds, packageId];
     } else {
       queryParams[this.urlParamName] = packageId;
     }
@@ -300,15 +394,33 @@ export class PackagesComponent implements OnInit, OnDestroy {
 
   /**
    * Removes the package from the URL when removing the "tag" from the list
+   * Handles both NuGet-style URLs (/packages/Foo) and query param format
    */
   private removePackageFromUrl(packageId: string) {
-    const packageIds: string[] = this.activatedRoute.snapshot.queryParamMap.getAll(this.urlParamName);
+    const pathPackageId = this.activatedRoute.snapshot.paramMap.get('packageId');
+    const queryPackageIds: string[] = this.activatedRoute.snapshot.queryParamMap.getAll(this.urlParamName);
 
-    if (!packageIds.includes(packageId)) {
+    // If removing the path-based package, navigate away (handled by removePackage -> navigate to home)
+    if (pathPackageId && pathPackageId.toLowerCase() === packageId.toLowerCase()) {
+      // If there are other packages in query params, transition to query-only format
+      if (queryPackageIds.length > 0) {
+        this.route.navigate(['/packages'], {
+          queryParams: {
+            [this.urlParamName]: queryPackageIds,
+            months: this.packageInteractionService.searchPeriod
+          }
+        });
+      }
+      // Otherwise, the calling code (removePackage) will handle navigation to home
+      return;
+    }
+
+    // Standard query param handling
+    if (!queryPackageIds.some(id => id.toLowerCase() === packageId.toLowerCase())) {
       return;
     }
     const queryParams: Params = { ...this.activatedRoute.snapshot.queryParams };
-    queryParams[this.urlParamName] = packageIds.filter(p => p !== packageId);
+    queryParams[this.urlParamName] = queryPackageIds.filter(p => p.toLowerCase() !== packageId.toLowerCase());
 
     this.route.navigate([], {
       queryParams,
@@ -317,17 +429,69 @@ export class PackagesComponent implements OnInit, OnDestroy {
   }
 
   /**
- * Gets correctly formated date depending on the period
- */
-  private getTimeUnit(period: number): any {
-    if (period >= 3 && period <= 6) {
+   * Gets correctly formatted date depending on the period
+   */
+  private getTimeUnit(period: number): 'day' | 'month' | 'year' {
+    if (period <= 6) {
       return 'day';
-    } else if (period >= 12 && period <= 24) {
+    } else if (period <= 24) {
       return 'month';
-    } else if (period >= 72 && period <= 120) {
-      return 'year';
     } else {
-      return 'month';
+      return 'year';
     }
+  }
+
+  /**
+   * Updates chart colors based on current theme
+   */
+  private updateChartTheme(_isDark: boolean): void {
+    if (!this.trendChart) return;
+
+    const colors = this.getThemeColors();
+
+    // Update global defaults
+    Chart.defaults.color = colors.text;
+
+    // Update scales
+    if (this.trendChart.options.scales) {
+      const xScale = this.trendChart.options.scales['x'];
+      const yScale = this.trendChart.options.scales['y'];
+
+      if (xScale) {
+        if (xScale.grid) xScale.grid.color = colors.grid;
+        if (xScale.ticks) xScale.ticks.color = colors.text;
+      }
+      if (yScale) {
+        if (yScale.grid) yScale.grid.color = colors.grid;
+        if (yScale.ticks) yScale.ticks.color = colors.text;
+      }
+    }
+
+    // Update tooltip
+    if (this.trendChart.options.plugins?.tooltip) {
+      this.trendChart.options.plugins.tooltip.backgroundColor = colors.tooltipBg;
+      this.trendChart.options.plugins.tooltip.titleColor = colors.tooltipText;
+      this.trendChart.options.plugins.tooltip.bodyColor = colors.tooltipText;
+    }
+
+    this.safeChartUpdate();
+  }
+
+  /**
+   * Gets theme-appropriate colors from CSS custom properties
+   */
+  private getThemeColors(): {
+    grid: string;
+    text: string;
+    tooltipBg: string;
+    tooltipText: string;
+  } {
+    const style = getComputedStyle(document.body);
+    return {
+      grid: style.getPropertyValue('--chart-grid-color').trim() || 'rgba(0, 0, 0, 0.1)',
+      text: style.getPropertyValue('--chart-text-color').trim() || '#666666',
+      tooltipBg: style.getPropertyValue('--chart-tooltip-bg').trim() || 'rgba(0, 0, 0, 0.8)',
+      tooltipText: style.getPropertyValue('--chart-tooltip-text').trim() || '#ffffff',
+    };
   }
 }

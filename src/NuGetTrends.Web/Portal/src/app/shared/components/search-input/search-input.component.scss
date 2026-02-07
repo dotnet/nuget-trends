@@ -1,24 +1,29 @@
-@import '../../../../colors';
-
-.mat-autocomplete-panel {
+/* Angular Material 19 MDC-based autocomplete panel styling */
+.mat-mdc-autocomplete-panel {
   font-size: 1.1em;
-  color: $grey-dark;
-  border: 1px solid $grey-light;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
   border-top: none;
-  background-color: $white-ter
+  background-color: var(--color-autocomplete-bg) !important;
 }
 
 .package-img {
   height: 32px;
-  width: 32px;  
+  width: 32px;
   vertical-align: middle;
   margin-right: 8px;
 }
 
-.mat-option:hover:not(.mat-option-disabled),
-.mat-option.mat-active {
-  background-color: $cyan;
-  color: #fff
+/* MDC option styling */
+.mat-mdc-option {
+  color: var(--color-text);
+}
+
+.mat-mdc-option:hover:not(.mat-mdc-option-disabled),
+.mat-mdc-option.mdc-list-item--selected,
+.mat-mdc-option.mat-mdc-option-active {
+  background-color: var(--color-autocomplete-hover) !important;
+  color: #fff !important;
 }
 
 /* Extra styles to make the input a little nicer on the header */

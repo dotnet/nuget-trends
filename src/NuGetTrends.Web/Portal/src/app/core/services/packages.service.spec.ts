@@ -1,7 +1,7 @@
 import { TestBed, inject, fakeAsync, tick, waitForAsync } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { PackagesService } from './packages.service';
-import { IPackageSearchResult, IPackageDownloadHistory } from 'src/app/shared/models/package-models';
+import { IPackageSearchResult, IPackageDownloadHistory, ITrendingPackage } from 'src/app/shared/models/package-models';
 
 describe('PackagesService', () => {
 
@@ -98,6 +98,49 @@ describe('PackagesService', () => {
     });
 
     const req = httpMock.expectOne(`${service.baseUrl}/framework/history/${packageId}?months=${12}`);
+    req.flush(data);
+    tick();
+
+    expect(req.request.method).toEqual('GET');
+  }));
+
+  it('should call the getTrendingPackages endpoint with default limit', fakeAsync(() => {
+    const data: ITrendingPackage[] = [
+      {
+        packageId: 'Newtonsoft.Json',
+        downloadCount: 150000,
+        growthRate: 0.25,
+        iconUrl: 'https://example.com/icon.png',
+        gitHubUrl: 'https://github.com/JamesNK/Newtonsoft.Json'
+      },
+      {
+        packageId: 'Sentry',
+        downloadCount: 50000,
+        growthRate: 0.75,
+        iconUrl: 'https://example.com/icon2.png',
+        gitHubUrl: null
+      }
+    ];
+
+    service.getTrendingPackages().subscribe((packages: ITrendingPackage[]) => {
+      expect(packages).toEqual(data);
+    });
+
+    const req = httpMock.expectOne(`${service.baseUrl}/package/trending?limit=10`);
+    req.flush(data);
+    tick();
+
+    expect(req.request.method).toEqual('GET');
+  }));
+
+  it('should call the getTrendingPackages endpoint with custom limit', fakeAsync(() => {
+    const data: ITrendingPackage[] = [];
+
+    service.getTrendingPackages(5).subscribe((packages: ITrendingPackage[]) => {
+      expect(packages).toEqual(data);
+    });
+
+    const req = httpMock.expectOne(`${service.baseUrl}/package/trending?limit=5`);
     req.flush(data);
     tick();
 

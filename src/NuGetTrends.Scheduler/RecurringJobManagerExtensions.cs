@@ -20,15 +20,22 @@ internal static class RecurringJobManagerExtensions
     {
         var jobManager = app.ApplicationServices.GetRequiredService<IRecurringJobManager>();
 
+        // Hangfire injects IJobCancellationToken and PerformContext at runtime
+        // Schedule values are defined in JobScheduleConfig to stay in sync with Sentry monitor config
         jobManager.AddOrUpdate<NuGetCatalogImporter>(
             "NuGetCatalogImporter",
-            j => j.Import(JobCancellationToken.Null), // Hangfire passes in a token on activation
-            Cron.Hourly());
+            j => j.Import(JobCancellationToken.Null, null),
+            Cron.HourInterval(JobScheduleConfig.CatalogImporter.IntervalHours));
 
         jobManager.AddOrUpdate<DailyDownloadPackageIdPublisher>(
             "DownloadCountImporter",
-            j => j.Import(JobCancellationToken.Null),
-            // Runs at 1 AM UTC
-            Cron.Daily(1));
+            j => j.Import(JobCancellationToken.Null, null),
+            Cron.Daily(JobScheduleConfig.DailyDownloadPublisher.RunAtHourUtc));
+
+        jobManager.AddOrUpdate<TrendingPackagesSnapshotRefresher>(
+            "TrendingPackagesSnapshotRefresher",
+            j => j.Refresh(JobCancellationToken.Null, null),
+            Cron.Weekly(JobScheduleConfig.TrendingSnapshotRefresher.RunOnDay,
+                JobScheduleConfig.TrendingSnapshotRefresher.RunAtHourUtc));
     }
 }

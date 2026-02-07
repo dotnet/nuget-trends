@@ -12,9 +12,9 @@ import {
   SearchTypeComponent,
   SearchPeriodComponent,
   LoadingIndicatorComponent,
-  LoadingIndicatorInterceptor
+  LoadingIndicatorInterceptor,
+  TrendingPackagesComponent
 } from './components';
-import { SharePopoverComponent } from './components/share-popover/share-popover.component';
 
 @NgModule({
   declarations: [
@@ -23,7 +23,7 @@ import { SharePopoverComponent } from './components/share-popover/share-popover.
     SearchTypeComponent,
     SearchPeriodComponent,
     LoadingIndicatorComponent,
-    SharePopoverComponent
+    TrendingPackagesComponent
   ],
   imports: [
     CommonModule,
@@ -46,7 +46,7 @@ import { SharePopoverComponent } from './components/share-popover/share-popover.
     SearchTypeComponent,
     SearchPeriodComponent,
     LoadingIndicatorComponent,
-    SharePopoverComponent
+    TrendingPackagesComponent
   ],
   providers: [
     {

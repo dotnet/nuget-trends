@@ -1,6 +1,5 @@
 using Sentry.Extensions.Logging;
 using Serilog;
-using Sentry;
 using SystemEnvironment = System.Environment;
 
 namespace NuGetTrends.Scheduler;
@@ -55,11 +54,38 @@ public class Program
             {
                 webBuilder
                     .UseKestrel()
-                    .UseConfiguration(Configuration)
                     .UseSentry(o =>
                     {
+                        // Disable stacktrace attachment for log events - they only contain
+                        // system frames when logged from libraries like Polly/EF Core
+                        o.AttachStacktrace = false;
+                        // Mark ClickHouse driver frames as not in-app for cleaner stack traces
+                        o.AddInAppExclude("ClickHouse.Driver");
                         o.SetBeforeSend(e =>
                         {
+                            // Handle Polly timeout events - downgrade to warning and add URL tag
+                            if (e.Logger == "Polly"
+                                && e.Extra.TryGetValue("EventName", out var eventName)
+                                && eventName?.ToString() == "OnTimeout"
+                                && e.Extra.TryGetValue("Uri", out var uri))
+                            {
+                                e.Level = SentryLevel.Warning;
+                                var urlString = uri?.ToString() ?? "unknown";
+                                e.SetTag("url", urlString);
+
+                                // Append URL to formatted message (preserves grouping via Message template)
+                                if (e.Message != null)
+                                {
+                                    e.Message = new SentryMessage
+                                    {
+                                        Message = e.Message.Message,
+                                        Params = e.Message.Params,
+                                        Formatted = $"{e.Message.Formatted}\nURL: {urlString}"
+                                    };
+                                }
+                            }
+
+                            // Fingerprint database connection errors
                             if (e.Message?.Formatted is {} msg && msg.Contains(
                                     "An error occurred using the connection to database '\"nugettrends\"' on server"))
                             {
@@ -69,12 +95,27 @@ public class Program
                         });
                         o.CaptureFailedRequests = true;
                         o.AddExceptionFilterForType<OperationCanceledException>();
+                        o.AddExceptionFilterForType<ConcurrentExecutionSkippedException>();
                         o.AddLogEntryFilter((category, level, eventId, exception)
                             => eventId.ToString() ==
                                "Microsoft.EntityFrameworkCore.Infrastructure.SensitiveDataLoggingEnabledWarning"
                                && string.Equals(
                                    category,
                                    "Microsoft.EntityFrameworkCore.Model.Validation",
+                                   StringComparison.Ordinal));
+                        // Filter out EF Core transaction and command error logs - these are duplicates
+                        // of the actual DbUpdateException which is captured separately.
+                        // TransactionError (20205) and CommandError (20102) are logged by EF Core
+                        // but don't include the exception, making them noise in Sentry.
+                        o.AddLogEntryFilter((category, _, eventId, _)
+                            => eventId.Id == 20205 && string.Equals(
+                                   category,
+                                   "Microsoft.EntityFrameworkCore.Database.Transaction",
+                                   StringComparison.Ordinal));
+                        o.AddLogEntryFilter((category, _, eventId, _)
+                            => eventId.Id == 20102 && string.Equals(
+                                   category,
+                                   "Microsoft.EntityFrameworkCore.Database.Command",
                                    StringComparison.Ordinal));
                     })
                     .UseStartup<Startup>();

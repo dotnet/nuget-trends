@@ -11,6 +11,7 @@ namespace NuGetTrends.Web;
 public class PackageController(
     NuGetTrendsContext context,
     IClickHouseService clickHouseService,
+    ITrendingPackagesCache trendingPackagesCache,
     ILogger<PackageController> logger) : ControllerBase
 {
     [HttpGet("search")]
@@ -31,14 +32,23 @@ public class PackageController(
             .ToListAsync(cancellationToken);
     }
 
+    private const int MaxMonthsAllowed = 240;
+
     [HttpGet("history/{id}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> GetDownloadHistory(
         [FromRoute] string id,
         CancellationToken cancellationToken,
         [FromQuery] int months = 3)
     {
+        // Validate months parameter to prevent memory-intensive queries
+        if (months < 1 || months > MaxMonthsAllowed)
+        {
+            return BadRequest($"The 'months' parameter must be between 1 and {MaxMonthsAllowed}.");
+        }
+
         // Query ClickHouse first (happy path: 1 query instead of 2)
         var downloads = await clickHouseService.GetWeeklyDownloadsAsync(id, months, cancellationToken);
 
@@ -58,5 +68,30 @@ public class PackageController(
         }
 
         return Ok(new { Id = id, Downloads = downloads });
+    }
+
+    private const int MaxTrendingLimit = 100;
+
+    /// <summary>
+    /// Get trending packages based on week-over-week growth rate.
+    /// Returns packages that are relatively new (up to 1 year old) with significant downloads.
+    /// </summary>
+    /// <param name="limit">Maximum number of packages to return (1-100, default: 10)</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>List of trending packages with growth metrics</returns>
+    [HttpGet("trending")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<List<TrendingPackageDto>>> GetTrending(
+        [FromQuery] int limit = 10,
+        CancellationToken cancellationToken = default)
+    {
+        if (limit < 1 || limit > MaxTrendingLimit)
+        {
+            return BadRequest($"The 'limit' parameter must be between 1 and {MaxTrendingLimit}.");
+        }
+
+        var trending = await trendingPackagesCache.GetTrendingPackagesAsync(limit, cancellationToken);
+        return Ok(trending.Packages);
     }
 }

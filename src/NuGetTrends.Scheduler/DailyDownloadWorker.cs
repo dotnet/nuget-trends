@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 using MessagePack;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -19,6 +20,7 @@ public class DailyDownloadWorker : IHostedService
     private readonly IServiceProvider _services;
     private readonly INuGetSearchService _nuGetSearchService;
     private readonly IClickHouseService _clickHouseService;
+    private readonly NuGetAvailabilityState _availabilityState;
     private readonly ILogger<DailyDownloadWorker> _logger;
     private readonly CancellationTokenSource _cancellationTokenSource = new();
     private readonly ConcurrentBag<(IModel, IConnection)> _connections = new();
@@ -31,6 +33,7 @@ public class DailyDownloadWorker : IHostedService
         IServiceProvider services,
         INuGetSearchService nuGetSearchService,
         IClickHouseService clickHouseService,
+        NuGetAvailabilityState availabilityState,
         ILogger<DailyDownloadWorker> logger)
     {
         _options = options.Value;
@@ -38,6 +41,7 @@ public class DailyDownloadWorker : IHostedService
         _services = services;
         _nuGetSearchService = nuGetSearchService;
         _clickHouseService = clickHouseService;
+        _availabilityState = availabilityState;
         _logger = logger;
         _workers = new List<Task>(_options.WorkerCount);
     }
@@ -152,16 +156,102 @@ public class DailyDownloadWorker : IHostedService
 
     private async Task OnConsumerOnReceived(object sender, BasicDeliverEventArgs ea)
     {
+        const string queueName = "daily-download";
         using var _ = _logger.BeginScope("OnConsumerOnReceived");
-        var batchProcessSpan = SentrySdk.StartTransaction("daily-download-fetch", "queue.read");
-        SentrySdk.ConfigureScope(s => s.Transaction = batchProcessSpan);
+
+        // Extract distributed trace context from message headers if present
+        string? sentryTraceHeader = null;
+        string? baggageHeader = null;
+        string? messageId = null;
+
+        long? enqueuedTime = null;
+        if (ea.BasicProperties?.Headers != null)
+        {
+            if (ea.BasicProperties.Headers.TryGetValue("sentry-trace", out var traceObj) &&
+                traceObj is byte[] traceBytes)
+            {
+                sentryTraceHeader = System.Text.Encoding.UTF8.GetString(traceBytes);
+            }
+
+            if (ea.BasicProperties.Headers.TryGetValue("baggage", out var baggageObj) &&
+                baggageObj is byte[] baggageBytes)
+            {
+                baggageHeader = System.Text.Encoding.UTF8.GetString(baggageBytes);
+            }
+
+            if (ea.BasicProperties.Headers.TryGetValue("message-id", out var messageIdObj) &&
+                messageIdObj is byte[] messageIdBytes)
+            {
+                messageId = System.Text.Encoding.UTF8.GetString(messageIdBytes);
+            }
+
+            // Aligned with Python SDK header naming
+            if (ea.BasicProperties.Headers.TryGetValue("sentry-task-enqueued-time", out var enqueuedTimeObj) &&
+                enqueuedTimeObj is long timestamp)
+            {
+                enqueuedTime = timestamp;
+            }
+        }
+
+        // Use ContinueTrace to properly link producer and consumer spans
+        var transactionContext = SentrySdk.ContinueTrace(sentryTraceHeader, baggageHeader);
+
+        // Create the outer transaction - use 'task' op since queue.process should be on the child span
+        ITransactionTracer transaction;
+        if (transactionContext != null)
+        {
+            // Continue the trace from the producer, setting our own name and operation
+            var context = new TransactionContext(
+                name: "daily-download-process",
+                operation: "task",
+                traceId: transactionContext.TraceId,
+                parentSpanId: transactionContext.SpanId,
+                isSampled: transactionContext.IsSampled);
+            transaction = SentrySdk.StartTransaction(context);
+        }
+        else
+        {
+            transaction = SentrySdk.StartTransaction("daily-download-process", "task");
+        }
+
+        SentrySdk.ConfigureScope(s => s.Transaction = transaction);
+
+        // Create the inner queue.process span per Sentry Queues module conventions
+        var queueProcessSpan = transaction.StartChild("queue.process", queueName);
+
+        // Set required Sentry Queues module attributes (use SetData for span data attributes)
+        queueProcessSpan.SetData("messaging.system", "rabbitmq");
+        queueProcessSpan.SetData("messaging.destination.name", queueName);
+
+        // Set message ID (required for linking producer/consumer)
+        if (messageId != null)
+        {
+            queueProcessSpan.SetData("messaging.message.id", messageId);
+        }
+
+        // Set optional attributes
+        queueProcessSpan.SetData("messaging.message.body.size", ea.Body.Length);
+        if (ea.Redelivered)
+        {
+            queueProcessSpan.SetData("messaging.message.retry.count", 1); // RabbitMQ doesn't track exact retry count
+        }
+
+        // Calculate and set queue latency (time between publish and receive)
+        if (enqueuedTime.HasValue)
+        {
+            var receiveTimestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            var latencyMs = receiveTimestamp - enqueuedTime.Value;
+            queueProcessSpan.SetData("messaging.message.receive.latency", (double)latencyMs);
+        }
+
         List<string>? packageIds = null;
+        var consumer = (AsyncEventingBasicConsumer)sender;
         try
         {
             var body = ea.Body;
             _logger.LogDebug("Received message with body size '{size}'.", body.Length);
             SentrySdk.ConfigureScope(s => s.SetTag("msg_size", body.Length.ToString()));
-            var deserializationSpan = batchProcessSpan.StartChild("json.deserialize");
+            var deserializationSpan = queueProcessSpan.StartChild("serialize.msgpack.deserialize", "Deserialize MessagePack");
             packageIds = MessagePackSerializer.Deserialize<List<string>>(body);
             deserializationSpan.Finish(SpanStatus.Ok);
 
@@ -170,7 +260,7 @@ public class DailyDownloadWorker : IHostedService
                 throw new InvalidOperationException($"Deserializing '{body}' resulted in a null reference.");
             }
 
-            var updateCountSpan = batchProcessSpan.StartChild("update.download.count", "Updates the DB with the current daily downloads");
+            var updateCountSpan = queueProcessSpan.StartChild("update.download.count", "Updates the DB with the current daily downloads");
             updateCountSpan.SetTag("packageIds", packageIds.Count.ToString());
             try
             {
@@ -183,20 +273,36 @@ public class DailyDownloadWorker : IHostedService
                 throw;
             }
 
-            var consumer = (AsyncEventingBasicConsumer)sender;
             consumer.Model.BasicAck(ea.DeliveryTag, false);
-            batchProcessSpan.Finish(SpanStatus.Ok);
+            queueProcessSpan.Finish(SpanStatus.Ok);
+            transaction.Finish(SpanStatus.Ok);
+        }
+        catch (NuGetUnavailableException e)
+        {
+            // NuGet is unavailable - NACK the message so it gets redelivered later
+            // Don't report to Sentry as this is expected during outages
+            _logger.LogWarning(e, "NuGet unavailable, requeueing batch of {Count} packages.", packageIds?.Count ?? 0);
+            consumer.Model.BasicNack(ea.DeliveryTag, multiple: false, requeue: true);
+            queueProcessSpan.Finish(SpanStatus.Unavailable);
+            transaction.Finish(SpanStatus.Unavailable);
+        }
+        catch (AggregateException ae) when (ae.InnerExceptions.Any(e => e is NuGetUnavailableException))
+        {
+            // Multiple GetPackage calls failed due to NuGet unavailability (Task.WhenAll wraps in AggregateException)
+            // NACK the message so it gets redelivered later
+            _logger.LogWarning(ae, "NuGet unavailable (multiple failures), requeueing batch of {Count} packages.", packageIds?.Count ?? 0);
+            consumer.Model.BasicNack(ea.DeliveryTag, multiple: false, requeue: true);
+            queueProcessSpan.Finish(SpanStatus.Unavailable);
+            transaction.Finish(SpanStatus.Unavailable);
         }
         catch (Exception e)
         {
             if (packageIds != null)
             {
-                for (var i = 0; i < packageIds.Count; i++)
-                {
-                    e.Data.Add("Package:#" + i.ToString("D2"), packageIds[i]);
-                }
+                e.Data["batch_size"] = packageIds.Count;
             }
-            batchProcessSpan.Finish(e);
+            queueProcessSpan.Finish(e);
+            transaction.Finish(e);
             _logger.LogCritical(e, "Failed to process batch.");
             throw;
         }
@@ -204,6 +310,13 @@ public class DailyDownloadWorker : IHostedService
 
     private async Task UpdateDownloadCount(IList<string> packageIds, ISpan parentSpan)
     {
+        // Fail-fast if NuGet is known to be unavailable - no point starting a batch of requests
+        if (!_availabilityState.IsAvailable)
+        {
+            throw new NuGetUnavailableException(
+                $"NuGet API unavailable since {_availabilityState.UnavailableSince} - skipping batch of {packageIds.Count} packages");
+        }
+
         var packageInfoQueue = parentSpan.StartChild("package.info.queue", "Start task to fetch package detail");
         var tasks = new List<Task<IPackageSearchMetadata?>>(packageIds.Count);
         foreach (var id in packageIds)
@@ -224,11 +337,13 @@ public class DailyDownloadWorker : IHostedService
             throw exs; // re-throw the AggregateException to capture all errors with Sentry
         }
 
-        using var scope = _services.CreateScope();
-        await using var context = scope.ServiceProvider.GetRequiredService<NuGetTrendsContext>();
-
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        // Process API responses and prepare batch data
+        var processDataSpan = parentSpan.StartChild("function", "Process NuGet API responses");
+        var now = DateTime.UtcNow;
+        var today = DateOnly.FromDateTime(now);
         var clickHouseDownloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>();
+        var postgresUpserts = new List<PackageDownloadUpsert>();
+        var deletedPackageIds = new List<string>();
 
         for (var i = 0; i < tasks.Count; i++)
         {
@@ -239,7 +354,7 @@ public class DailyDownloadWorker : IHostedService
                 // All versions are unlisted or:
                 // "This package has been deleted from the gallery. It is no longer available for install/restore."
                 _logger.LogInformation("Package with id '{packageId}' deleted.", expectedPackageId);
-                await RemovePackage(context, expectedPackageId, _cancellationTokenSource.Token);
+                deletedPackageIds.Add(expectedPackageId);
             }
             else
             {
@@ -247,63 +362,92 @@ public class DailyDownloadWorker : IHostedService
                 if (packageMetadata.DownloadCount is { } downloadCount)
                 {
                     clickHouseDownloads.Add((packageMetadata.Identity.Id, today, downloadCount));
-                }
 
-                void Update(PackageDownload package, IPackageSearchMetadata metadata)
-                {
-                    if (metadata.IconUrl?.ToString() is { } url)
-                    {
-                        package.IconUrl = url;
-                    }
-
-                    if (metadata.DownloadCount is null)
-                    {
-                        throw new InvalidOperationException("DownloadCount is required.");
-                    }
-                    package.LatestDownloadCount = metadata.DownloadCount.Value;
-                    package.LatestDownloadCountCheckedUtc = DateTime.UtcNow;
-                }
-
-                // Update PackageDownloads in PostgreSQL (for search/autocomplete)
-                var pkgDownload = await context.PackageDownloads.FirstOrDefaultAsync(
-                    p => p.PackageIdLowered == packageMetadata.Identity.Id.ToLower());
-                if (pkgDownload == null)
-                {
-                    pkgDownload = new PackageDownload
-                    {
-                        PackageId = packageMetadata.Identity.Id,
-                        PackageIdLowered = packageMetadata.Identity.Id.ToLower(),
-                    };
-                    Update(pkgDownload, packageMetadata);
-                    context.PackageDownloads.Add(pkgDownload);
-                }
-                else
-                {
-                    Update(pkgDownload, packageMetadata);
-                    context.PackageDownloads.Update(pkgDownload);
+                    // Collect for batch upsert to PostgreSQL
+                    postgresUpserts.Add(new PackageDownloadUpsert(
+                        PackageId: packageMetadata.Identity.Id,
+                        DownloadCount: downloadCount,
+                        CheckedUtc: now,
+                        IconUrl: packageMetadata.IconUrl?.ToString()));
                 }
             }
         }
 
-        // Batch insert to ClickHouse
+        processDataSpan.SetData("packages_processed", tasks.Count);
+        processDataSpan.SetData("packages_with_downloads", clickHouseDownloads.Count);
+        processDataSpan.SetData("deleted_packages", deletedPackageIds.Count);
+        processDataSpan.Finish(SpanStatus.Ok);
+
+        using var scope = _services.CreateScope();
+        await using var context = scope.ServiceProvider.GetRequiredService<NuGetTrendsContext>();
+
+        // Batch insert to ClickHouse (span created inside ClickHouseService for Sentry Queries module)
         if (clickHouseDownloads.Count > 0)
         {
-            var chInsertSpan = parentSpan.StartChild("clickhouse.insert", "Batch insert daily downloads");
-            chInsertSpan.SetTag("count", clickHouseDownloads.Count.ToString());
+            await _clickHouseService.InsertDailyDownloadsAsync(
+                clickHouseDownloads,
+                _cancellationTokenSource.Token,
+                parentSpan);
+        }
+
+        // Batch upsert to PostgreSQL (single query instead of N SELECT + N INSERT/UPDATE)
+        if (postgresUpserts.Count > 0)
+        {
+            var pgUpsertSpan = StartDbSpan(parentSpan, "INSERT INTO package_downloads ... ON CONFLICT DO UPDATE", "postgresql", "UPSERT");
+            pgUpsertSpan.SetTag("count", postgresUpserts.Count.ToString());
             try
             {
-                await _clickHouseService.InsertDailyDownloadsAsync(clickHouseDownloads, _cancellationTokenSource.Token);
-                chInsertSpan.Finish(SpanStatus.Ok);
+                var rowsAffected = await context.UpsertPackageDownloadsAsync(postgresUpserts, _cancellationTokenSource.Token);
+                pgUpsertSpan.SetData("db.rows_affected", rowsAffected);
+                pgUpsertSpan.Finish(SpanStatus.Ok);
             }
             catch (Exception e)
             {
-                chInsertSpan.Finish(e);
+                pgUpsertSpan.Finish(e);
                 throw;
             }
         }
 
-        // Save PostgreSQL changes (PackageDownloads updates only)
-        await context.SaveChangesAsync(_cancellationTokenSource.Token);
+        // Handle deleted packages
+        if (deletedPackageIds.Count > 0)
+        {
+            var deleteSpan = StartDbSpan(parentSpan, "DELETE FROM package_details_catalog_leafs", "postgresql", "DELETE");
+            deleteSpan.SetTag("count", deletedPackageIds.Count.ToString());
+            try
+            {
+                foreach (var deletedPackageId in deletedPackageIds)
+                {
+                    await RemovePackage(context, deletedPackageId, _cancellationTokenSource.Token);
+                }
+                await context.SaveChangesAsync(_cancellationTokenSource.Token);
+                deleteSpan.SetData("db.rows_affected", deletedPackageIds.Count);
+                deleteSpan.Finish(SpanStatus.Ok);
+            }
+            catch (Exception e)
+            {
+                deleteSpan.Finish(e);
+                throw;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Creates a database span with query source attributes for Sentry's Queries module.
+    /// </summary>
+    private ISpan StartDbSpan(
+        ISpan parent,
+        string description,
+        string dbSystem,
+        string dbOperation,
+        [CallerFilePath] string filePath = "",
+        [CallerMemberName] string memberName = "",
+        [CallerLineNumber] int lineNumber = 0)
+    {
+        var span = parent.StartChild("db.sql.execute", description);
+        span.SetData("db.system", dbSystem);
+        span.SetData("db.operation", dbOperation);
+        TelemetryHelpers.SetQuerySource<DailyDownloadWorker>(span, filePath, memberName, lineNumber);
+        return span;
     }
 
     private async Task RemovePackage(NuGetTrendsContext context, string packageId, CancellationToken token)

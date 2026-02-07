@@ -3,9 +3,9 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
+    "start": "ng serve --port ${PORT:-4200}",
     "build": "npm run generate-release && ng build",
-    "generate-release": "mkdir -p tmp; echo window.SENTRY_RELEASE={id:\\'`git rev-parse --short HEAD`\\'} > tmp/release.js",
+    "generate-release": "mkdir -p tmp; echo window.SENTRY_RELEASE={id:\\'NuGetTrends.Spa@1.0.0+`git rev-parse HEAD`\\'} > tmp/release.js",
     "test-no-watch": "ng test --watch=false",
     "test-cc": "ng test --watch=false --code-coverage"
   },

@@ -1,18 +1,25 @@
 using Microsoft.EntityFrameworkCore;
 using NuGet.Protocol.Catalog;
 using NuGet.Protocol.Catalog.Models;
+using Npgsql;
 using NuGetTrends.Data;
 
 namespace NuGetTrends.Scheduler;
 
 public class CatalogLeafProcessor : ICatalogLeafProcessor
 {
+    /// <summary>
+    /// PostgreSQL error code for unique_violation (duplicate key).
+    /// See: https://www.postgresql.org/docs/current/errcodes-appendix.html
+    /// </summary>
+    private const string PostgresUniqueViolationCode = "23505";
+
     private readonly IServiceProvider _provider;
     private readonly ILogger<CatalogLeafProcessor> _logger;
     private int _counter;
 
     private IServiceScope _scope;
-    private NuGetTrendsContext _context;
+    internal NuGetTrendsContext Context;
 
     public CatalogLeafProcessor(
         IServiceProvider provider,
@@ -22,27 +29,25 @@ public class CatalogLeafProcessor : ICatalogLeafProcessor
         _logger = logger;
 
         _scope = _provider.CreateScope();
-        _context = _scope.ServiceProvider.GetRequiredService<NuGetTrendsContext>();
+        Context = _scope.ServiceProvider.GetRequiredService<NuGetTrendsContext>();
     }
 
     private async Task Save(CancellationToken token)
     {
-        _counter++;
+        await Context.SaveChangesAsync(token);
 
-        await _context.SaveChangesAsync(token);
-
-        if (_counter == 100) // recycle the DbContext
+        if (++_counter == 100) // recycle the DbContext
         {
             _scope.Dispose();
             _scope = _provider.CreateScope();
-            _context = _scope.ServiceProvider.GetRequiredService<NuGetTrendsContext>();
+            Context = _scope.ServiceProvider.GetRequiredService<NuGetTrendsContext>();
             _counter = 0;
         }
     }
 
     public async Task ProcessPackageDeleteAsync(PackageDeleteCatalogLeaf leaf, CancellationToken token)
     {
-        var deletedItems = _context.PackageDetailsCatalogLeafs.Where(p =>
+        var deletedItems = Context.PackageDetailsCatalogLeafs.Where(p =>
             p.PackageId == leaf.PackageId && p.PackageVersion == leaf.PackageVersion);
 
         var deleted = await deletedItems.ToListAsync(token);
@@ -62,7 +67,7 @@ public class CatalogLeafProcessor : ICatalogLeafProcessor
 
             foreach (var del in deleted)
             {
-                _context.PackageDetailsCatalogLeafs.Remove(del);
+                Context.PackageDetailsCatalogLeafs.Remove(del);
             }
             await Save(token);
         }
@@ -70,13 +75,143 @@ public class CatalogLeafProcessor : ICatalogLeafProcessor
 
     public async Task ProcessPackageDetailsAsync(PackageDetailsCatalogLeaf leaf, CancellationToken token)
     {
-        var exists = await _context.PackageDetailsCatalogLeafs.AnyAsync(
+        await ProcessPackageDetailsBatchAsync([leaf], token);
+    }
+
+    public async Task ProcessPackageDetailsBatchAsync(IReadOnlyList<PackageDetailsCatalogLeaf> leaves, CancellationToken token)
+    {
+        if (leaves.Count == 0)
+        {
+            return;
+        }
+
+        // Extract all package IDs from the batch to filter the database query
+        var packageIds = leaves.Select(l => l.PackageId).Distinct().ToList();
+
+        // Single query to find which packages already exist in the database
+        // We filter by PackageId first (which can use an index), then do the version check in memory
+        var existingPackages = await Context.PackageDetailsCatalogLeafs
+            .Where(p => packageIds.Contains(p.PackageId))
+            .Select(p => new { p.PackageId, p.PackageVersion })
+            .ToListAsync(token);
+
+        var existingSet = existingPackages
+            .Select(p => new PackageKey(p.PackageId, p.PackageVersion))
+            .ToHashSet();
+
+        // Add only leaves that don't already exist
+        var newLeaves = leaves
+            .Where(l => !existingSet.Contains(new PackageKey(l.PackageId, l.PackageVersion)))
+            .ToList();
+
+        if (newLeaves.Count == 0)
+        {
+            _logger.LogDebug("All {Count} packages in batch already exist, skipping.", leaves.Count);
+            return;
+        }
+
+        _logger.LogDebug("Adding {NewCount} new packages out of {TotalCount} in batch.", newLeaves.Count, leaves.Count);
+
+        foreach (var leaf in newLeaves)
+        {
+            if (string.IsNullOrEmpty(leaf.PackageId))
+            {
+                throw new InvalidOperationException(
+                    "PackageId must be set before inserting a PackageDetailsCatalogLeaf. " +
+                    "The NuGet catalog leaf should always provide a PackageId.");
+            }
+
+            leaf.PackageIdLowered = leaf.PackageId.ToLowerInvariant();
+        }
+
+        Context.PackageDetailsCatalogLeafs.AddRange(newLeaves);
+
+        try
+        {
+            await Save(token);
+        }
+        catch (DbUpdateException ex) when (IsDuplicateKeyException(ex))
+        {
+            // Race condition: another process inserted one or more packages between our query and save.
+            // Fall back to individual processing for this batch to handle partial success.
+            _logger.LogDebug("Concurrent insert detected in batch, falling back to individual processing.");
+
+            // Detach all entities we tried to add
+            foreach (var leaf in newLeaves)
+            {
+                Context.Entry(leaf).State = EntityState.Detached;
+            }
+
+            // Process each leaf individually to handle partial success
+            foreach (var leaf in newLeaves)
+            {
+                await ProcessPackageDetailsIndividualAsync(leaf, token);
+            }
+        }
+    }
+
+    private async Task ProcessPackageDetailsIndividualAsync(PackageDetailsCatalogLeaf leaf, CancellationToken token)
+    {
+        var exists = await Context.PackageDetailsCatalogLeafs.AnyAsync(
             p => p.PackageId == leaf.PackageId && p.PackageVersion == leaf.PackageVersion, token);
 
         if (!exists)
         {
-            _context.PackageDetailsCatalogLeafs.Add(leaf);
-            await Save(token);
+            if (string.IsNullOrEmpty(leaf.PackageId))
+            {
+                throw new InvalidOperationException(
+                    "PackageId must be set before inserting a PackageDetailsCatalogLeaf. " +
+                    "The NuGet catalog leaf should always provide a PackageId.");
+            }
+
+            leaf.PackageIdLowered = leaf.PackageId.ToLowerInvariant();
+            
+            Context.PackageDetailsCatalogLeafs.Add(leaf);
+            try
+            {
+                await Save(token);
+            }
+            catch (DbUpdateException ex) when (IsDuplicateKeyException(ex))
+            {
+                // Race condition: another process inserted the same package between our AnyAsync check
+                // and SaveChangesAsync. This is harmless - the package exists, which is what we wanted.
+                // Detach the entity to prevent cascading failures on subsequent saves.
+                Context.Entry(leaf).State = EntityState.Detached;
+
+                _logger.LogDebug(
+                    "Package {PackageId} v{PackageVersion} already exists (concurrent insert), skipping.",
+                    leaf.PackageId,
+                    leaf.PackageVersion);
+            }
         }
+    }
+
+    private static bool IsDuplicateKeyException(DbUpdateException ex)
+    {
+        return ex.InnerException is PostgresException { SqlState: PostgresUniqueViolationCode };
+    }
+
+    /// <summary>
+    /// Case-insensitive package key for efficient lookup in HashSet.
+    /// </summary>
+    private readonly record struct PackageKey
+    {
+        public string PackageId { get; }
+        public string PackageVersion { get; }
+
+        public PackageKey(string? packageId, string? packageVersion)
+        {
+            PackageId = packageId ?? "";
+            PackageVersion = packageVersion ?? "";
+        }
+
+        public bool Equals(PackageKey other) =>
+            StringComparer.OrdinalIgnoreCase.Equals(PackageId, other.PackageId) &&
+            StringComparer.OrdinalIgnoreCase.Equals(PackageVersion, other.PackageVersion);
+
+        public override int GetHashCode() =>
+            HashCode.Combine(
+                StringComparer.OrdinalIgnoreCase.GetHashCode(PackageId),
+                StringComparer.OrdinalIgnoreCase.GetHashCode(PackageVersion));
     }
 }

@@ -54,6 +54,13 @@ public class EndToEndPipelineTests : IAsyncLifetime
     [Fact]
     public async Task FullPipeline_CatalogImport_SeedData_DailyDownload_ApiVerification()
     {
+        // Clean up from any previous test runs (tests share the fixture and database)
+        await _fixture.ResetClickHouseTableAsync();
+        await using (var ctx = _fixture.CreateDbContext())
+        {
+            await ctx.Database.ExecuteSqlRawAsync("DELETE FROM package_downloads");
+        }
+
         // Arrange - Log imported packages
         _output.WriteLine($"Imported {_fixture.ImportedPackages.Count} packages from NuGet.org catalog:");
         foreach (var pkg in _fixture.ImportedPackages)
@@ -76,11 +83,61 @@ public class EndToEndPipelineTests : IAsyncLifetime
         // Verify today's data was fetched
         await VerifyTodaysDataExists();
 
+        // Verify publisher finds zero unprocessed packages after pipeline ran
+        await VerifyNoUnprocessedPackages();
+
         // Verify search API
         await VerifySearchEndpoint();
 
         // Verify history API
         await VerifyHistoryEndpoint();
+    }
+
+    [Fact]
+    public async Task Pipeline_SecondDay_ReprocessesPackages()
+    {
+        // Clean up from any previous test runs (tests share the fixture and database)
+        await _fixture.ResetClickHouseTableAsync();
+        await using (var ctx = _fixture.CreateDbContext())
+        {
+            await ctx.Database.ExecuteSqlRawAsync("DELETE FROM package_downloads");
+        }
+
+        // Arrange — seed the same data the full pipeline test uses
+        await VerifyCatalogImport();
+        await SeedHistoricalDownloads();
+
+        // Run pipeline once to process all packages (simulates "day 1")
+        await RunDailyDownloadPipeline();
+        await VerifyNoUnprocessedPackages();
+
+        // Simulate "next day" by backdating LatestDownloadCountCheckedUtc to yesterday
+        await using (var context = _fixture.CreateDbContext())
+        {
+            var yesterday = DateTime.UtcNow.Date.AddDays(-1);
+            await context.Database.ExecuteSqlRawAsync(
+                "UPDATE package_downloads SET latest_download_count_checked_utc = {0}",
+                yesterday);
+        }
+
+        // Verify packages are now unprocessed again
+        await using (var context = _fixture.CreateDbContext())
+        {
+            var unprocessed = await context.GetUnprocessedPackageIds(DateTime.UtcNow.Date).ToListAsync();
+            unprocessed.Should().NotBeEmpty("packages should be unprocessed after backdating check timestamp");
+            _output.WriteLine($"After backdating, {unprocessed.Count} packages are unprocessed.");
+        }
+
+        // Run pipeline again (simulates "day 2")
+        await RunDailyDownloadPipeline();
+
+        // Verify all packages were processed again
+        await VerifyNoUnprocessedPackages();
+
+        // Verify today's data still exists in ClickHouse
+        await VerifyTodaysDataExists();
+
+        _output.WriteLine("Second-day pipeline re-processing verified successfully.");
     }
 
     private async Task VerifyCatalogImport()
@@ -165,6 +222,7 @@ public class EndToEndPipelineTests : IAsyncLifetime
         // Create services for the worker
         var services = new ServiceCollection();
         services.AddSingleton<IConnectionFactory>(connectionFactory);
+        services.AddSingleton<NuGetAvailabilityState>();
         services.AddSingleton<INuGetSearchService, NuGetSearchService>();
         services.AddSingleton<IClickHouseService>(clickHouseService);
         services.AddSingleton<ILoggerFactory, NullLoggerFactory>();
@@ -187,6 +245,7 @@ public class EndToEndPipelineTests : IAsyncLifetime
             serviceProvider,
             serviceProvider.GetRequiredService<INuGetSearchService>(),
             serviceProvider.GetRequiredService<IClickHouseService>(),
+            serviceProvider.GetRequiredService<NuGetAvailabilityState>(),
             NullLogger<DailyDownloadWorker>.Instance);
 
         await worker.StartAsync(CancellationToken.None);
@@ -204,7 +263,7 @@ public class EndToEndPipelineTests : IAsyncLifetime
             NullLogger<DailyDownloadPackageIdPublisher>.Instance);
 
         _output.WriteLine("Publishing package IDs to queue...");
-        await publisher.Import(new TestJobCancellationToken());
+        await publisher.Import(new TestJobCancellationToken(), context: null);
 
         // Wait for queue to drain
         await WaitForQueueDrain(connectionFactory, TimeSpan.FromMinutes(3));
@@ -256,6 +315,20 @@ public class EndToEndPipelineTests : IAsyncLifetime
         }
 
         throw new TimeoutException($"Queue did not drain within {timeout.TotalMinutes} minutes");
+    }
+
+    private async Task VerifyNoUnprocessedPackages()
+    {
+        _output.WriteLine("Verifying publisher finds zero unprocessed packages...");
+
+        await using var context = _fixture.CreateDbContext();
+        var todayUtc = DateTime.UtcNow.Date;
+        var unprocessed = await context.GetUnprocessedPackageIds(todayUtc).ToListAsync();
+
+        unprocessed.Should().BeEmpty(
+            "all packages should have been processed by the pipeline today");
+
+        _output.WriteLine("Confirmed: no unprocessed packages remain.");
     }
 
     private async Task VerifyTodaysDataExists()

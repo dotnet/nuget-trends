@@ -15,7 +15,8 @@ public class ClickHouseServiceTests : IAsyncLifetime
     public ClickHouseServiceTests(ClickHouseFixture fixture)
     {
         _fixture = fixture;
-        _sut = new ClickHouseService(fixture.ConnectionString, NullLogger<ClickHouseService>.Instance);
+        var connectionInfo = ClickHouseConnectionInfo.Parse(fixture.ConnectionString);
+        _sut = new ClickHouseService(fixture.ConnectionString, NullLogger<ClickHouseService>.Instance, connectionInfo);
     }
 
     public async Task InitializeAsync()
@@ -362,7 +363,7 @@ public class ClickHouseServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetWeeklyDownloadsAsync_HandlesPartialWeek()
+    public async Task GetWeeklyDownloadsAsync_HandlesPartialWeek_ThreeDays()
     {
         // Arrange - Insert data for only 3 days of a week
         var monday = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-14));
@@ -388,6 +389,164 @@ public class ClickHouseServiceTests : IAsyncLifetime
         var weekResult = result.FirstOrDefault(r => r.Week.Date == monday.ToDateTime(TimeOnly.MinValue));
         weekResult.Should().NotBeNull();
         weekResult!.Count.Should().Be(200);
+    }
+
+    [Fact]
+    public async Task GetWeeklyDownloadsAsync_HandlesPartialWeek_SingleDay()
+    {
+        // Arrange - Insert data for only 1 day of a week (edge case: worker only ran once)
+        var monday = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-14));
+        while (monday.DayOfWeek != DayOfWeek.Monday)
+        {
+            monday = monday.AddDays(-1);
+        }
+
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
+        {
+            ("sentry", monday.AddDays(3), 500), // Only Thursday
+        };
+        await _sut.InsertDailyDownloadsAsync(downloads);
+
+        // Act
+        var result = await _sut.GetWeeklyDownloadsAsync("sentry", months: 1);
+
+        // Assert - Average of single value is that value
+        result.Should().NotBeEmpty();
+        var weekResult = result.FirstOrDefault(r => r.Week.Date == monday.ToDateTime(TimeOnly.MinValue));
+        weekResult.Should().NotBeNull();
+        weekResult!.Count.Should().Be(500);
+    }
+
+    [Fact]
+    public async Task GetWeeklyDownloadsAsync_HandlesPartialWeek_TwoDays()
+    {
+        // Arrange - Insert data for only 2 days of a week
+        var monday = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-14));
+        while (monday.DayOfWeek != DayOfWeek.Monday)
+        {
+            monday = monday.AddDays(-1);
+        }
+
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
+        {
+            ("sentry", monday, 100),       // Monday
+            ("sentry", monday.AddDays(4), 300), // Friday
+        };
+        await _sut.InsertDailyDownloadsAsync(downloads);
+
+        // Act
+        var result = await _sut.GetWeeklyDownloadsAsync("sentry", months: 1);
+
+        // Assert - Average should be (100+300)/2 = 200
+        result.Should().NotBeEmpty();
+        var weekResult = result.FirstOrDefault(r => r.Week.Date == monday.ToDateTime(TimeOnly.MinValue));
+        weekResult.Should().NotBeNull();
+        weekResult!.Count.Should().Be(200);
+    }
+
+    [Fact]
+    public async Task GetWeeklyDownloadsAsync_HandlesPartialWeek_FiveDays()
+    {
+        // Arrange - Insert data for 5 days of a week (weekend missing)
+        var monday = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-14));
+        while (monday.DayOfWeek != DayOfWeek.Monday)
+        {
+            monday = monday.AddDays(-1);
+        }
+
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
+        {
+            ("sentry", monday, 100),           // Monday
+            ("sentry", monday.AddDays(1), 200), // Tuesday
+            ("sentry", monday.AddDays(2), 300), // Wednesday
+            ("sentry", monday.AddDays(3), 400), // Thursday
+            ("sentry", monday.AddDays(4), 500), // Friday
+            // Saturday and Sunday missing
+        };
+        await _sut.InsertDailyDownloadsAsync(downloads);
+
+        // Act
+        var result = await _sut.GetWeeklyDownloadsAsync("sentry", months: 1);
+
+        // Assert - Average should be (100+200+300+400+500)/5 = 300
+        result.Should().NotBeEmpty();
+        var weekResult = result.FirstOrDefault(r => r.Week.Date == monday.ToDateTime(TimeOnly.MinValue));
+        weekResult.Should().NotBeNull();
+        weekResult!.Count.Should().Be(300);
+    }
+
+    [Fact]
+    public async Task GetWeeklyDownloadsAsync_HandlesNonConsecutiveDays()
+    {
+        // Arrange - Insert data for non-consecutive days (simulates worker failures)
+        var monday = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-14));
+        while (monday.DayOfWeek != DayOfWeek.Monday)
+        {
+            monday = monday.AddDays(-1);
+        }
+
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
+        {
+            ("sentry", monday, 100),           // Monday
+            // Tuesday missing (worker failed)
+            ("sentry", monday.AddDays(2), 300), // Wednesday
+            // Thursday missing (worker failed)
+            ("sentry", monday.AddDays(4), 500), // Friday
+            // Weekend missing
+        };
+        await _sut.InsertDailyDownloadsAsync(downloads);
+
+        // Act
+        var result = await _sut.GetWeeklyDownloadsAsync("sentry", months: 1);
+
+        // Assert - Average should be (100+300+500)/3 = 300
+        result.Should().NotBeEmpty();
+        var weekResult = result.FirstOrDefault(r => r.Week.Date == monday.ToDateTime(TimeOnly.MinValue));
+        weekResult.Should().NotBeNull();
+        weekResult!.Count.Should().Be(300);
+    }
+
+    [Fact]
+    public async Task GetWeeklyDownloadsAsync_HandlesDifferentDayCountsAcrossWeeks()
+    {
+        // Arrange - Different weeks have different numbers of days (realistic scenario)
+        var monday1 = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-21));
+        while (monday1.DayOfWeek != DayOfWeek.Monday)
+        {
+            monday1 = monday1.AddDays(-1);
+        }
+        var monday2 = monday1.AddDays(7);
+
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
+        {
+            // Week 1: Only 2 days of data, avg = (100+200)/2 = 150
+            ("sentry", monday1, 100),
+            ("sentry", monday1.AddDays(1), 200),
+
+            // Week 2: Full 7 days of data, avg = (100+200+300+400+500+600+700)/7 = 400
+            ("sentry", monday2, 100),
+            ("sentry", monday2.AddDays(1), 200),
+            ("sentry", monday2.AddDays(2), 300),
+            ("sentry", monday2.AddDays(3), 400),
+            ("sentry", monday2.AddDays(4), 500),
+            ("sentry", monday2.AddDays(5), 600),
+            ("sentry", monday2.AddDays(6), 700),
+        };
+        await _sut.InsertDailyDownloadsAsync(downloads);
+
+        // Act
+        var result = await _sut.GetWeeklyDownloadsAsync("sentry", months: 1);
+
+        // Assert - Each week should have its own correct average
+        result.Should().HaveCount(2);
+
+        var week1Result = result.FirstOrDefault(r => r.Week.Date == monday1.ToDateTime(TimeOnly.MinValue));
+        week1Result.Should().NotBeNull();
+        week1Result!.Count.Should().Be(150);
+
+        var week2Result = result.FirstOrDefault(r => r.Week.Date == monday2.ToDateTime(TimeOnly.MinValue));
+        week2Result.Should().NotBeNull();
+        week2Result!.Count.Should().Be(400);
     }
 
     [Fact]
@@ -460,5 +619,289 @@ public class ClickHouseServiceTests : IAsyncLifetime
             r.Week.Should().NotBe(default);
             r.Count.Should().BeGreaterThan(0);
         });
+    }
+
+    [Fact]
+    public async Task GetTrendingPackagesAsync_WithNoData_ReturnsEmptyList()
+    {
+        // Arrange - Ensure package_first_seen is populated (will be empty since no data)
+        await _fixture.PopulatePackageFirstSeenAsync();
+
+        // Act
+        var result = await _sut.GetTrendingPackagesAsync(limit: 10, minWeeklyDownloads: 100, maxPackageAgeMonths: 12);
+
+        // Assert
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetTrendingPackagesAsync_FiltersPackagesWithoutPreviousWeekData()
+    {
+        // Arrange - Insert data only for current week (no previous week comparison possible)
+        var monday = GetLastWeekMonday();
+        var packageId = $"new-package-{Guid.NewGuid():N}";
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
+        {
+            (packageId, monday, 5000),
+            (packageId, monday.AddDays(1), 5000),
+        };
+        await _sut.InsertDailyDownloadsAsync(downloads);
+        await _fixture.PopulatePackageFirstSeenAsync();
+
+        // Act
+        var result = await _sut.GetTrendingPackagesAsync(limit: 100, minWeeklyDownloads: 100, maxPackageAgeMonths: 12);
+
+        // Assert - Our package should not appear (no previous week data for comparison)
+        var package = result.FirstOrDefault(p => p.PackageId == packageId.ToLowerInvariant());
+        package.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetTrendingPackagesAsync_FiltersByMinDownloads()
+    {
+        // Arrange - Insert data for both weeks but below minimum threshold
+        var currentMonday = GetLastWeekMonday();
+        var previousMonday = currentMonday.AddDays(-7);
+        var packageId = $"tiny-package-{Guid.NewGuid():N}";
+
+        // The query computes weekly total as: avgMerge(daily) * 7
+        // So a daily value of 100 becomes weekly 700.
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
+        {
+            // Small package: daily 50 -> weekly 350, daily 100 -> weekly 700
+            (packageId, previousMonday, 50),
+            (packageId, currentMonday, 100),
+        };
+        await _sut.InsertDailyDownloadsAsync(downloads);
+        await _fixture.PopulatePackageFirstSeenAsync();
+
+        // Act - Set minimum to 1000 (which is > 700 weekly)
+        var result = await _sut.GetTrendingPackagesAsync(limit: 100, minWeeklyDownloads: 1000, maxPackageAgeMonths: 12);
+
+        // Assert - Package should be filtered out (700 weekly < 1000 threshold)
+        result.Where(p => p.PackageId == packageId.ToLowerInvariant()).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetTrendingPackagesAsync_ReturnsTrendingPackagesSortedByGrowthRate()
+    {
+        // Arrange - Insert data for multiple packages with different growth rates
+        var currentMonday = GetLastWeekMonday();
+        var previousMonday = currentMonday.AddDays(-7);
+        var suffix = Guid.NewGuid().ToString("N");
+        var packageA = $"package-a-{suffix}";
+        var packageB = $"package-b-{suffix}";
+        var packageC = $"package-c-{suffix}";
+
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
+        {
+            // Package A: 50% growth (1000 -> 1500)
+            (packageA, previousMonday, 1000),
+            (packageA, currentMonday, 1500),
+
+            // Package B: 100% growth (1000 -> 2000) - highest growth
+            (packageB, previousMonday, 1000),
+            (packageB, currentMonday, 2000),
+
+            // Package C: 25% growth (2000 -> 2500)
+            (packageC, previousMonday, 2000),
+            (packageC, currentMonday, 2500),
+        };
+        await _sut.InsertDailyDownloadsAsync(downloads);
+        await _fixture.PopulatePackageFirstSeenAsync();
+
+        // Act
+        var result = await _sut.GetTrendingPackagesAsync(limit: 100, minWeeklyDownloads: 100, maxPackageAgeMonths: 12);
+
+        // Assert - Filter to our packages and verify sort order by growth rate descending
+        var ourPackages = result.Where(p => p.PackageId.EndsWith(suffix)).ToList();
+        ourPackages.Should().HaveCount(3);
+        ourPackages[0].PackageId.Should().Be(packageB.ToLowerInvariant()); // 100% growth
+        ourPackages[1].PackageId.Should().Be(packageA.ToLowerInvariant()); // 50% growth
+        ourPackages[2].PackageId.Should().Be(packageC.ToLowerInvariant()); // 25% growth
+    }
+
+    [Fact]
+    public async Task GetTrendingPackagesAsync_RespectsLimit()
+    {
+        // Arrange - Insert many packages with unique suffix
+        var currentMonday = GetLastWeekMonday();
+        var previousMonday = currentMonday.AddDays(-7);
+        var suffix = Guid.NewGuid().ToString("N");
+
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>();
+        for (var i = 1; i <= 20; i++)
+        {
+            var packageId = $"package-{i}-{suffix}";
+            downloads.Add((packageId, previousMonday, 1000));
+            downloads.Add((packageId, currentMonday, 1000 + i * 100)); // Increasing growth rates
+        }
+        await _sut.InsertDailyDownloadsAsync(downloads);
+        await _fixture.PopulatePackageFirstSeenAsync();
+
+        // Act - Request only 5 packages
+        var result = await _sut.GetTrendingPackagesAsync(limit: 5, minWeeklyDownloads: 100, maxPackageAgeMonths: 12);
+
+        // Assert - Should return at most 5 packages (limit is respected)
+        result.Should().HaveCountLessOrEqualTo(5);
+    }
+
+    [Fact]
+    public async Task GetTrendingPackagesAsync_FiltersByPackageAge()
+    {
+        // Arrange - Insert packages with different ages
+        var currentMonday = GetLastWeekMonday();
+        var previousMonday = currentMonday.AddDays(-7);
+        var longAgo = currentMonday.AddMonths(-18); // 18 months ago
+        var suffix = Guid.NewGuid().ToString("N");
+        var oldPackageId = $"old-package-{suffix}";
+        var newPackageId = $"new-package-{suffix}";
+
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
+        {
+            // Old package (first seen 18 months ago) - should be excluded with 12 month filter
+            (oldPackageId, longAgo, 500),
+            (oldPackageId, previousMonday, 1000),
+            (oldPackageId, currentMonday, 2000), // 100% growth
+
+            // New package (first seen this week) - should be included
+            (newPackageId, previousMonday, 1000),
+            (newPackageId, currentMonday, 1500), // 50% growth
+        };
+        await _sut.InsertDailyDownloadsAsync(downloads);
+        await _fixture.PopulatePackageFirstSeenAsync();
+
+        // Act - Filter to packages up to 12 months old
+        var result = await _sut.GetTrendingPackagesAsync(limit: 100, minWeeklyDownloads: 100, maxPackageAgeMonths: 12);
+
+        // Assert - Only new package should appear (old package filtered by age)
+        var ourPackages = result.Where(p => p.PackageId.EndsWith(suffix)).ToList();
+        ourPackages.Should().HaveCount(1);
+        ourPackages[0].PackageId.Should().Be(newPackageId.ToLowerInvariant());
+    }
+
+    [Fact]
+    public async Task GetTrendingPackagesAsync_CalculatesGrowthRateCorrectly()
+    {
+        // Arrange - Insert data with known growth
+        var currentMonday = GetLastWeekMonday();
+        var previousMonday = currentMonday.AddDays(-7);
+        var packageId = $"test-package-{Guid.NewGuid():N}";
+
+        // Insert daily download counts. The query calculates weekly totals as:
+        // avgMerge(download_avg) * 7 - so a single day's value gets multiplied by 7.
+        // To get predictable weekly totals, we insert values that account for this.
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
+        {
+            // 50% growth: daily avg 2000 -> 3000 becomes weekly 14000 -> 21000
+            (packageId, previousMonday, 2000),
+            (packageId, currentMonday, 3000),
+        };
+        await _sut.InsertDailyDownloadsAsync(downloads);
+        await _fixture.PopulatePackageFirstSeenAsync();
+
+        // Act
+        var result = await _sut.GetTrendingPackagesAsync(limit: 100, minWeeklyDownloads: 100, maxPackageAgeMonths: 12);
+
+        // Assert - find our specific package and verify growth rate
+        // The absolute values are daily * 7, but the growth rate should be preserved
+        var package = result.FirstOrDefault(p => p.PackageId == packageId.ToLowerInvariant());
+        package.Should().NotBeNull();
+        package!.WeekDownloads.Should().Be(3000 * 7); // daily avg * 7
+        package.ComparisonWeekDownloads.Should().Be(2000 * 7); // daily avg * 7
+        package.GrowthRate.Should().BeApproximately(0.5, 0.01); // 50% growth preserved
+    }
+
+    [Fact]
+    public async Task GetTrendingPackagesAsync_LowercasesPackageIds()
+    {
+        // Arrange - Insert with mixed case and unique suffix
+        var currentMonday = GetLastWeekMonday();
+        var previousMonday = currentMonday.AddDays(-7);
+        var suffix = Guid.NewGuid().ToString("N");
+        var packageId = $"Sentry.AspNetCore.{suffix}";
+
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
+        {
+            (packageId, previousMonday, 1000),
+            (packageId, currentMonday, 1500),
+        };
+        await _sut.InsertDailyDownloadsAsync(downloads);
+        await _fixture.PopulatePackageFirstSeenAsync();
+
+        // Act
+        var result = await _sut.GetTrendingPackagesAsync(limit: 100, minWeeklyDownloads: 100, maxPackageAgeMonths: 12);
+
+        // Assert - Package ID should be lowercased in results
+        var package = result.FirstOrDefault(p => p.PackageId == packageId.ToLowerInvariant());
+        package.Should().NotBeNull();
+        package!.PackageId.Should().Be(packageId.ToLowerInvariant());
+    }
+
+    [Fact]
+    public async Task GetTrendingPackagesAsync_HandlesZeroGrowth()
+    {
+        // Arrange - Package with zero growth should still appear if it meets criteria
+        var currentMonday = GetLastWeekMonday();
+        var previousMonday = currentMonday.AddDays(-7);
+        var packageId = $"stable-package-{Guid.NewGuid():N}";
+
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
+        {
+            (packageId, previousMonday, 5000),
+            (packageId, currentMonday, 5000), // 0% growth
+        };
+        await _sut.InsertDailyDownloadsAsync(downloads);
+        await _fixture.PopulatePackageFirstSeenAsync();
+
+        // Act
+        var result = await _sut.GetTrendingPackagesAsync(limit: 100, minWeeklyDownloads: 100, maxPackageAgeMonths: 12);
+
+        // Assert - Should appear with 0% growth
+        var package = result.FirstOrDefault(p => p.PackageId == packageId.ToLowerInvariant());
+        package.Should().NotBeNull();
+        package!.GrowthRate.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetTrendingPackagesAsync_HandlesNegativeGrowth()
+    {
+        // Arrange - Package with declining downloads
+        var currentMonday = GetLastWeekMonday();
+        var previousMonday = currentMonday.AddDays(-7);
+        var packageId = $"declining-package-{Guid.NewGuid():N}";
+
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
+        {
+            (packageId, previousMonday, 10000),
+            (packageId, currentMonday, 8000), // -20% growth
+        };
+        await _sut.InsertDailyDownloadsAsync(downloads);
+        await _fixture.PopulatePackageFirstSeenAsync();
+
+        // Act
+        var result = await _sut.GetTrendingPackagesAsync(limit: 100, minWeeklyDownloads: 100, maxPackageAgeMonths: 12);
+
+        // Assert - Should appear with negative growth
+        var package = result.FirstOrDefault(p => p.PackageId == packageId.ToLowerInvariant());
+        package.Should().NotBeNull();
+        package!.GrowthRate.Should().BeApproximately(-0.2, 0.01); // -20% growth
+    }
+
+    /// <summary>
+    /// Gets the Monday of last week as a DateOnly.
+    /// This matches the ClickHouse query: toMonday(today() - INTERVAL 1 WEEK)
+    /// which means "go back 7 days from today, then find that week's Monday".
+    /// </summary>
+    private static DateOnly GetLastWeekMonday()
+    {
+        // Match ClickHouse logic: toMonday(today() - INTERVAL 1 WEEK)
+        var oneWeekAgo = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-7);
+        // Go back to Monday of that week
+        while (oneWeekAgo.DayOfWeek != DayOfWeek.Monday)
+        {
+            oneWeekAgo = oneWeekAgo.AddDays(-1);
+        }
+        return oneWeekAgo;
     }
 }
