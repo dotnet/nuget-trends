@@ -18,7 +18,8 @@ namespace NuGetTrends.Data.Migrations
 
             // Populate existing rows with lowercased package_id
             // Note: This column must be kept in sync with package_id by application code
-            // for all future inserts. See CatalogLeafProcessor.ProcessPackageDetailsBatchAsync.
+            // for all future inserts. See CatalogLeafProcessor.ProcessPackageDetailsBatchAsync
+            // and ProcessPackageDetailsAsync (individual fallback path).
             migrationBuilder.Sql(
                 @"UPDATE package_details_catalog_leafs 
                   SET package_id_lowered = LOWER(package_id) 
