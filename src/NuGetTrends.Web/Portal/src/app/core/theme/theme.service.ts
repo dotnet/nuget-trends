@@ -13,6 +13,7 @@ export class ThemeService {
   private readonly preferenceSignal = signal<ThemePreference>('system');
   private readonly systemThemeSignal = signal<ResolvedTheme>('light');
   private mediaQuery: MediaQueryList | null = null;
+  private lastSentryTheme: ResolvedTheme | null = null;
 
   readonly preference = this.preferenceSignal.asReadonly();
 
@@ -80,12 +81,16 @@ export class ThemeService {
   private updateSentryTheme(theme: ResolvedTheme): void {
     if (typeof document === 'undefined') return;
 
+    // Only update if theme has changed to avoid unnecessary re-attachments
+    if (this.lastSentryTheme === theme) return;
+
     // Update Sentry feedback widget theme
     const feedback = Sentry.getFeedback();
     if (feedback) {
       feedback.attachTo(document.body, {
         colorScheme: theme,
       });
+      this.lastSentryTheme = theme;
     }
   }
 
