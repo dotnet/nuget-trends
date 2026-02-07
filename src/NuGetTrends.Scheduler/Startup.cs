@@ -11,6 +11,7 @@ using Polly;
 using Polly.Timeout;
 using RabbitMQ.Client;
 using Sentry.Extensibility;
+using Sentry.Hangfire;
 
 namespace NuGetTrends.Scheduler;
 
@@ -39,16 +40,19 @@ public class Startup(
             var connString = config.GetConnectionString("clickhouse")
                 ?? config.GetConnectionString("ClickHouse")
                 ?? throw new InvalidOperationException("ClickHouse connection string not configured.");
+            // Aspire injects endpoint URLs (http://host:port) - normalize to Key=Value format
+            connString = ClickHouseConnectionInfo.NormalizeConnectionString(connString);
             return ClickHouseConnectionInfo.Parse(connString);
         });
 
         services.AddSingleton<IClickHouseService>(sp =>
         {
             var config = sp.GetRequiredService<IConfiguration>();
-            // Aspire injects connection strings via ConnectionStrings__<name> environment variables
             var connString = config.GetConnectionString("clickhouse")
                 ?? config.GetConnectionString("ClickHouse")
                 ?? throw new InvalidOperationException("ClickHouse connection string not configured.");
+            // Aspire injects endpoint URLs (http://host:port) - normalize to Key=Value format
+            connString = ClickHouseConnectionInfo.NormalizeConnectionString(connString);
             var logger = sp.GetRequiredService<ILogger<ClickHouseService>>();
             var connectionInfo = sp.GetRequiredService<ClickHouseConnectionInfo>();
             return new ClickHouseService(connString, logger, connectionInfo);
@@ -105,9 +109,9 @@ public class Startup(
         // Install: Hangfire.PostgreSql
         // Configure: config.UsePostgreSqlStorage(Configuration.GetConnectionString("HangfireConnection")
         services.AddHangfire(config => config
-                .UseStorage(new MemoryStorage())
-                .UseFilter(new SkipConcurrentExecutionFilter()))
-            .AddSentry();
+            .UseStorage(new MemoryStorage())
+            .UseFilter(new SkipConcurrentExecutionFilter())
+            .UseSentry());
         services.AddHangfireServer();
 
         // Bind NuGet resilience options from configuration
@@ -172,14 +176,61 @@ public class Startup(
 
     public void Configure(IApplicationBuilder app)
     {
+        // Auto-apply EF Core migrations on startup. Safe with a single scheduler instance.
+        // 10-minute timeout: some migrations backfill data across the entire catalog leafs table
+        // (millions of rows), which far exceeds the default 30-second command timeout.
+        var migrationTransaction = SentrySdk.StartTransaction("ef-core-migrate", "db.migrate");
+        SentrySdk.ConfigureScope(s => s.Transaction = migrationTransaction);
+        try
+        {
+            using var scope = app.ApplicationServices.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<NuGetTrendsContext>();
+            db.Database.SetCommandTimeout(TimeSpan.FromMinutes(10));
+
+            var pending = db.Database.GetPendingMigrations().ToList();
+            migrationTransaction.SetTag("pending_count", pending.Count.ToString());
+            if (pending.Count > 0)
+            {
+                migrationTransaction.SetData("pending_migrations", pending);
+            }
+
+            db.Database.Migrate();
+            migrationTransaction.Finish(SpanStatus.Ok);
+        }
+        catch (Exception e)
+        {
+            migrationTransaction.Finish(e);
+            throw;
+        }
+        finally
+        {
+            SentrySdk.FlushAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
+        }
+
+        // Seed sample data for local development (idempotent - checks if data exists)
+        if (hostingEnvironment.IsDevelopment())
+        {
+            try
+            {
+                using var seedScope = app.ApplicationServices.CreateScope();
+                var seedDb = seedScope.ServiceProvider.GetRequiredService<NuGetTrendsContext>();
+                var clickHouse = seedScope.ServiceProvider.GetRequiredService<IClickHouseService>();
+                var logger = seedScope.ServiceProvider.GetRequiredService<ILogger<Startup>>();
+                logger.LogInformation("[Seeder] Checking if seed data is needed...");
+                DevelopmentDataSeeder.SeedPostgresIfEmpty(seedDb);
+                DevelopmentDataSeeder.SeedClickHouseIfEmptyAsync(clickHouse).GetAwaiter().GetResult();
+                logger.LogInformation("[Seeder] Seed check complete.");
+            }
+            catch (Exception e)
+            {
+                var logger = app.ApplicationServices.GetService<ILogger<Startup>>();
+                logger?.LogError(e, "[Seeder] Failed to seed development data");
+            }
+        }
+
         if (hostingEnvironment.IsDevelopment())
         {
             app.UseDeveloperExceptionPage();
-
-            // Auto-apply EF Core migrations in development (for Aspire local dev)
-            using var scope = app.ApplicationServices.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<NuGetTrendsContext>();
-            db.Database.Migrate();
         }
 
         // Get app version from assembly (set via SourceRevisionId at build time)

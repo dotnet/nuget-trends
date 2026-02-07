@@ -291,6 +291,7 @@ public class IntegrationTestFixture : IAsyncLifetime
                 context.PackageDetailsCatalogLeafs.Add(new PackageDetailsCatalogLeaf
                 {
                     PackageId = package.PackageId,
+                    PackageIdLowered = package.PackageId.ToLowerInvariant(),
                     PackageVersion = package.PackageVersion,
                     CommitTimestamp = package.CommitTimestamp,
                     Listed = true,

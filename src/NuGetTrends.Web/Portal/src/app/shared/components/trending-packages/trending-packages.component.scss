@@ -5,16 +5,17 @@
 }
 
 .trending-list {
-  max-width: 900px;
+  max-width: 1100px;
   margin: 0 auto;
   padding: 0 1rem;
+  width: 100%;
 }
 
 .trending-item {
   cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
-  margin-bottom: 1rem;
-  padding: 1.25rem 1.5rem;
+  margin-bottom: 0.75rem;
+  padding: 0.75rem 1.25rem;
   background-color: var(--color-card-bg);
   border-radius: 8px;
   border: 1px solid var(--color-border);
@@ -41,10 +42,10 @@
 }
 
 .trending-rank {
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   font-weight: 700;
   color: var(--color-text-muted);
-  min-width: 2rem;
+  min-width: 1.75rem;
   text-align: center;
 }
 
@@ -52,12 +53,12 @@
   flex-shrink: 0;
 
   img {
-    width: 48px;
-    height: 48px;
-    border-radius: 8px;
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
     object-fit: contain;
     background-color: var(--color-input-bg);
-    padding: 4px;
+    padding: 3px;
   }
 }
 
@@ -183,8 +184,8 @@
   }
 
   .trending-icon img {
-    width: 40px;
-    height: 40px;
+    width: 32px;
+    height: 32px;
   }
 
   .trending-info {

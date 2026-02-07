@@ -5,7 +5,6 @@ using MessagePack;
 using Microsoft.EntityFrameworkCore;
 using NuGetTrends.Data;
 using RabbitMQ.Client;
-using Sentry.Hangfire;
 
 namespace NuGetTrends.Scheduler;
 
@@ -34,7 +33,6 @@ public class DailyDownloadPackageIdPublisher(
     // Batch size for RabbitMQ messages
     private const int QueueBatchSize = 1000;
 
-    [SentryMonitorSlug("DailyDownloadPackageIdPublisher.Import")]
     public async Task Import(IJobCancellationToken token, PerformContext? context)
     {
         var jobId = context?.BackgroundJob?.Id ?? "unknown";
@@ -56,12 +54,27 @@ public class DailyDownloadPackageIdPublisher(
             s.SetTag("jobId", jobId);
         });
 
+        // Start Sentry cron check-in with monitor upsert (auto-creates/updates monitor config)
+        // Placed inside scope so check-in is bound to the same trace ID
+        var checkInId = hub.CaptureCheckIn(
+            JobScheduleConfig.DailyDownloadPublisher.MonitorSlug,
+            CheckInStatus.InProgress,
+            configureMonitorOptions: options =>
+            {
+                options.Interval(1, SentryMonitorInterval.Day);
+                options.CheckInMargin = TimeSpan.FromMinutes(JobScheduleConfig.DailyDownloadPublisher.CheckInMarginMinutes);
+                options.MaxRuntime = TimeSpan.FromMinutes(JobScheduleConfig.DailyDownloadPublisher.MaxRuntimeMinutes);
+                options.TimeZone = "Etc/UTC";
+                options.FailureIssueThreshold = JobScheduleConfig.DailyDownloadPublisher.FailureIssueThreshold;
+            });
+
         try
         {
             if (!await ImportLock.WaitAsync(TimeSpan.Zero))
             {
                 logger.LogWarning("Job {JobId}: Skipping daily download publisher - another instance is already in progress", jobId);
                 transaction.Finish(SpanStatus.Aborted);
+                hub.CaptureCheckIn(JobScheduleConfig.DailyDownloadPublisher.MonitorSlug, CheckInStatus.Ok, checkInId); // Skipped is OK, not an error
                 throw new ConcurrentExecutionSkippedException(
                     $"Job {jobId}: Daily download publisher skipped - another instance is already in progress");
             }
@@ -132,10 +145,12 @@ public class DailyDownloadPackageIdPublisher(
                 }
 
                 transaction.Finish(SpanStatus.Ok);
+                hub.CaptureCheckIn(JobScheduleConfig.DailyDownloadPublisher.MonitorSlug, CheckInStatus.Ok, checkInId);
             }
             catch (Exception e)
             {
                 transaction.Finish(e);
+                hub.CaptureCheckIn(JobScheduleConfig.DailyDownloadPublisher.MonitorSlug, CheckInStatus.Error, checkInId);
                 throw;
             }
             finally
@@ -145,7 +160,7 @@ public class DailyDownloadPackageIdPublisher(
         }
         finally
         {
-            await SentrySdk.FlushAsync(TimeSpan.FromSeconds(2));
+            await hub.FlushAsync(TimeSpan.FromSeconds(2));
         }
     }
 

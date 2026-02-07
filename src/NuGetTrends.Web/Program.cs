@@ -49,6 +49,8 @@ try
     builder.WebHost.UseConfiguration(configuration)
         .UseSentry(o =>
         {
+            // Mark ClickHouse driver frames as not in-app for cleaner stack traces
+            o.AddInAppExclude("ClickHouse.Driver");
             o.SetBeforeSend(e =>
             {
                 if (e.Message?.Formatted is { } msg && msg.Contains(
@@ -124,16 +126,19 @@ try
         var connString = config.GetConnectionString("clickhouse")
             ?? config.GetConnectionString("ClickHouse")
             ?? throw new InvalidOperationException("ClickHouse connection string not configured.");
+        // Aspire injects endpoint URLs (http://host:port) - normalize to Key=Value format
+        connString = ClickHouseConnectionInfo.NormalizeConnectionString(connString);
         return ClickHouseConnectionInfo.Parse(connString);
     });
 
     builder.Services.AddSingleton<IClickHouseService>(sp =>
     {
         var config = sp.GetRequiredService<IConfiguration>();
-        // Aspire injects the connection string via ConnectionStrings__clickhouse environment variable
         var connString = config.GetConnectionString("clickhouse")
             ?? config.GetConnectionString("ClickHouse")
             ?? throw new InvalidOperationException("ClickHouse connection string not configured.");
+        // Aspire injects endpoint URLs (http://host:port) - normalize to Key=Value format
+        connString = ClickHouseConnectionInfo.NormalizeConnectionString(connString);
         var logger = sp.GetRequiredService<ILogger<ClickHouseService>>();
         var connectionInfo = sp.GetRequiredService<ClickHouseConnectionInfo>();
         return new ClickHouseService(connString, logger, connectionInfo);

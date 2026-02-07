@@ -192,6 +192,284 @@ public class CatalogLeafProcessorTests : IAsyncLifetime
             .AnyAsync(p => p.PackageId == "NewPackageAfterRace");
         newPackageExists.Should().BeTrue("processor should continue working after handling duplicate key exception");
     }
+
+    /// <summary>
+    /// Tests that ProcessPackageDetailsBatchAsync correctly processes a batch of new packages
+    /// in a single database operation (avoiding N+1 queries).
+    /// </summary>
+    [Fact]
+    public async Task ProcessPackageDetailsBatchAsync_NewPackages_InsertsAllInSingleOperation()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        services.AddDbContext<NuGetTrendsContext>(options =>
+            options.UseNpgsql(_connectionString));
+        services.AddLogging(builder => builder.AddProvider(new XUnitLoggerProvider(_output)));
+
+        using var provider = services.BuildServiceProvider();
+        var logger = provider.GetRequiredService<ILogger<CatalogLeafProcessor>>();
+        var processor = new CatalogLeafProcessor(provider, logger);
+
+        var leaves = new List<PackageDetailsCatalogLeaf>
+        {
+            new() { PackageId = "BatchPackage1", PackageVersion = "1.0.0", CommitTimestamp = DateTimeOffset.UtcNow },
+            new() { PackageId = "BatchPackage2", PackageVersion = "1.0.0", CommitTimestamp = DateTimeOffset.UtcNow },
+            new() { PackageId = "BatchPackage3", PackageVersion = "2.0.0", CommitTimestamp = DateTimeOffset.UtcNow },
+        };
+
+        // Act
+        await processor.ProcessPackageDetailsBatchAsync(leaves, CancellationToken.None);
+
+        // Assert - All packages should be inserted
+        await using var verifyContext = CreateDbContext();
+        var count = await verifyContext.PackageDetailsCatalogLeafs
+            .CountAsync(p => p.PackageId != null && p.PackageId.StartsWith("BatchPackage"));
+        count.Should().Be(3, "all three packages should be inserted");
+    }
+
+    /// <summary>
+    /// Tests that ProcessPackageDetailsBatchAsync correctly skips packages that already exist
+    /// in the database and only inserts new ones.
+    /// </summary>
+    [Fact]
+    public async Task ProcessPackageDetailsBatchAsync_MixedNewAndExisting_OnlyInsertsNew()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        services.AddDbContext<NuGetTrendsContext>(options =>
+            options.UseNpgsql(_connectionString));
+        services.AddLogging(builder => builder.AddProvider(new XUnitLoggerProvider(_output)));
+
+        using var provider = services.BuildServiceProvider();
+        var logger = provider.GetRequiredService<ILogger<CatalogLeafProcessor>>();
+
+        // Pre-insert one package
+        await using (var setupContext = CreateDbContext())
+        {
+            setupContext.PackageDetailsCatalogLeafs.Add(new PackageDetailsCatalogLeaf
+            {
+                PackageId = "ExistingPackage",
+                PackageVersion = "1.0.0",
+                CommitTimestamp = DateTimeOffset.UtcNow.AddDays(-1),
+            });
+            await setupContext.SaveChangesAsync();
+        }
+
+        var processor = new CatalogLeafProcessor(provider, logger);
+
+        var leaves = new List<PackageDetailsCatalogLeaf>
+        {
+            new() { PackageId = "ExistingPackage", PackageVersion = "1.0.0", CommitTimestamp = DateTimeOffset.UtcNow },
+            new() { PackageId = "NewPackage1", PackageVersion = "1.0.0", CommitTimestamp = DateTimeOffset.UtcNow },
+            new() { PackageId = "NewPackage2", PackageVersion = "1.0.0", CommitTimestamp = DateTimeOffset.UtcNow },
+        };
+
+        // Act
+        await processor.ProcessPackageDetailsBatchAsync(leaves, CancellationToken.None);
+
+        // Assert
+        await using var verifyContext = CreateDbContext();
+
+        // Existing package should still have original timestamp (not updated)
+        var existingPackage = await verifyContext.PackageDetailsCatalogLeafs
+            .SingleAsync(p => p.PackageId == "ExistingPackage");
+        existingPackage.CommitTimestamp.Should().BeBefore(DateTimeOffset.UtcNow.AddHours(-1),
+            "existing package should not be updated");
+
+        // New packages should exist
+        var newPackagesCount = await verifyContext.PackageDetailsCatalogLeafs
+            .CountAsync(p => p.PackageId != null && p.PackageId.StartsWith("NewPackage"));
+        newPackagesCount.Should().Be(2, "both new packages should be inserted");
+    }
+
+    /// <summary>
+    /// Tests that ProcessPackageDetailsBatchAsync handles an empty batch gracefully.
+    /// </summary>
+    [Fact]
+    public async Task ProcessPackageDetailsBatchAsync_EmptyBatch_DoesNothing()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        services.AddDbContext<NuGetTrendsContext>(options =>
+            options.UseNpgsql(_connectionString));
+        services.AddLogging(builder => builder.AddProvider(new XUnitLoggerProvider(_output)));
+
+        using var provider = services.BuildServiceProvider();
+        var logger = provider.GetRequiredService<ILogger<CatalogLeafProcessor>>();
+        var processor = new CatalogLeafProcessor(provider, logger);
+
+        // Act - should not throw
+        await processor.ProcessPackageDetailsBatchAsync([], CancellationToken.None);
+
+        // Assert - no exception means success
+    }
+
+    /// <summary>
+    /// Tests that ProcessPackageDetailsBatchAsync correctly matches packages with same case.
+    /// Note: NuGet catalog uses consistent casing for package IDs, so the database query
+    /// is case-sensitive and the case-insensitive HashSet lookup handles edge cases.
+    /// </summary>
+    [Fact]
+    public async Task ProcessPackageDetailsBatchAsync_SameCaseMatch_SkipsExisting()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        services.AddDbContext<NuGetTrendsContext>(options =>
+            options.UseNpgsql(_connectionString));
+        services.AddLogging(builder => builder.AddProvider(new XUnitLoggerProvider(_output)));
+
+        using var provider = services.BuildServiceProvider();
+        var logger = provider.GetRequiredService<ILogger<CatalogLeafProcessor>>();
+
+        // Pre-insert with specific case
+        await using (var setupContext = CreateDbContext())
+        {
+            setupContext.PackageDetailsCatalogLeafs.Add(new PackageDetailsCatalogLeaf
+            {
+                PackageId = "CaseTest",
+                PackageVersion = "1.0.0",
+                CommitTimestamp = DateTimeOffset.UtcNow.AddDays(-1),
+            });
+            await setupContext.SaveChangesAsync();
+        }
+
+        var processor = new CatalogLeafProcessor(provider, logger);
+
+        // Try to insert with same case
+        var leaves = new List<PackageDetailsCatalogLeaf>
+        {
+            new() { PackageId = "CaseTest", PackageVersion = "1.0.0", CommitTimestamp = DateTimeOffset.UtcNow },
+        };
+
+        // Act
+        await processor.ProcessPackageDetailsBatchAsync(leaves, CancellationToken.None);
+
+        // Assert - should still only have one record
+        await using var verifyContext = CreateDbContext();
+        var count = await verifyContext.PackageDetailsCatalogLeafs
+            .CountAsync(p => p.PackageId == "CaseTest");
+        count.Should().Be(1, "duplicate should be skipped");
+    }
+
+    /// <summary>
+    /// Tests that ProcessPackageDetailsBatchAsync handles all packages already existing.
+    /// </summary>
+    [Fact]
+    public async Task ProcessPackageDetailsBatchAsync_AllExisting_SkipsAll()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        services.AddDbContext<NuGetTrendsContext>(options =>
+            options.UseNpgsql(_connectionString));
+        services.AddLogging(builder => builder.AddProvider(new XUnitLoggerProvider(_output)));
+
+        using var provider = services.BuildServiceProvider();
+        var logger = provider.GetRequiredService<ILogger<CatalogLeafProcessor>>();
+
+        // Pre-insert all packages
+        await using (var setupContext = CreateDbContext())
+        {
+            setupContext.PackageDetailsCatalogLeafs.AddRange(
+                new PackageDetailsCatalogLeaf { PackageId = "AllExisting1", PackageVersion = "1.0.0", CommitTimestamp = DateTimeOffset.UtcNow },
+                new PackageDetailsCatalogLeaf { PackageId = "AllExisting2", PackageVersion = "1.0.0", CommitTimestamp = DateTimeOffset.UtcNow }
+            );
+            await setupContext.SaveChangesAsync();
+        }
+
+        var processor = new CatalogLeafProcessor(provider, logger);
+
+        // Try to insert the same packages
+        var leaves = new List<PackageDetailsCatalogLeaf>
+        {
+            new() { PackageId = "AllExisting1", PackageVersion = "1.0.0", CommitTimestamp = DateTimeOffset.UtcNow.AddHours(1) },
+            new() { PackageId = "AllExisting2", PackageVersion = "1.0.0", CommitTimestamp = DateTimeOffset.UtcNow.AddHours(1) },
+        };
+
+        // Act - should not throw
+        await processor.ProcessPackageDetailsBatchAsync(leaves, CancellationToken.None);
+
+        // Assert - count should still be 2
+        await using var verifyContext = CreateDbContext();
+        var count = await verifyContext.PackageDetailsCatalogLeafs
+            .CountAsync(p => p.PackageId != null && p.PackageId.StartsWith("AllExisting"));
+        count.Should().Be(2, "no duplicates should be inserted");
+    }
+
+    /// <summary>
+    /// Tests that ProcessPackageDetailsBatchAsync populates PackageIdLowered for new packages.
+    /// This ensures the case-insensitive join in GetUnprocessedPackageIds works correctly.
+    /// </summary>
+    [Fact]
+    public async Task ProcessPackageDetailsBatchAsync_NewPackages_PopulatesPackageIdLowered()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        services.AddDbContext<NuGetTrendsContext>(options =>
+            options.UseNpgsql(_connectionString));
+        services.AddLogging(builder => builder.AddProvider(new XUnitLoggerProvider(_output)));
+
+        using var provider = services.BuildServiceProvider();
+        var logger = provider.GetRequiredService<ILogger<CatalogLeafProcessor>>();
+        var processor = new CatalogLeafProcessor(provider, logger);
+
+        var leaves = new List<PackageDetailsCatalogLeaf>
+        {
+            new() { PackageId = "MixedCase.Package", PackageVersion = "1.0.0", CommitTimestamp = DateTimeOffset.UtcNow },
+            new() { PackageId = "UPPERCASE.PACKAGE", PackageVersion = "2.0.0", CommitTimestamp = DateTimeOffset.UtcNow },
+            new() { PackageId = "lowercase.package", PackageVersion = "3.0.0", CommitTimestamp = DateTimeOffset.UtcNow },
+        };
+
+        // Act
+        await processor.ProcessPackageDetailsBatchAsync(leaves, CancellationToken.None);
+
+        // Assert - Verify PackageIdLowered is populated correctly
+        await using var verifyContext = CreateDbContext();
+        var packages = await verifyContext.PackageDetailsCatalogLeafs
+            .Where(p => p.PackageIdLowered != null && p.PackageIdLowered.Contains(".package"))
+            .ToListAsync();
+
+        packages.Should().HaveCount(3);
+        packages.Should().Contain(p => p.PackageId == "MixedCase.Package" && p.PackageIdLowered == "mixedcase.package");
+        packages.Should().Contain(p => p.PackageId == "UPPERCASE.PACKAGE" && p.PackageIdLowered == "uppercase.package");
+        packages.Should().Contain(p => p.PackageId == "lowercase.package" && p.PackageIdLowered == "lowercase.package");
+    }
+
+    /// <summary>
+    /// Tests that ProcessPackageDetailsAsync (individual path) populates PackageIdLowered.
+    /// This is the fallback path used when batch processing hits a duplicate key exception.
+    /// </summary>
+    [Fact]
+    public async Task ProcessPackageDetailsAsync_NewPackage_PopulatesPackageIdLowered()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        services.AddDbContext<NuGetTrendsContext>(options =>
+            options.UseNpgsql(_connectionString));
+        services.AddLogging(builder => builder.AddProvider(new XUnitLoggerProvider(_output)));
+
+        using var provider = services.BuildServiceProvider();
+        var logger = provider.GetRequiredService<ILogger<CatalogLeafProcessor>>();
+        var processor = new CatalogLeafProcessor(provider, logger);
+
+        var leaf = new PackageDetailsCatalogLeaf
+        {
+            PackageId = "Individual.Test.Package",
+            PackageVersion = "1.0.0",
+            CommitTimestamp = DateTimeOffset.UtcNow,
+        };
+
+        // Act
+        await processor.ProcessPackageDetailsAsync(leaf, CancellationToken.None);
+
+        // Assert - Verify PackageIdLowered is populated
+        await using var verifyContext = CreateDbContext();
+        var savedPackage = await verifyContext.PackageDetailsCatalogLeafs
+            .SingleAsync(p => p.PackageId == "Individual.Test.Package");
+
+        savedPackage.PackageIdLowered.Should().Be("individual.test.package",
+            "PackageIdLowered should be populated in individual processing path");
+    }
+
 }
 
 /// <summary>

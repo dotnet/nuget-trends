@@ -3,6 +3,12 @@ footer {
   background-color: var(--color-footer-bg);
 }
 
+.footer-logo {
+  width: 350px;
+  height: auto;
+  max-width: 100%;
+}
+
 .footer-item-header {
   font-size: 25px;
   margin: 0 0 12px;
@@ -50,4 +56,16 @@ footer {
   color: #b5b5b5;
   text-align: center;
   opacity: 0.6;
+}
+
+.version-badge {
+  cursor: pointer;
+  font-family: monospace;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background-color: rgba(255, 255, 255, 0.1);
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
 }

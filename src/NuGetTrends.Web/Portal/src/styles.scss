@@ -162,10 +162,16 @@ body {
   color: var(--color-text-secondary);
 }
 
-/* Logo glow effect */
+/* Logo glow effect and sizing */
 .main-header img {
   filter: var(--logo-filter);
   transition: filter 0.3s ease;
+}
+
+.header-logo {
+  width: 400px;
+  height: auto;
+  max-width: 100%;
 }
 
 .search-pattern {

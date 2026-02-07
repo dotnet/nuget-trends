@@ -21,8 +21,8 @@ public class TrendingPackageCacheTests
         var package = new TrendingPackage
         {
             PackageId = "test-package",
-            PreviousWeekDownloads = previous,
-            CurrentWeekDownloads = current
+            ComparisonWeekDownloads = previous,
+            WeekDownloads = current
         };
 
         // Assert
@@ -36,8 +36,8 @@ public class TrendingPackageCacheTests
         var package = new TrendingPackage
         {
             PackageId = "new-package",
-            PreviousWeekDownloads = 0,
-            CurrentWeekDownloads = 1000
+            ComparisonWeekDownloads = 0,
+            WeekDownloads = 1000
         };
 
         // Assert
@@ -51,8 +51,8 @@ public class TrendingPackageCacheTests
         var package = new TrendingPackage
         {
             PackageId = "empty-package",
-            PreviousWeekDownloads = 0,
-            CurrentWeekDownloads = 0
+            ComparisonWeekDownloads = 0,
+            WeekDownloads = 0
         };
 
         // Assert

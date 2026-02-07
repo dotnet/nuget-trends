@@ -3,7 +3,7 @@
     <div class="columns">
       <div class="column has-text-centered">
         <a href="/">
-          <img src="../../assets/images/logo-inverted-350.png" alt="NuGet Trends brand logo">
+          <img src="../../assets/images/logo-inverted.png" alt="NuGet Trends brand logo" class="footer-logo">
         </a>
       </div>
       <div class="column has-text-centered">
@@ -34,6 +34,10 @@
         Hosted by <img src="../../assets/images/sentry-logo.svg" alt="Sentry" class="sentry-logo">
       </a>
     </p>
-    <p class="version-info">{{ version }}</p>
+    <p class="version-info">
+      <span class="version-badge" (click)="copyVersion()" title="Copy to clipboard">
+        {{ shortSha }}
+      </span>
+    </p>
   </div>
 </footer>

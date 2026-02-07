@@ -133,17 +133,21 @@ public class CatalogProcessor
 
             await Task.WhenAll(tasks);
 
+            // Separate results by type for batch processing
+            var packageDetails = new List<PackageDetailsCatalogLeaf>();
+
             foreach (var task in tasks)
             {
                 try
                 {
                     if (task.Result is PackageDeleteCatalogLeaf del)
                     {
+                        // Deletes are processed individually (they're rare and need immediate DB consistency)
                         await _leafProcessor.ProcessPackageDeleteAsync(del, token);
                     }
                     else if (task.Result is PackageDetailsCatalogLeaf detail)
                     {
-                        await _leafProcessor.ProcessPackageDetailsAsync(detail, token);
+                        packageDetails.Add(detail);
                     }
                     else
                     {
@@ -154,6 +158,19 @@ public class CatalogProcessor
                 catch (Exception e)
                 {
                     _logger.LogError(e, "Failed to process '{result}'.", task.Result);
+                }
+            }
+
+            // Process package details as a batch to avoid N+1 queries
+            if (packageDetails.Count > 0)
+            {
+                try
+                {
+                    await _leafProcessor.ProcessPackageDetailsBatchAsync(packageDetails, token);
+                }
+                catch (Exception e)
+                {
+                    _logger.LogError(e, "Failed to process batch of {Count} package details.", packageDetails.Count);
                 }
             }
 

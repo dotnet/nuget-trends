@@ -46,6 +46,13 @@ Sentry.init({
     }),
     Sentry.browserTracingIntegration({
       idleTimeout: 30000,
+      beforeStartSpan: (context) => {
+        return {
+          ...context,
+          // Parameterize the /packages/:packageId route to avoid high-cardinality transaction names
+          name: location.pathname.replace(/^\/packages\/[^/?]+$/, '/packages/:packageId'),
+        };
+      },
     }),
     Sentry.browserProfilingIntegration(),
   ],

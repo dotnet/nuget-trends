@@ -252,18 +252,21 @@ public class DailyDownloadPublisherQueryTests : IAsyncLifetime
             new NuGet.Protocol.Catalog.Models.PackageDetailsCatalogLeaf
             {
                 PackageId = "Sentry",
+                PackageIdLowered = "sentry",
                 PackageVersion = "1.0.0",
                 CommitTimestamp = DateTimeOffset.UtcNow,
             },
             new NuGet.Protocol.Catalog.Models.PackageDetailsCatalogLeaf
             {
                 PackageId = "Sentry",
+                PackageIdLowered = "sentry",
                 PackageVersion = "2.0.0",
                 CommitTimestamp = DateTimeOffset.UtcNow,
             },
             new NuGet.Protocol.Catalog.Models.PackageDetailsCatalogLeaf
             {
                 PackageId = "Sentry",
+                PackageIdLowered = "sentry",
                 PackageVersion = "3.0.0",
                 CommitTimestamp = DateTimeOffset.UtcNow,
             }

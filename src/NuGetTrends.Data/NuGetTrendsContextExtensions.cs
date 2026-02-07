@@ -28,7 +28,7 @@ public static class NuGetTrendsContextExtensions
     {
         return (from leaf in context.PackageDetailsCatalogLeafs
                 join pd in context.PackageDownloads
-                    on leaf.PackageId!.ToLower() equals pd.PackageIdLowered into downloads
+                    on leaf.PackageIdLowered equals pd.PackageIdLowered into downloads
                 from pd in downloads.DefaultIfEmpty()
                 where pd == null || pd.LatestDownloadCountCheckedUtc < todayUtc
                 select leaf.PackageId)
