@@ -90,8 +90,11 @@ export class ThemeService {
       feedback.attachTo(document.body, {
         colorScheme: theme,
       });
-      this.lastSentryTheme = theme;
     }
+
+    // Mark theme as applied, even if feedback wasn't available yet
+    // This prevents repeated attempts when theme hasn't changed
+    this.lastSentryTheme = theme;
   }
 
   setPreference(preference: ThemePreference): void {
