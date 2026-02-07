@@ -14,6 +14,7 @@ export class ThemeService {
   private readonly systemThemeSignal = signal<ResolvedTheme>('light');
   private mediaQuery: MediaQueryList | null = null;
   private lastSentryTheme: ResolvedTheme | null = null;
+  private sentryCleanup: (() => void) | null = null;
 
   readonly preference = this.preferenceSignal.asReadonly();
 
@@ -87,14 +88,18 @@ export class ThemeService {
     // Update Sentry feedback widget theme
     const feedback = Sentry.getFeedback();
     if (feedback) {
-      feedback.attachTo(document.body, {
+      // Clean up previous attachment if it exists
+      if (this.sentryCleanup) {
+        this.sentryCleanup();
+      }
+
+      // Attach with new theme and store cleanup function
+      this.sentryCleanup = feedback.attachTo(document.body, {
         colorScheme: theme,
       });
-    }
 
-    // Mark theme as applied, even if feedback wasn't available yet
-    // This prevents repeated attempts when theme hasn't changed
-    this.lastSentryTheme = theme;
+      this.lastSentryTheme = theme;
+    }
   }
 
   setPreference(preference: ThemePreference): void {
