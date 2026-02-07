@@ -103,7 +103,11 @@ export class ThemeService {
       this.lastSentryTheme = theme;
     } catch (error) {
       // Attachment might fail if widget is not properly initialized
-      console.debug('Sentry feedback widget could not be updated: feedback integration may not be initialized or configured', error);
+      Sentry.captureException(error, {
+        level: 'warning',
+        tags: { component: 'theme-service', operation: 'update-sentry-theme' },
+        extra: { theme, message: 'Sentry feedback widget could not be updated: feedback integration may not be initialized or configured' }
+      });
     }
   }
 
