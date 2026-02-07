@@ -112,6 +112,14 @@ public class CatalogLeafProcessor : ICatalogLeafProcessor
 
         _logger.LogDebug("Adding {NewCount} new packages out of {TotalCount} in batch.", newLeaves.Count, leaves.Count);
 
+        // CRITICAL: PackageIdLowered must be populated for the case-insensitive join
+        // in GetUnprocessedPackageIds to work efficiently (uses indexed column instead of LOWER() function).
+        // This normalization must happen before every insert to prevent NULL values.
+        foreach (var leaf in newLeaves)
+        {
+            leaf.PackageIdLowered = leaf.PackageId?.ToLowerInvariant();
+        }
+
         Context.PackageDetailsCatalogLeafs.AddRange(newLeaves);
 
         try
@@ -145,6 +153,10 @@ public class CatalogLeafProcessor : ICatalogLeafProcessor
 
         if (!exists)
         {
+            // CRITICAL: PackageIdLowered must be populated for the case-insensitive join
+            // in GetUnprocessedPackageIds to work efficiently (uses indexed column instead of LOWER() function).
+            leaf.PackageIdLowered = leaf.PackageId?.ToLowerInvariant();
+            
             Context.PackageDetailsCatalogLeafs.Add(leaf);
             try
             {

@@ -173,14 +173,40 @@ public class Startup(
 
     public void Configure(IApplicationBuilder app)
     {
+        // Auto-apply EF Core migrations on startup. Safe with a single scheduler instance.
+        // 10-minute timeout: some migrations backfill data across the entire catalog leafs table
+        // (millions of rows), which far exceeds the default 30-second command timeout.
+        var migrationTransaction = SentrySdk.StartTransaction("ef-core-migrate", "db.migrate");
+        SentrySdk.ConfigureScope(s => s.Transaction = migrationTransaction);
+        try
+        {
+            using var scope = app.ApplicationServices.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<NuGetTrendsContext>();
+            db.Database.SetCommandTimeout(TimeSpan.FromMinutes(10));
+
+            var pending = db.Database.GetPendingMigrations().ToList();
+            migrationTransaction.SetTag("pending_count", pending.Count.ToString());
+            if (pending.Count > 0)
+            {
+                migrationTransaction.SetData("pending_migrations", pending);
+            }
+
+            db.Database.Migrate();
+            migrationTransaction.Finish(SpanStatus.Ok);
+        }
+        catch (Exception e)
+        {
+            migrationTransaction.Finish(e);
+            throw;
+        }
+        finally
+        {
+            SentrySdk.FlushAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
+        }
+
         if (hostingEnvironment.IsDevelopment())
         {
             app.UseDeveloperExceptionPage();
-
-            // Auto-apply EF Core migrations in development (for Aspire local dev)
-            using var scope = app.ApplicationServices.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<NuGetTrendsContext>();
-            db.Database.Migrate();
         }
 
         // Get app version from assembly (set via SourceRevisionId at build time)
