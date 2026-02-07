@@ -33,6 +33,11 @@ public class CatalogLeafProcessorTests : IAsyncLifetime
         await _container.StartAsync();
         _connectionString = _container.GetConnectionString();
 
+        // Colima's VZ driver needs a moment to set up port forwarding from VM to host.
+        // Testcontainers marks the container "ready" based on an in-container check,
+        // but the host port may not be reachable yet.
+        await WaitForPortForwardingAsync(_connectionString);
+
         var services = new ServiceCollection();
         services.AddDbContext<NuGetTrendsContext>(options =>
             options.UseNpgsql(_connectionString));
@@ -43,6 +48,23 @@ public class CatalogLeafProcessorTests : IAsyncLifetime
         // Run migrations
         await using var context = CreateDbContext();
         await context.Database.MigrateAsync();
+    }
+
+    private static async Task WaitForPortForwardingAsync(string connectionString, int maxRetries = 10)
+    {
+        await using var conn = new Npgsql.NpgsqlConnection(connectionString);
+        for (var i = 0; i < maxRetries; i++)
+        {
+            try
+            {
+                await conn.OpenAsync();
+                return;
+            }
+            catch (Npgsql.NpgsqlException) when (i < maxRetries - 1)
+            {
+                await Task.Delay(500);
+            }
+        }
     }
 
     public async Task DisposeAsync()
@@ -137,6 +159,7 @@ public class CatalogLeafProcessorTests : IAsyncLifetime
             concurrentContext.PackageDetailsCatalogLeafs.Add(new PackageDetailsCatalogLeaf
             {
                 PackageId = packageId,
+                PackageIdLowered = packageId.ToLowerInvariant(),
                 PackageVersion = packageVersion,
                 CommitTimestamp = DateTimeOffset.UtcNow.AddSeconds(-1),
             });
@@ -151,6 +174,7 @@ public class CatalogLeafProcessorTests : IAsyncLifetime
         var duplicateLeaf = new PackageDetailsCatalogLeaf
         {
             PackageId = packageId,
+            PackageIdLowered = packageId.ToLowerInvariant(),
             PackageVersion = packageVersion,
             CommitTimestamp = DateTimeOffset.UtcNow,
         };
@@ -249,6 +273,7 @@ public class CatalogLeafProcessorTests : IAsyncLifetime
             setupContext.PackageDetailsCatalogLeafs.Add(new PackageDetailsCatalogLeaf
             {
                 PackageId = "ExistingPackage",
+                PackageIdLowered = "existingpackage",
                 PackageVersion = "1.0.0",
                 CommitTimestamp = DateTimeOffset.UtcNow.AddDays(-1),
             });
@@ -327,6 +352,7 @@ public class CatalogLeafProcessorTests : IAsyncLifetime
             setupContext.PackageDetailsCatalogLeafs.Add(new PackageDetailsCatalogLeaf
             {
                 PackageId = "CaseTest",
+                PackageIdLowered = "casetest",
                 PackageVersion = "1.0.0",
                 CommitTimestamp = DateTimeOffset.UtcNow.AddDays(-1),
             });
@@ -370,8 +396,8 @@ public class CatalogLeafProcessorTests : IAsyncLifetime
         await using (var setupContext = CreateDbContext())
         {
             setupContext.PackageDetailsCatalogLeafs.AddRange(
-                new PackageDetailsCatalogLeaf { PackageId = "AllExisting1", PackageVersion = "1.0.0", CommitTimestamp = DateTimeOffset.UtcNow },
-                new PackageDetailsCatalogLeaf { PackageId = "AllExisting2", PackageVersion = "1.0.0", CommitTimestamp = DateTimeOffset.UtcNow }
+                new PackageDetailsCatalogLeaf { PackageId = "AllExisting1", PackageIdLowered = "allexisting1", PackageVersion = "1.0.0", CommitTimestamp = DateTimeOffset.UtcNow },
+                new PackageDetailsCatalogLeaf { PackageId = "AllExisting2", PackageIdLowered = "allexisting2", PackageVersion = "1.0.0", CommitTimestamp = DateTimeOffset.UtcNow }
             );
             await setupContext.SaveChangesAsync();
         }
