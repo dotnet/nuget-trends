@@ -394,6 +394,82 @@ public class CatalogLeafProcessorTests : IAsyncLifetime
             .CountAsync(p => p.PackageId != null && p.PackageId.StartsWith("AllExisting"));
         count.Should().Be(2, "no duplicates should be inserted");
     }
+
+    /// <summary>
+    /// Tests that ProcessPackageDetailsBatchAsync populates PackageIdLowered for new packages.
+    /// This ensures the case-insensitive join in GetUnprocessedPackageIds works correctly.
+    /// </summary>
+    [Fact]
+    public async Task ProcessPackageDetailsBatchAsync_NewPackages_PopulatesPackageIdLowered()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        services.AddDbContext<NuGetTrendsContext>(options =>
+            options.UseNpgsql(_connectionString));
+        services.AddLogging(builder => builder.AddProvider(new XUnitLoggerProvider(_output)));
+
+        using var provider = services.BuildServiceProvider();
+        var logger = provider.GetRequiredService<ILogger<CatalogLeafProcessor>>();
+        var processor = new CatalogLeafProcessor(provider, logger);
+
+        var leaves = new List<PackageDetailsCatalogLeaf>
+        {
+            new() { PackageId = "MixedCase.Package", PackageVersion = "1.0.0", CommitTimestamp = DateTimeOffset.UtcNow },
+            new() { PackageId = "UPPERCASE.PACKAGE", PackageVersion = "2.0.0", CommitTimestamp = DateTimeOffset.UtcNow },
+            new() { PackageId = "lowercase.package", PackageVersion = "3.0.0", CommitTimestamp = DateTimeOffset.UtcNow },
+        };
+
+        // Act
+        await processor.ProcessPackageDetailsBatchAsync(leaves, CancellationToken.None);
+
+        // Assert - Verify PackageIdLowered is populated correctly
+        await using var verifyContext = CreateDbContext();
+        var packages = await verifyContext.PackageDetailsCatalogLeafs
+            .Where(p => p.PackageIdLowered != null && p.PackageIdLowered.Contains(".package"))
+            .ToListAsync();
+
+        packages.Should().HaveCount(3);
+        packages.Should().Contain(p => p.PackageId == "MixedCase.Package" && p.PackageIdLowered == "mixedcase.package");
+        packages.Should().Contain(p => p.PackageId == "UPPERCASE.PACKAGE" && p.PackageIdLowered == "uppercase.package");
+        packages.Should().Contain(p => p.PackageId == "lowercase.package" && p.PackageIdLowered == "lowercase.package");
+    }
+
+    /// <summary>
+    /// Tests that ProcessPackageDetailsAsync (individual path) populates PackageIdLowered.
+    /// This is the fallback path used when batch processing hits a duplicate key exception.
+    /// </summary>
+    [Fact]
+    public async Task ProcessPackageDetailsAsync_NewPackage_PopulatesPackageIdLowered()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        services.AddDbContext<NuGetTrendsContext>(options =>
+            options.UseNpgsql(_connectionString));
+        services.AddLogging(builder => builder.AddProvider(new XUnitLoggerProvider(_output)));
+
+        using var provider = services.BuildServiceProvider();
+        var logger = provider.GetRequiredService<ILogger<CatalogLeafProcessor>>();
+        var processor = new CatalogLeafProcessor(provider, logger);
+
+        var leaf = new PackageDetailsCatalogLeaf
+        {
+            PackageId = "Individual.Test.Package",
+            PackageVersion = "1.0.0",
+            CommitTimestamp = DateTimeOffset.UtcNow,
+        };
+
+        // Act
+        await processor.ProcessPackageDetailsAsync(leaf, CancellationToken.None);
+
+        // Assert - Verify PackageIdLowered is populated
+        await using var verifyContext = CreateDbContext();
+        var savedPackage = await verifyContext.PackageDetailsCatalogLeafs
+            .SingleAsync(p => p.PackageId == "Individual.Test.Package");
+
+        savedPackage.PackageIdLowered.Should().Be("individual.test.package",
+            "PackageIdLowered should be populated in individual processing path");
+    }
+
 }
 
 /// <summary>

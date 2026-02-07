@@ -74,7 +74,8 @@ public class PackageDetailsCatalogLeaf : CatalogLeaf
 
     /// <summary>
     /// Lowercase version of PackageId for efficient case-insensitive joins.
-    /// This is a computed/database-only property, not sourced from JSON.
+    /// This is a computed/database-only property and is ignored by JSON serialization.
     /// </summary>
+    [JsonIgnore]
     public string? PackageIdLowered { get; set; }
 }
