@@ -77,5 +77,5 @@ public class PackageDetailsCatalogLeaf : CatalogLeaf
     /// This is a computed/database-only property and is ignored by JSON serialization.
     /// </summary>
     [JsonIgnore]
-    public string? PackageIdLowered { get; set; }
+    public string PackageIdLowered { get; set; } = null!;
 }
