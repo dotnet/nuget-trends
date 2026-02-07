@@ -11,42 +11,33 @@ using Xunit.Abstractions;
 namespace NuGetTrends.Scheduler.Tests;
 
 /// <summary>
-/// Tests for CatalogLeafProcessor, particularly around duplicate key exception handling.
+/// Shared PostgreSQL container for all CatalogLeafProcessor tests.
+/// Using IClassFixture avoids spinning up a separate container per test,
+/// which can overwhelm Docker when many containers are already running.
 /// </summary>
-public class CatalogLeafProcessorTests : IAsyncLifetime
+public class PostgresFixture : IAsyncLifetime
 {
-    private readonly ITestOutputHelper _output;
-    private readonly PostgreSqlContainer _container;
-    private ServiceProvider _serviceProvider = null!;
-    private string _connectionString = null!;
+    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder()
+        .WithImage("postgres:17")
+        .Build();
 
-    public CatalogLeafProcessorTests(ITestOutputHelper output)
-    {
-        _output = output;
-        _container = new PostgreSqlBuilder()
-            .WithImage("postgres:17")
-            .Build();
-    }
+    public string ConnectionString { get; private set; } = null!;
 
     public async Task InitializeAsync()
     {
         await _container.StartAsync();
-        _connectionString = _container.GetConnectionString();
+        ConnectionString = _container.GetConnectionString();
 
         // Colima's VZ driver needs a moment to set up port forwarding from VM to host.
         // Testcontainers marks the container "ready" based on an in-container check,
         // but the host port may not be reachable yet.
-        await WaitForPortForwardingAsync(_connectionString);
+        await WaitForPortForwardingAsync(ConnectionString);
 
-        var services = new ServiceCollection();
-        services.AddDbContext<NuGetTrendsContext>(options =>
-            options.UseNpgsql(_connectionString));
-        services.AddLogging(builder => builder.AddProvider(new XUnitLoggerProvider(_output)));
-
-        _serviceProvider = services.BuildServiceProvider();
-
-        // Run migrations
-        await using var context = CreateDbContext();
+        // Run migrations once
+        var options = new DbContextOptionsBuilder<NuGetTrendsContext>()
+            .UseNpgsql(ConnectionString)
+            .Options;
+        await using var context = new NuGetTrendsContext(options);
         await context.Database.MigrateAsync();
     }
 
@@ -69,8 +60,22 @@ public class CatalogLeafProcessorTests : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
-        await _serviceProvider.DisposeAsync();
         await _container.DisposeAsync();
+    }
+}
+
+/// <summary>
+/// Tests for CatalogLeafProcessor, particularly around duplicate key exception handling.
+/// </summary>
+public class CatalogLeafProcessorTests : IClassFixture<PostgresFixture>
+{
+    private readonly ITestOutputHelper _output;
+    private readonly string _connectionString;
+
+    public CatalogLeafProcessorTests(PostgresFixture fixture, ITestOutputHelper output)
+    {
+        _output = output;
+        _connectionString = fixture.ConnectionString;
     }
 
     private NuGetTrendsContext CreateDbContext()
@@ -79,6 +84,20 @@ public class CatalogLeafProcessorTests : IAsyncLifetime
             .UseNpgsql(_connectionString)
             .Options;
         return new NuGetTrendsContext(options);
+    }
+
+    private (ServiceProvider provider, CatalogLeafProcessor processor) CreateProcessor()
+    {
+        var services = new ServiceCollection();
+        services.AddDbContext<NuGetTrendsContext>(options =>
+            options.UseNpgsql(_connectionString));
+        services.AddLogging(builder => builder.AddProvider(new XUnitLoggerProvider(_output)));
+
+        var provider = services.BuildServiceProvider();
+        var logger = provider.GetRequiredService<ILogger<CatalogLeafProcessor>>();
+        var processor = new CatalogLeafProcessor(provider, logger);
+
+        return (provider, processor);
     }
 
     /// <summary>
@@ -92,14 +111,8 @@ public class CatalogLeafProcessorTests : IAsyncLifetime
         var packageId = "TestPackage";
         var packageVersion = "1.0.0";
 
-        var services = new ServiceCollection();
-        services.AddDbContext<NuGetTrendsContext>(options =>
-            options.UseNpgsql(_connectionString));
-        services.AddLogging(builder => builder.AddProvider(new XUnitLoggerProvider(_output)));
-
-        using var provider = services.BuildServiceProvider();
-        var logger = provider.GetRequiredService<ILogger<CatalogLeafProcessor>>();
-        var processor = new CatalogLeafProcessor(provider, logger);
+        var (provider, processor) = CreateProcessor();
+        using var _ = provider;
 
         var leaf = new PackageDetailsCatalogLeaf
         {
@@ -112,6 +125,7 @@ public class CatalogLeafProcessorTests : IAsyncLifetime
         await processor.ProcessPackageDetailsAsync(leaf, CancellationToken.None);
 
         // Create a second processor with a fresh scope
+        var logger = provider.GetRequiredService<ILogger<CatalogLeafProcessor>>();
         var processor2 = new CatalogLeafProcessor(provider, logger);
 
         // Try to process the same package again
@@ -144,14 +158,8 @@ public class CatalogLeafProcessorTests : IAsyncLifetime
         var packageId = "RaceConditionPackage";
         var packageVersion = "1.0.0";
 
-        var services = new ServiceCollection();
-        services.AddDbContext<NuGetTrendsContext>(options =>
-            options.UseNpgsql(_connectionString));
-        services.AddLogging(builder => builder.AddProvider(new XUnitLoggerProvider(_output)));
-
-        using var provider = services.BuildServiceProvider();
-        var logger = provider.GetRequiredService<ILogger<CatalogLeafProcessor>>();
-        var processor = new CatalogLeafProcessor(provider, logger);
+        var (provider, processor) = CreateProcessor();
+        using var _ = provider;
 
         // First, insert the package via a separate context (simulates concurrent process winning the race)
         await using (var concurrentContext = CreateDbContext())
@@ -201,7 +209,7 @@ public class CatalogLeafProcessorTests : IAsyncLifetime
         // Now process a NEW package to verify the processor still works after handling the exception
         var newPackageLeaf = new PackageDetailsCatalogLeaf
         {
-            PackageId = "NewPackageAfterRace",
+            PackageId = "PostRaceRecoveryPkg",
             PackageVersion = "1.0.0",
             CommitTimestamp = DateTimeOffset.UtcNow,
         };
@@ -213,7 +221,7 @@ public class CatalogLeafProcessorTests : IAsyncLifetime
         // Assert - Verify the new package was saved (proves processing continues after exception)
         await using var verifyContext = CreateDbContext();
         var newPackageExists = await verifyContext.PackageDetailsCatalogLeafs
-            .AnyAsync(p => p.PackageId == "NewPackageAfterRace");
+            .AnyAsync(p => p.PackageId == "PostRaceRecoveryPkg");
         newPackageExists.Should().BeTrue("processor should continue working after handling duplicate key exception");
     }
 
@@ -225,14 +233,8 @@ public class CatalogLeafProcessorTests : IAsyncLifetime
     public async Task ProcessPackageDetailsBatchAsync_NewPackages_InsertsAllInSingleOperation()
     {
         // Arrange
-        var services = new ServiceCollection();
-        services.AddDbContext<NuGetTrendsContext>(options =>
-            options.UseNpgsql(_connectionString));
-        services.AddLogging(builder => builder.AddProvider(new XUnitLoggerProvider(_output)));
-
-        using var provider = services.BuildServiceProvider();
-        var logger = provider.GetRequiredService<ILogger<CatalogLeafProcessor>>();
-        var processor = new CatalogLeafProcessor(provider, logger);
+        var (provider, processor) = CreateProcessor();
+        using var _ = provider;
 
         var leaves = new List<PackageDetailsCatalogLeaf>
         {
@@ -259,13 +261,8 @@ public class CatalogLeafProcessorTests : IAsyncLifetime
     public async Task ProcessPackageDetailsBatchAsync_MixedNewAndExisting_OnlyInsertsNew()
     {
         // Arrange
-        var services = new ServiceCollection();
-        services.AddDbContext<NuGetTrendsContext>(options =>
-            options.UseNpgsql(_connectionString));
-        services.AddLogging(builder => builder.AddProvider(new XUnitLoggerProvider(_output)));
-
-        using var provider = services.BuildServiceProvider();
-        var logger = provider.GetRequiredService<ILogger<CatalogLeafProcessor>>();
+        var (provider, _) = CreateProcessor();
+        using var __ = provider;
 
         // Pre-insert one package
         await using (var setupContext = CreateDbContext())
@@ -280,13 +277,14 @@ public class CatalogLeafProcessorTests : IAsyncLifetime
             await setupContext.SaveChangesAsync();
         }
 
+        var logger = provider.GetRequiredService<ILogger<CatalogLeafProcessor>>();
         var processor = new CatalogLeafProcessor(provider, logger);
 
         var leaves = new List<PackageDetailsCatalogLeaf>
         {
             new() { PackageId = "ExistingPackage", PackageVersion = "1.0.0", CommitTimestamp = DateTimeOffset.UtcNow },
-            new() { PackageId = "NewPackage1", PackageVersion = "1.0.0", CommitTimestamp = DateTimeOffset.UtcNow },
-            new() { PackageId = "NewPackage2", PackageVersion = "1.0.0", CommitTimestamp = DateTimeOffset.UtcNow },
+            new() { PackageId = "MixedNew1", PackageVersion = "1.0.0", CommitTimestamp = DateTimeOffset.UtcNow },
+            new() { PackageId = "MixedNew2", PackageVersion = "1.0.0", CommitTimestamp = DateTimeOffset.UtcNow },
         };
 
         // Act
@@ -303,7 +301,7 @@ public class CatalogLeafProcessorTests : IAsyncLifetime
 
         // New packages should exist
         var newPackagesCount = await verifyContext.PackageDetailsCatalogLeafs
-            .CountAsync(p => p.PackageId != null && p.PackageId.StartsWith("NewPackage"));
+            .CountAsync(p => p.PackageId != null && p.PackageId.StartsWith("MixedNew"));
         newPackagesCount.Should().Be(2, "both new packages should be inserted");
     }
 
@@ -314,14 +312,8 @@ public class CatalogLeafProcessorTests : IAsyncLifetime
     public async Task ProcessPackageDetailsBatchAsync_EmptyBatch_DoesNothing()
     {
         // Arrange
-        var services = new ServiceCollection();
-        services.AddDbContext<NuGetTrendsContext>(options =>
-            options.UseNpgsql(_connectionString));
-        services.AddLogging(builder => builder.AddProvider(new XUnitLoggerProvider(_output)));
-
-        using var provider = services.BuildServiceProvider();
-        var logger = provider.GetRequiredService<ILogger<CatalogLeafProcessor>>();
-        var processor = new CatalogLeafProcessor(provider, logger);
+        var (provider, processor) = CreateProcessor();
+        using var _ = provider;
 
         // Act - should not throw
         await processor.ProcessPackageDetailsBatchAsync([], CancellationToken.None);
@@ -338,13 +330,8 @@ public class CatalogLeafProcessorTests : IAsyncLifetime
     public async Task ProcessPackageDetailsBatchAsync_SameCaseMatch_SkipsExisting()
     {
         // Arrange
-        var services = new ServiceCollection();
-        services.AddDbContext<NuGetTrendsContext>(options =>
-            options.UseNpgsql(_connectionString));
-        services.AddLogging(builder => builder.AddProvider(new XUnitLoggerProvider(_output)));
-
-        using var provider = services.BuildServiceProvider();
-        var logger = provider.GetRequiredService<ILogger<CatalogLeafProcessor>>();
+        var (provider, _) = CreateProcessor();
+        using var __ = provider;
 
         // Pre-insert with specific case
         await using (var setupContext = CreateDbContext())
@@ -359,6 +346,7 @@ public class CatalogLeafProcessorTests : IAsyncLifetime
             await setupContext.SaveChangesAsync();
         }
 
+        var logger = provider.GetRequiredService<ILogger<CatalogLeafProcessor>>();
         var processor = new CatalogLeafProcessor(provider, logger);
 
         // Try to insert with same case
@@ -384,13 +372,8 @@ public class CatalogLeafProcessorTests : IAsyncLifetime
     public async Task ProcessPackageDetailsBatchAsync_AllExisting_SkipsAll()
     {
         // Arrange
-        var services = new ServiceCollection();
-        services.AddDbContext<NuGetTrendsContext>(options =>
-            options.UseNpgsql(_connectionString));
-        services.AddLogging(builder => builder.AddProvider(new XUnitLoggerProvider(_output)));
-
-        using var provider = services.BuildServiceProvider();
-        var logger = provider.GetRequiredService<ILogger<CatalogLeafProcessor>>();
+        var (provider, _) = CreateProcessor();
+        using var __ = provider;
 
         // Pre-insert all packages
         await using (var setupContext = CreateDbContext())
@@ -402,6 +385,7 @@ public class CatalogLeafProcessorTests : IAsyncLifetime
             await setupContext.SaveChangesAsync();
         }
 
+        var logger = provider.GetRequiredService<ILogger<CatalogLeafProcessor>>();
         var processor = new CatalogLeafProcessor(provider, logger);
 
         // Try to insert the same packages
@@ -429,20 +413,14 @@ public class CatalogLeafProcessorTests : IAsyncLifetime
     public async Task ProcessPackageDetailsBatchAsync_NewPackages_PopulatesPackageIdLowered()
     {
         // Arrange
-        var services = new ServiceCollection();
-        services.AddDbContext<NuGetTrendsContext>(options =>
-            options.UseNpgsql(_connectionString));
-        services.AddLogging(builder => builder.AddProvider(new XUnitLoggerProvider(_output)));
-
-        using var provider = services.BuildServiceProvider();
-        var logger = provider.GetRequiredService<ILogger<CatalogLeafProcessor>>();
-        var processor = new CatalogLeafProcessor(provider, logger);
+        var (provider, processor) = CreateProcessor();
+        using var _ = provider;
 
         var leaves = new List<PackageDetailsCatalogLeaf>
         {
-            new() { PackageId = "MixedCase.Package", PackageVersion = "1.0.0", CommitTimestamp = DateTimeOffset.UtcNow },
-            new() { PackageId = "UPPERCASE.PACKAGE", PackageVersion = "2.0.0", CommitTimestamp = DateTimeOffset.UtcNow },
-            new() { PackageId = "lowercase.package", PackageVersion = "3.0.0", CommitTimestamp = DateTimeOffset.UtcNow },
+            new() { PackageId = "MixedCase.Casing", PackageVersion = "1.0.0", CommitTimestamp = DateTimeOffset.UtcNow },
+            new() { PackageId = "UPPERCASE.CASING", PackageVersion = "2.0.0", CommitTimestamp = DateTimeOffset.UtcNow },
+            new() { PackageId = "lowercase.casing", PackageVersion = "3.0.0", CommitTimestamp = DateTimeOffset.UtcNow },
         };
 
         // Act
@@ -451,13 +429,13 @@ public class CatalogLeafProcessorTests : IAsyncLifetime
         // Assert - Verify PackageIdLowered is populated correctly
         await using var verifyContext = CreateDbContext();
         var packages = await verifyContext.PackageDetailsCatalogLeafs
-            .Where(p => p.PackageIdLowered != null && p.PackageIdLowered.Contains(".package"))
+            .Where(p => p.PackageIdLowered != null && p.PackageIdLowered.Contains(".casing"))
             .ToListAsync();
 
         packages.Should().HaveCount(3);
-        packages.Should().Contain(p => p.PackageId == "MixedCase.Package" && p.PackageIdLowered == "mixedcase.package");
-        packages.Should().Contain(p => p.PackageId == "UPPERCASE.PACKAGE" && p.PackageIdLowered == "uppercase.package");
-        packages.Should().Contain(p => p.PackageId == "lowercase.package" && p.PackageIdLowered == "lowercase.package");
+        packages.Should().Contain(p => p.PackageId == "MixedCase.Casing" && p.PackageIdLowered == "mixedcase.casing");
+        packages.Should().Contain(p => p.PackageId == "UPPERCASE.CASING" && p.PackageIdLowered == "uppercase.casing");
+        packages.Should().Contain(p => p.PackageId == "lowercase.casing" && p.PackageIdLowered == "lowercase.casing");
     }
 
     /// <summary>
@@ -468,14 +446,8 @@ public class CatalogLeafProcessorTests : IAsyncLifetime
     public async Task ProcessPackageDetailsAsync_NewPackage_PopulatesPackageIdLowered()
     {
         // Arrange
-        var services = new ServiceCollection();
-        services.AddDbContext<NuGetTrendsContext>(options =>
-            options.UseNpgsql(_connectionString));
-        services.AddLogging(builder => builder.AddProvider(new XUnitLoggerProvider(_output)));
-
-        using var provider = services.BuildServiceProvider();
-        var logger = provider.GetRequiredService<ILogger<CatalogLeafProcessor>>();
-        var processor = new CatalogLeafProcessor(provider, logger);
+        var (provider, processor) = CreateProcessor();
+        using var _ = provider;
 
         var leaf = new PackageDetailsCatalogLeaf
         {

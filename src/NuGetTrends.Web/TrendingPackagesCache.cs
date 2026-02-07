@@ -263,7 +263,7 @@ public class TrendingPackagesCache : ITrendingPackagesCache
     /// Extracts a GitHub URL from a project or repository URL.
     /// Returns null if not a GitHub URL.
     /// </summary>
-    private static string? ExtractGitHubUrl(string? url)
+    internal static string? ExtractGitHubUrl(string? url)
     {
         if (string.IsNullOrEmpty(url))
         {

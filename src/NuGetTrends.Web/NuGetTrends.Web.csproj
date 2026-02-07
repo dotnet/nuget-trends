@@ -7,6 +7,10 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="NuGetTrends.Web.Tests" />
+  </ItemGroup>
+
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <SentryProject>api</SentryProject>
   </PropertyGroup>
