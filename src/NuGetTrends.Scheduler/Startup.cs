@@ -214,9 +214,11 @@ public class Startup(
             {
                 using var seedScope = app.ApplicationServices.CreateScope();
                 var seedDb = seedScope.ServiceProvider.GetRequiredService<NuGetTrendsContext>();
+                var clickHouse = seedScope.ServiceProvider.GetRequiredService<IClickHouseService>();
                 var logger = seedScope.ServiceProvider.GetRequiredService<ILogger<Startup>>();
                 logger.LogInformation("[Seeder] Checking if seed data is needed...");
-                DevelopmentDataSeeder.SeedIfEmpty(seedDb);
+                DevelopmentDataSeeder.SeedPostgresIfEmpty(seedDb);
+                DevelopmentDataSeeder.SeedClickHouseIfEmptyAsync(clickHouse).GetAwaiter().GetResult();
                 logger.LogInformation("[Seeder] Seed check complete.");
             }
             catch (Exception e)
