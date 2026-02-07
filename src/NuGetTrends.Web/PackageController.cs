@@ -84,12 +84,12 @@ public class PackageController(
         var releasesWindowStart = now.AddMonths(-12);
         var packageIdLowered = id.Trim().ToLower(CultureInfo.InvariantCulture);
 
-        var packageDownloadTask = context.PackageDownloads
+        var packageDownload = await context.PackageDownloads
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.PackageIdLowered == packageIdLowered, cancellationToken);
 
         // Aggregate package stats in SQL to avoid loading every catalog leaf into memory.
-        var packageStatsTask = context.PackageDetailsCatalogLeafs
+        var packageStats = await context.PackageDetailsCatalogLeafs
             .AsNoTracking()
             .Where(p => p.PackageIdLowered == packageIdLowered)
             .GroupBy(_ => 1)
@@ -104,7 +104,7 @@ public class PackageController(
             })
             .FirstOrDefaultAsync(cancellationToken);
 
-        var latestLeafTask = context.PackageDetailsCatalogLeafs
+        var latestLeaf = await context.PackageDetailsCatalogLeafs
             .AsNoTracking()
             .AsSplitQuery()
             .Where(p => p.PackageIdLowered == packageIdLowered)
@@ -114,7 +114,7 @@ public class PackageController(
             .ThenInclude(g => g.Dependencies)
             .FirstOrDefaultAsync(cancellationToken);
 
-        var listingStateTask = context.PackageDetailsCatalogLeafs
+        var listingState = await context.PackageDetailsCatalogLeafs
             .AsNoTracking()
             .Where(p => p.PackageIdLowered == packageIdLowered)
             .Select(p => new PackageListingState
@@ -124,36 +124,21 @@ public class PackageController(
             })
             .ToListAsync(cancellationToken);
 
-        var allFrameworkNamesTask = context.PackageDetailsCatalogLeafs
+        var allFrameworkNames = await context.PackageDetailsCatalogLeafs
             .AsNoTracking()
             .Where(p => p.PackageIdLowered == packageIdLowered)
             .SelectMany(p => p.DependencyGroups.Select(g => g.TargetFramework))
             .ToListAsync(cancellationToken);
 
-        var distinctDependencyCountTask = context.PackageDetailsCatalogLeafs
+        var distinctDependencyCount = await context.PackageDetailsCatalogLeafs
             .AsNoTracking()
             .Where(p => p.PackageIdLowered == packageIdLowered)
             .SelectMany(p => p.DependencyGroups)
             .SelectMany(g => g.Dependencies)
             .Where(d => !string.IsNullOrWhiteSpace(d.DependencyId))
-            .Select(d => d.DependencyId!)
+            .Select(d => d.DependencyId!.ToLower())
             .Distinct()
             .CountAsync(cancellationToken);
-
-        await Task.WhenAll(
-            packageDownloadTask,
-            packageStatsTask,
-            latestLeafTask,
-            listingStateTask,
-            allFrameworkNamesTask,
-            distinctDependencyCountTask);
-
-        var packageDownload = packageDownloadTask.Result;
-        var packageStats = packageStatsTask.Result;
-        var latestLeaf = latestLeafTask.Result;
-        var listingState = listingStateTask.Result;
-        var allFrameworkNames = allFrameworkNamesTask.Result;
-        var distinctDependencyCount = distinctDependencyCountTask.Result;
 
         if (packageDownload == null && packageStats == null && latestLeaf == null)
         {
