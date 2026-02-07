@@ -10,7 +10,7 @@ var instanceId = Convert.ToHexString(hashBytes).ToLowerInvariant()[..8];
 // Derive deterministic unique ports for the Aspire dashboard from the hash.
 // Aspire's dashboard Kestrel does not support dynamic port 0, so we compute
 // stable per-instance ports in the ephemeral range (15000-19999).
-var portOffset = Math.Abs(BitConverter.ToInt32(hashBytes, 0)) % 5000;
+var portOffset = (int)(BitConverter.ToUInt32(hashBytes, 0) % 5000);
 var dashboardPort = 15000 + portOffset;
 var otlpPort = 20000 + portOffset;
 var resourcePort = 25000 + portOffset;
