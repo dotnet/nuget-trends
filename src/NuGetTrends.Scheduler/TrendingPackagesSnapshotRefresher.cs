@@ -63,8 +63,8 @@ public class TrendingPackagesSnapshotRefresher(
         {
             logger.LogInformation("Job {JobId}: Starting trending packages snapshot refresh", jobId);
 
-            // Step 1: Update package_first_seen with new packages from last week
-            // This must run before the snapshot refresh to include newly published packages
+            // Step 1: Update package_first_seen with any missing packages (self-healing)
+            // Scans all weeks, so it catches up after pipeline gaps
             var firstSeenSpan = transaction.StartChild("clickhouse.update_first_seen", "Update package_first_seen");
             var newPackages = await clickHouseService.UpdatePackageFirstSeenAsync(
                 ct: token.ShutdownToken,
@@ -72,7 +72,7 @@ public class TrendingPackagesSnapshotRefresher(
             firstSeenSpan.SetData("new_packages_count", newPackages);
             firstSeenSpan.Finish(SpanStatus.Ok);
 
-            logger.LogInformation("Job {JobId}: Added {NewPackages} new packages to package_first_seen", jobId, newPackages);
+            logger.LogInformation("Job {JobId}: Backfilled {NewPackages} missing packages into package_first_seen", jobId, newPackages);
 
             // Step 2: Compute trending packages from ClickHouse (expensive query)
             var computeSpan = transaction.StartChild("clickhouse.compute_trending", "Compute trending packages");
