@@ -148,25 +148,26 @@ describe('PackagesService', () => {
   }));
 
   it('should timeout after 3 seconds if getTrendingPackages request is not resolved', fakeAsync(() => {
+    const timeoutMs = 3000;
     let errorOccurred = false;
-    let errorMessage = '';
+    let errorName = '';
 
     service.getTrendingPackages().subscribe({
       next: () => fail('Should not succeed'),
       error: (error) => {
         errorOccurred = true;
-        errorMessage = error.name;
+        errorName = error.name;
       }
     });
 
     const req = httpMock.expectOne(`${service.baseUrl}/package/trending?limit=10`);
 
-    // Advance time past the 3-second timeout
-    tick(3001);
+    // Advance time past the timeout
+    tick(timeoutMs + 1);
 
     // Verify that a timeout error occurred
     expect(errorOccurred).toBe(true);
-    expect(errorMessage).toBe('TimeoutError');
+    expect(errorName).toBe('TimeoutError');
 
     // Verify the request was cancelled (Angular's HttpTestingController should show the request as cancelled)
     expect(req.cancelled).toBe(true);
