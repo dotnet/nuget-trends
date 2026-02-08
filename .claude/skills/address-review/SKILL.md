@@ -2,7 +2,7 @@
 name: address-review
 description: Address all code review comments on a PR. Assesses each comment, replies, reacts, and resolves threads.
 argument-hint: [pr-number]
-allowed-tools: Bash(gh *), Read, Grep, Glob, Edit, Write, WebFetch
+allowed-tools: Bash(gh *), Bash(git add *), Bash(git commit *), Bash(git push *), Bash(dotnet build *), Read, Grep, Glob, Edit, Write, WebFetch
 ---
 
 # Address Code Review Comments
