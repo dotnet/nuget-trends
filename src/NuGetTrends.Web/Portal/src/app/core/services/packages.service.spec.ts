@@ -160,7 +160,7 @@ describe('PackagesService', () => {
     });
 
     const req = httpMock.expectOne(`${service.baseUrl}/package/trending?limit=10`);
-    
+
     // Advance time past the 3-second timeout
     tick(3001);
 
