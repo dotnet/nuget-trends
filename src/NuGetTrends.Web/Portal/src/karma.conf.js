@@ -38,7 +38,13 @@ module.exports = function (config) {
   }
 
   if (isBuildServer) {
-    _config.browsers.push('ChromeHeadless');
+    _config.browsers.push('ChromeHeadlessNoSandbox');
+    _config.customLaunchers = {
+      ChromeHeadlessNoSandbox: {
+        base: 'ChromeHeadless',
+        flags: ['--no-sandbox', '--disable-setuid-sandbox']
+      }
+    };
     _config.plugins.push(require('karma-junit-reporter'));
     _config.reporters.push('junit');
   } else {
