@@ -85,11 +85,11 @@ public class DailyDownloadWorker : IHostedService
                                 connectSpan.Finish(e);
                                 SentrySdk.CaptureException(e);
 
-                                var waitMs = Math.Min(attempt * 10_000, 60_000);
+                                var waitMs = attempt >= 6 ? 60_000 : attempt * 10_000;
                                 _logger.LogError(e,
                                     "Failed to connect to the broker. Waiting for '{waitMs}' milliseconds. Attempt '{attempts}'.",
                                     waitMs, attempt);
-                                await Task.Delay(waitMs, cancellationToken);
+                                await Task.Delay(waitMs, _cancellationTokenSource.Token);
                             }
                         }
                         startSpan.Finish(SpanStatus.Ok);
