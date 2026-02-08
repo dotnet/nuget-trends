@@ -189,6 +189,7 @@ try
     });
 
     app.UseStaticFiles();
+    app.MapStaticAssets();
 
     // Enable WebAssembly debugging in development
     if (app.Environment.IsDevelopment())

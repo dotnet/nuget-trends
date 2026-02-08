@@ -170,6 +170,7 @@ public class PlaywrightFixture : IAsyncLifetime
     private static void ConfigureMiddleware(WebApplication app)
     {
         app.UseStaticFiles();
+        app.MapStaticAssets();
         app.UseRouting();
         app.UseAntiforgery();
         app.MapControllers();
