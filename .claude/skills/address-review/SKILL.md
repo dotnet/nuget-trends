@@ -49,7 +49,7 @@ For **each** comment, do ALL of the following:
    ```
 3. **Reply** explaining what you changed:
    ```bash
-   gh api repos/{owner}/{repo}/pulls/$ARGUMENTS/comments -f body="..." -f in_reply_to_id={comment_id}
+   gh api repos/{owner}/{repo}/pulls/$ARGUMENTS/comments -f body="..." -F in_reply_to={comment_id}
    ```
 4. **Resolve the thread**:
    ```bash
@@ -63,7 +63,7 @@ For **each** comment, do ALL of the following:
    ```
 2. **Reply** explaining why the feedback was rejected with a clear, respectful rationale:
    ```bash
-   gh api repos/{owner}/{repo}/pulls/$ARGUMENTS/comments -f body="..." -f in_reply_to_id={comment_id}
+   gh api repos/{owner}/{repo}/pulls/$ARGUMENTS/comments -f body="..." -F in_reply_to={comment_id}
    ```
 3. **Resolve the thread**:
    ```bash
@@ -84,10 +84,19 @@ If any code changes were made:
 
 ## Step 5: Summary
 
-After processing all comments, provide a summary table:
+After processing all comments, post a summary as a PR comment and also display it to the user:
+
+```bash
+gh pr comment $ARGUMENTS --body "$(cat <<'EOF'
+## Review comments addressed
 
 | # | Comment | Author | Verdict | Action |
 |---|---------|--------|---------|--------|
+| 1 | ... | ... | ... | ... |
+
+EOF
+)"
+```
 
 ## Important rules
 
