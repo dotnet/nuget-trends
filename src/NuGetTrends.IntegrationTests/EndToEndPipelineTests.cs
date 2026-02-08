@@ -146,6 +146,77 @@ public class EndToEndPipelineTests : IAsyncLifetime
         _output.WriteLine("Second-day pipeline re-processing verified successfully.");
     }
 
+    [Fact]
+    public async Task Pipeline_RemovesDeletedPackages_FromCatalog()
+    {
+        const string fakePackageId = "__test-nonexistent-pkg__";
+
+        // Clean up from any previous test runs
+        await _fixture.ResetClickHouseTableAsync();
+        await using (var ctx = _fixture.CreateDbContext())
+        {
+            await ctx.Database.ExecuteSqlRawAsync("DELETE FROM package_downloads");
+            // Clean up leftover fake package from previous runs
+            await ctx.Database.ExecuteSqlRawAsync(
+                "DELETE FROM package_details_catalog_leafs WHERE package_id = {0}", fakePackageId);
+        }
+
+        // Verify catalog import and seed historical data (same as other tests)
+        await VerifyCatalogImport();
+        await SeedHistoricalDownloads();
+
+        // Insert a fake catalog entry for a package that doesn't exist on NuGet.org
+        await using (var context = _fixture.CreateDbContext())
+        {
+            context.PackageDetailsCatalogLeafs.Add(new NuGet.Protocol.Catalog.Models.PackageDetailsCatalogLeaf
+            {
+                PackageId = fakePackageId,
+                PackageIdLowered = fakePackageId,
+                PackageVersion = "1.0.0",
+                Listed = true,
+                CommitTimestamp = DateTimeOffset.UtcNow
+            });
+            await context.SaveChangesAsync();
+
+            // Verify it was inserted
+            var exists = await context.PackageDetailsCatalogLeafs
+                .AnyAsync(p => p.PackageId == fakePackageId);
+            exists.Should().BeTrue("fake package should exist in catalog before pipeline runs");
+            _output.WriteLine($"Inserted fake catalog entry: {fakePackageId}");
+        }
+
+        // Run the pipeline — NuGet API returns null for the fake package, triggering deletion
+        await RunDailyDownloadPipeline();
+
+        // Assert: fake package was removed from catalog
+        await using (var context = _fixture.CreateDbContext())
+        {
+            var fakeExists = await context.PackageDetailsCatalogLeafs
+                .AnyAsync(p => p.PackageId == fakePackageId);
+            fakeExists.Should().BeFalse(
+                "fake non-existent package should have been removed from catalog by the pipeline");
+            _output.WriteLine("Verified: fake package was removed from catalog.");
+        }
+
+        // Assert: real packages still have their catalog entries
+        await using (var context = _fixture.CreateDbContext())
+        {
+            foreach (var pkg in _fixture.ImportedPackages)
+            {
+                var exists = await context.PackageDetailsCatalogLeafs
+                    .AnyAsync(p => p.PackageId == pkg.PackageId && p.PackageVersion == pkg.PackageVersion);
+                exists.Should().BeTrue(
+                    $"real package {pkg.PackageId} v{pkg.PackageVersion} should still exist in catalog");
+            }
+            _output.WriteLine("Verified: all real packages still exist in catalog.");
+        }
+
+        // Assert: real packages have download data in ClickHouse
+        await VerifyTodaysDataExists();
+
+        _output.WriteLine("Deleted-package removal test passed.");
+    }
+
     private async Task VerifyCatalogImport()
     {
         _output.WriteLine("Verifying catalog import...");

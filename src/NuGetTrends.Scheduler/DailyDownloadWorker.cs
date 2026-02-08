@@ -401,19 +401,19 @@ public class DailyDownloadWorker : IHostedService
             }
         }
 
-        // Handle deleted packages
+        // Handle deleted packages (batch query to avoid N+1)
         if (deletedPackageIds.Count > 0)
         {
-            var deleteSpan = StartDbSpan(parentSpan, "DELETE FROM package_details_catalog_leafs", "postgresql", "DELETE");
+            var deleteSpan = StartDbSpan(parentSpan, "DELETE FROM package_details_catalog_leafs WHERE package_id_lowered IN (...)", "postgresql", "DELETE");
             deleteSpan.SetTag("count", deletedPackageIds.Count.ToString());
             try
             {
-                foreach (var deletedPackageId in deletedPackageIds)
-                {
-                    await RemovePackage(context, deletedPackageId, _cancellationTokenSource.Token);
-                }
-                await context.SaveChangesAsync(_cancellationTokenSource.Token);
-                deleteSpan.SetData("db.rows_affected", deletedPackageIds.Count);
+                var loweredIds = deletedPackageIds.Select(id => id.ToLowerInvariant()).Distinct().ToList();
+                var deletedCount = await context.PackageDetailsCatalogLeafs
+                    .Where(p => loweredIds.Contains(p.PackageIdLowered))
+                    .ExecuteDeleteAsync(_cancellationTokenSource.Token);
+
+                deleteSpan.SetData("db.rows_affected", deletedCount);
                 deleteSpan.Finish(SpanStatus.Ok);
             }
             catch (Exception e)
@@ -441,22 +441,6 @@ public class DailyDownloadWorker : IHostedService
         span.SetData("db.operation", dbOperation);
         TelemetryHelpers.SetQuerySource<DailyDownloadWorker>(span, filePath, memberName, lineNumber);
         return span;
-    }
-
-    private async Task RemovePackage(NuGetTrendsContext context, string packageId, CancellationToken token)
-    {
-        var package = await context.PackageDetailsCatalogLeafs.Where(p => p.PackageId == packageId)
-            .ToListAsync(token)
-            .ConfigureAwait(false);
-
-        if (package.Count == 0)
-        {
-            // This happens a lot.
-            _logger.LogInformation("Package with id '{packageId}' not found!.", packageId);
-            return;
-        }
-
-        context.PackageDetailsCatalogLeafs.RemoveRange(package);
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)
