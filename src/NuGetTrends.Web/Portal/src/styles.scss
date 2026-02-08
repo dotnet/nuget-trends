@@ -200,6 +200,34 @@ body.dark-theme .search-pattern {
   color: var(--color-text);
 }
 
+/* Sentry Feedback Widget theme overrides.
+ * The widget uses colorScheme: "system" with @media (prefers-color-scheme) inside its Shadow DOM.
+ * CSS custom properties set on the host from outside override :host rules inside,
+ * so the widget follows the app's theme toggle rather than the OS preference. */
+body.light-theme #sentry-feedback {
+  --foreground: #2b2233;
+  --background: #ffffff;
+  --accent-foreground: white;
+  --accent-background: #215C84;
+  --success-color: #268d75;
+  --error-color: #df3338;
+  --border: 1.5px solid rgba(41, 35, 47, 0.13);
+  --box-shadow: 0px 4px 24px 0px rgba(43, 34, 51, 0.12);
+  --interactive-filter: brightness(95%);
+}
+
+body.dark-theme #sentry-feedback {
+  --foreground: #ebe6ef;
+  --background: #29232f;
+  --accent-foreground: white;
+  --accent-background: #4a9fd4;
+  --success-color: #2da98c;
+  --error-color: #f55459;
+  --border: 1.5px solid rgba(235, 230, 239, 0.15);
+  --box-shadow: 0px 4px 24px 0px rgba(43, 34, 51, 0.12);
+  --interactive-filter: brightness(150%);
+}
+
 /* Angular Material CDK overlay theming for autocomplete */
 .cdk-overlay-container .mat-mdc-autocomplete-panel {
   background-color: var(--color-autocomplete-bg);

@@ -49,6 +49,9 @@ try
     builder.WebHost.UseConfiguration(configuration)
         .UseSentry(o =>
         {
+            // Disable stacktrace attachment for log events - they only contain
+            // system frames when logged from libraries like Polly/EF Core
+            o.AttachStacktrace = false;
             // Mark ClickHouse driver frames as not in-app for cleaner stack traces
             o.AddInAppExclude("ClickHouse.Driver");
             o.SetBeforeSend(e =>
