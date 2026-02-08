@@ -118,15 +118,18 @@ public class ClickHouseService : IClickHouseService
     private readonly string _connectionString;
     private readonly ILogger<ClickHouseService> _logger;
     private readonly ClickHouseConnectionInfo _connectionInfo;
+    private readonly ILoggerFactory? _loggerFactory;
 
     public ClickHouseService(
         string connectionString,
         ILogger<ClickHouseService> logger,
-        ClickHouseConnectionInfo connectionInfo)
+        ClickHouseConnectionInfo connectionInfo,
+        ILoggerFactory? loggerFactory = null)
     {
         _connectionString = connectionString;
         _logger = logger;
         _connectionInfo = connectionInfo;
+        _loggerFactory = loggerFactory;
     }
 
     public async Task InsertDailyDownloadsAsync(
@@ -614,6 +617,19 @@ public class ClickHouseService : IClickHouseService
             span?.Finish(ex);
             throw;
         }
+    }
+
+    public async Task RunMigrationsAsync(CancellationToken ct = default)
+    {
+        _logger.LogInformation("Starting ClickHouse migrations");
+
+        var migrationLogger = _loggerFactory?.CreateLogger<ClickHouseMigrationRunner>() 
+            ?? new Logger<ClickHouseMigrationRunner>(new LoggerFactory());
+        var migrationRunner = new ClickHouseMigrationRunner(_connectionString, migrationLogger);
+
+        await migrationRunner.RunMigrationsAsync(ct);
+
+        _logger.LogInformation("ClickHouse migrations completed");
     }
 
     /// <summary>

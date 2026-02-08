@@ -109,4 +109,13 @@ public interface IClickHouseService
     Task<int> UpdatePackageFirstSeenAsync(
         CancellationToken ct = default,
         ISpan? parentSpan = null);
+
+    /// <summary>
+    /// Runs all pending ClickHouse migrations from .sql files.
+    /// Creates a migration tracking table and only runs migrations that haven't been applied yet.
+    /// This is called automatically on scheduler startup.
+    /// </summary>
+    /// <param name="ct">Cancellation token</param>
+    /// <returns>A task representing the async operation</returns>
+    Task RunMigrationsAsync(CancellationToken ct = default);
 }
