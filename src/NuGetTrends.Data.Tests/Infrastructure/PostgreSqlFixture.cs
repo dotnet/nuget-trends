@@ -36,7 +36,23 @@ public class PostgreSqlFixture : IAsyncLifetime
     public async Task InitializeAsync()
     {
         await _container.StartAsync();
-        await RunMigrationsAsync();
+
+        // Colima on macOS may need a moment for Docker port forwarding to be fully
+        // established after the container's internal readiness check (pg_isready) passes.
+        // Retry the connection a few times with increasing delay.
+        const int maxRetries = 5;
+        for (var attempt = 0; attempt < maxRetries; attempt++)
+        {
+            try
+            {
+                await RunMigrationsAsync();
+                return;
+            }
+            catch (Npgsql.NpgsqlException) when (attempt < maxRetries - 1)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(1 + attempt));
+            }
+        }
     }
 
     public async Task DisposeAsync()

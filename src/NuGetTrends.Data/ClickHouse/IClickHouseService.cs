@@ -98,7 +98,8 @@ public interface IClickHouseService
         ISpan? parentSpan = null);
 
     /// <summary>
-    /// Updates the package_first_seen table with new packages from last week.
+    /// Updates the package_first_seen table with any missing packages from all weeks.
+    /// Self-healing: scans all weekly_downloads data, so it catches up after pipeline gaps.
     /// This must be called BEFORE <see cref="ComputeTrendingPackagesAsync"/> to ensure
     /// newly published packages are included in the trending calculation.
     /// The operation is idempotent - packages already tracked are skipped.
