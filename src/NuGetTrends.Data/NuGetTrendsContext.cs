@@ -7,7 +7,14 @@ public class PackageDownload
 {
     public string PackageId { get; set; } = null!;
     public string PackageIdLowered { get; set; } = null!;
+    
+    /// <summary>
+    /// Latest total download count from NuGet.org API.
+    /// Uses long (Int64) to support values beyond int.MaxValue (2.147 billion).
+    /// As of 2025, Newtonsoft.Json has exceeded this threshold.
+    /// </summary>
     public long? LatestDownloadCount { get; set; }
+    
     public DateTime LatestDownloadCountCheckedUtc { get; set; }
     public string? IconUrl { get; set; }
 }

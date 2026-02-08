@@ -1,6 +1,8 @@
 // TODO: This can be used for Framework results as well.. so maybe rename to INuGetSearchResult?
 export interface IPackageSearchResult {
   packageId: string;
+  // JavaScript number can safely handle integers up to Number.MAX_SAFE_INTEGER (2^53-1 ≈ 9 quadrillion)
+  // This is well beyond typical package download counts, even for packages exceeding int.MaxValue (2.1 billion)
   downloadCount: number;
   iconUrl: string;
 }
@@ -25,6 +27,7 @@ export interface IPackageDownloadHistory {
 
 export interface IDownloadStats {
   week: Date;
+  // JavaScript number can safely handle integers up to Number.MAX_SAFE_INTEGER (2^53-1)
   count: number;
 }
 
@@ -40,6 +43,7 @@ export interface IPackageColor {
 
 export interface ITrendingPackage {
   packageId: string;
+  // JavaScript number can safely handle integers up to Number.MAX_SAFE_INTEGER (2^53-1)
   downloadCount: number;
   growthRate: number | null;
   iconUrl: string;

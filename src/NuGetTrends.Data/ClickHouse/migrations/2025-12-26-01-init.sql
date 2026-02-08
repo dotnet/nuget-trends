@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS nugettrends.daily_downloads
     -- Date of the download count snapshot (daily granularity)
     date Date,
     -- Total download count for this package on this date
+    -- UInt64 (unsigned 64-bit) supports values up to 18.4 quintillion
+    -- This is critical as popular packages like Newtonsoft.Json have exceeded Int32.MaxValue (2.147 billion)
     download_count UInt64
 )
 ENGINE = ReplacingMergeTree()
