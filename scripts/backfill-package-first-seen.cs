@@ -6,6 +6,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
 using ClickHouse.Driver.ADO;
 
 // ============================================================================
@@ -87,7 +89,9 @@ var weeks = new List<string>();
     await using var reader = await cmd.ExecuteReaderAsync();
     while (await reader.ReadAsync())
     {
-        weeks.Add(reader.GetValue(0)?.ToString() ?? "");
+        // Format as ISO date to avoid culture-dependent ToString() issues
+        var dt = reader.GetDateTime(0);
+        weeks.Add(dt.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
     }
 }
 
