@@ -3,6 +3,7 @@
 @inject PackageState PackageState
 @inject IToastService ToastService
 @inject IJSRuntime JSRuntime
+@inject ILogger<SearchInput> Logger
 
 <section>
     <div class="control @(_isSearching ? "is-large is-loading" : "")">
@@ -98,7 +99,7 @@
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Search error: {ex.Message}");
+            Logger.LogError(ex, "Search error");
             ToastService.ShowError("Our servers are too cool (or not) to handle your request at the moment.");
         }
         finally
@@ -223,7 +224,7 @@
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Error selecting package: {ex.Message}");
+            Logger.LogError(ex, "Error selecting package");
             ToastService.ShowError("Our servers are too cool (or not) to handle your request at the moment.");
         }
     }

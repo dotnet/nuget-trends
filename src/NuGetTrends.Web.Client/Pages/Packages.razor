@@ -6,6 +6,7 @@
 @inject ThemeState ThemeState
 @inject IToastService ToastService
 @inject IJSRuntime JSRuntime
+@inject ILogger<Packages> Logger
 @implements IDisposable
 
 <PageTitle>NuGet Trends - Package Comparison</PageTitle>
@@ -123,7 +124,7 @@
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Error loading package {packageId}: {ex.Message}");
+            Logger.LogError(ex, "Error loading package {PackageId}", packageId);
             ToastService.ShowError("Our servers are too cool (or not) to handle your request at the moment.");
         }
     }
@@ -174,7 +175,7 @@
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Error plotting package: {ex.Message}");
+            Logger.LogError(ex, "Error plotting package");
         }
     }
 
@@ -197,7 +198,7 @@
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Error removing package: {ex.Message}");
+            Logger.LogError(ex, "Error removing package");
         }
     }
 
@@ -224,14 +225,14 @@
                     }
                     catch (Exception ex)
                     {
-                        Console.Error.WriteLine($"Error reloading package {id}: {ex.Message}");
+                        Logger.LogError(ex, "Error reloading package {PackageId}", id);
                     }
                 }
             });
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Error changing search period: {ex.Message}");
+            Logger.LogError(ex, "Error changing search period");
         }
     }
 
@@ -246,7 +247,7 @@
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Error updating theme: {ex.Message}");
+            Logger.LogError(ex, "Error updating theme");
         }
     }
 

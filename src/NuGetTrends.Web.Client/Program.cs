@@ -5,6 +5,14 @@ using NuGetTrends.Web.Client.Services;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 
+builder.UseSentry(options =>
+{
+    options.Dsn = "https://57331596a25b4c3da49750b292299e09@o179108.ingest.sentry.io/5936035";
+    options.TracesSampleRate = 1.0;
+    options.AddExceptionFilterForType<OperationCanceledException>();
+});
+builder.Logging.AddSentry(o => o.InitializeSdk = false);
+
 // Loading state (scoped – one per circuit)
 builder.Services.AddScoped<LoadingState>();
 

@@ -15,6 +15,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" />
     <PackageReference Include="Blazored.Toast" />
+    <PackageReference Include="Sentry.AspNetCore.Blazor.WebAssembly" />
   </ItemGroup>
 
 </Project>

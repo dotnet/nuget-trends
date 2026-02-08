@@ -1,6 +1,7 @@
 @inject HttpClient Http
 @inject NavigationManager Navigation
 @inject PersistentComponentState PersistentState
+@inject ILogger<TrendingPackages> Logger
 @implements IDisposable
 
 <section class="section trending-section">
@@ -135,7 +136,7 @@
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Failed to load trending packages: {ex.Message}");
+            Logger.LogError(ex, "Failed to load trending packages");
             _errorMessage = "Unable to load trending packages. Please try again later.";
         }
         finally
