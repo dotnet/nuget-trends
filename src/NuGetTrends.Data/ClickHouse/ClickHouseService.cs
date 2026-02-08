@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using ClickHouse.Driver.ADO;
 using ClickHouse.Driver.Copy;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace NuGetTrends.Data.ClickHouse;
 
@@ -624,7 +625,7 @@ public class ClickHouseService : IClickHouseService
         _logger.LogInformation("Starting ClickHouse migrations");
 
         var migrationLogger = _loggerFactory?.CreateLogger<ClickHouseMigrationRunner>() 
-            ?? new Logger<ClickHouseMigrationRunner>(new LoggerFactory());
+            ?? NullLogger<ClickHouseMigrationRunner>.Instance;
         var migrationRunner = new ClickHouseMigrationRunner(_connectionString, migrationLogger);
 
         await migrationRunner.RunMigrationsAsync(ct);

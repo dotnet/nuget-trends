@@ -107,6 +107,12 @@ public class ClickHouseMigrationRunner
     /// <summary>
     /// Applies a single migration by executing its SQL statements and recording it as applied.
     /// </summary>
+    /// <remarks>
+    /// Splits statements by semicolons. This is a simple approach that works for most ClickHouse
+    /// migrations but does not handle semicolons within string literals or comments.
+    /// If your migration contains semicolons in strings, use the ClickHouse string escape syntax
+    /// or split the statement manually.
+    /// </remarks>
     private async Task ApplyMigrationAsync(
         ClickHouseConnection connection,
         (string Name, string Content) migration,
