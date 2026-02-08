@@ -28,7 +28,7 @@ using Npgsql;
 // ============================================================================
 
 var pgConnectionString = Environment.GetEnvironmentVariable("PG_CONNECTION_STRING")
-    ?? "Host=localhost;Database=nugettrends;Username=postgres;Password=PUg2rt6Pp8Arx7Z9FbgJLFvxEL7pZ2;Include Error Detail=true";
+    ?? "Host=localhost;Database=nugettrends;Username=postgres;Password=change_me;Include Error Detail=true";
 var chConnectionString = Environment.GetEnvironmentVariable("CH_CONNECTION_STRING")
     ?? "Host=localhost;Port=8123;Database=nugettrends";
 
@@ -298,7 +298,9 @@ Console.WriteLine();
                 await using var reader = await weeklyCmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
-                    weeklyResults.Add((reader.GetValue(0)?.ToString() ?? "?", Convert.ToInt64(reader.GetValue(1))));
+                    var val = reader.GetValue(1);
+                    var total = val is double d && double.IsNaN(d) ? 0L : Convert.ToInt64(val);
+                    weeklyResults.Add((reader.GetValue(0)?.ToString() ?? "?", total));
                 }
             }
 
@@ -321,21 +323,25 @@ Console.WriteLine();
                 await using var reader = await dailyCmd.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
                 {
-                    dailyResults.Add((reader.GetValue(0)?.ToString() ?? "?", Convert.ToInt64(reader.GetValue(1))));
+                    var val = reader.GetValue(1);
+                    var total = val is double d && double.IsNaN(d) ? 0L : Convert.ToInt64(val);
+                    dailyResults.Add((reader.GetValue(0)?.ToString() ?? "?", total));
                 }
             }
 
             Console.WriteLine($"  {pkg}:");
             foreach (var w in weeklyResults)
             {
+                var hasDailyMatch = dailyResults.Any(d => d.Week == w.Week);
                 var dailyMatch = dailyResults.FirstOrDefault(d => d.Week == w.Week);
-                var match = dailyMatch.Total != 0 && w.Total == dailyMatch.Total;
+                var match = hasDailyMatch && w.Total == dailyMatch.Total;
                 var indicator = match ? "\u2713" : "\u26a0 DIVERGENCE";
-                if (!match && dailyMatch.Total != 0)
+                if (!match)
                 {
                     anyDivergence = true;
                 }
-                Console.WriteLine($"    week {w.Week}: weekly_downloads={w.Total:N0}  daily_downloads={dailyMatch.Total:N0}  {indicator}");
+                var dailyTotalText = hasDailyMatch ? dailyMatch.Total.ToString("N0") : "n/a";
+                Console.WriteLine($"    week {w.Week}: weekly_downloads={w.Total:N0}  daily_downloads={dailyTotalText}  {indicator}");
             }
         }
 
@@ -368,21 +374,23 @@ Console.WriteLine("=== Step 6: Trending packages health ===");
     var latestWeekStr = latestWeekObj?.ToString() ?? "(none)";
     Console.WriteLine($"  Latest snapshot week:  {latestWeekStr}");
 
-    // Check if snapshot week matches last Monday
-    var lastMonday = DateOnly.FromDateTime(DateTime.UtcNow);
-    while (lastMonday.DayOfWeek != DayOfWeek.Monday)
+    // The trending job produces snapshots for the previous completed week,
+    // so the expected latest snapshot week is last week's Monday, not this week's.
+    var previousMonday = DateOnly.FromDateTime(DateTime.UtcNow);
+    while (previousMonday.DayOfWeek != DayOfWeek.Monday)
     {
-        lastMonday = lastMonday.AddDays(-1);
+        previousMonday = previousMonday.AddDays(-1);
     }
+    previousMonday = previousMonday.AddDays(-7);
 
     var snapshotIsStale = true;
     if (latestWeekObj is DateOnly latestWeek)
     {
-        snapshotIsStale = latestWeek < lastMonday;
+        snapshotIsStale = latestWeek < previousMonday;
     }
     else if (latestWeekObj is DateTime latestWeekDt)
     {
-        snapshotIsStale = DateOnly.FromDateTime(latestWeekDt) < lastMonday;
+        snapshotIsStale = DateOnly.FromDateTime(latestWeekDt) < previousMonday;
     }
 
     if (snapshotCount == 0)
@@ -392,7 +400,7 @@ Console.WriteLine("=== Step 6: Trending packages health ===");
     }
     else if (snapshotIsStale)
     {
-        Console.WriteLine($"  Snapshot status:       STALE (expected {lastMonday})  \u26a0");
+        Console.WriteLine($"  Snapshot status:       STALE (expected {previousMonday})  \u26a0");
         hasWarnings = true;
     }
     else
