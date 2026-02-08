@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using ClickHouse.Driver.ADO;
 using ClickHouse.Driver.Copy;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace NuGetTrends.Data.ClickHouse;
 
@@ -118,15 +119,18 @@ public class ClickHouseService : IClickHouseService
     private readonly string _connectionString;
     private readonly ILogger<ClickHouseService> _logger;
     private readonly ClickHouseConnectionInfo _connectionInfo;
+    private readonly ILoggerFactory? _loggerFactory;
 
     public ClickHouseService(
         string connectionString,
         ILogger<ClickHouseService> logger,
-        ClickHouseConnectionInfo connectionInfo)
+        ClickHouseConnectionInfo connectionInfo,
+        ILoggerFactory? loggerFactory = null)
     {
         _connectionString = connectionString;
         _logger = logger;
         _connectionInfo = connectionInfo;
+        _loggerFactory = loggerFactory;
     }
 
     public async Task InsertDailyDownloadsAsync(
@@ -617,6 +621,24 @@ public class ClickHouseService : IClickHouseService
             span?.Finish(ex);
             throw;
         }
+    }
+
+    public async Task RunMigrationsAsync(CancellationToken ct = default)
+    {
+        _logger.LogInformation("Starting ClickHouse migrations");
+
+        var migrationLogger = _loggerFactory?.CreateLogger<ClickHouseMigrationRunner>() 
+            ?? NullLogger<ClickHouseMigrationRunner>.Instance;
+        // Strip Database from connection string - the runner creates the database itself
+        // and uses fully-qualified table names. On a fresh instance, the database won't exist yet.
+        var adminConnectionString = string.Join(";",
+            _connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries)
+                .Where(p => !p.Trim().StartsWith("Database=", StringComparison.OrdinalIgnoreCase)));
+        var migrationRunner = new ClickHouseMigrationRunner(adminConnectionString, migrationLogger);
+
+        await migrationRunner.RunMigrationsAsync(ct);
+
+        _logger.LogInformation("ClickHouse migrations completed");
     }
 
     /// <summary>
