@@ -25,9 +25,7 @@
 </head>
 
 <body class="site">
-    <CascadingValue Value="@_appVersion" Name="AppVersion">
-        <Routes @rendermode="new InteractiveWebAssemblyRenderMode(prerender: false)" />
-    </CascadingValue>
+    <Routes @rendermode="new InteractiveWebAssemblyRenderMode(prerender: false)" />
 
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
@@ -35,6 +33,8 @@
     <!-- Custom JS -->
     <script src="js/chartInterop.js"></script>
     <script src="js/themeInterop.js"></script>
+    <!-- App version (server-rendered, read by Footer via JS interop) -->
+    <script>window.__appVersion = "@_appVersion";</script>
     <!-- Blazor WebAssembly -->
     <script src="_framework/blazor.web.js"></script>
 </body>

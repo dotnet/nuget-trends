@@ -296,6 +296,18 @@ footer {
     opacity: 0.6;
 }
 
+.version-badge {
+    cursor: pointer;
+    font-family: monospace;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.version-badge:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
 /* Theme toggle button */
 .theme-toggle-btn {
     position: fixed;

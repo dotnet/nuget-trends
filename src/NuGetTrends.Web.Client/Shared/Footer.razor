@@ -1,3 +1,5 @@
+@inject IJSRuntime JSRuntime
+
 <footer>
     <div class="container">
         <div class="columns">
@@ -34,11 +36,32 @@
                 Hosted by <img src="images/sentry-logo.svg" alt="Sentry" class="sentry-logo" />
             </a>
         </p>
-        <p class="version-info">@AppVersion</p>
+        <p class="version-info">
+            <span class="version-badge" @onclick="CopyVersion" title="Copy to clipboard">
+                @_shortSha
+            </span>
+        </p>
     </div>
 </footer>
 
 @code {
-    [CascadingParameter(Name = "AppVersion")]
-    public string? AppVersion { get; set; }
+    private string _appVersion = "unknown";
+    private string _shortSha = "unknown";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _appVersion = await JSRuntime.InvokeAsync<string>("eval", "window.__appVersion || 'unknown'");
+            var parts = _appVersion.Split('+');
+            var sha = parts.Length > 1 ? parts[^1] : _appVersion;
+            _shortSha = sha.Length > 8 ? sha[..8] : sha;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CopyVersion()
+    {
+        await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", _appVersion);
+    }
 }
