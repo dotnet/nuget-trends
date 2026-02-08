@@ -68,10 +68,10 @@ public class DailyDownloadWorker : IHostedService
 
                     try
                     {
-                        // Poor man's Polly
-                        const int maxAttempts = 3;
-                        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+                        var attempt = 0;
+                        while (true)
                         {
+                            attempt++;
                             var connectSpan =
                                 startSpan.StartChild("rabbit.mq.connect", "Connecting to RabbitMQ");
                             try
@@ -82,21 +82,14 @@ public class DailyDownloadWorker : IHostedService
                             }
                             catch (Exception e)
                             {
-                                if (attempt == maxAttempts)
-                                {
-                                    connectSpan.Finish(e);
-                                    _logger.LogCritical(e, "Couldn't connect to the broker. Attempt '{attempts}'.",
-                                        attempt);
-                                    throw;
-                                }
+                                connectSpan.Finish(e);
+                                SentrySdk.CaptureException(e);
 
-                                var waitMs = attempt * 10000;
-                                _logger.LogInformation(e,
+                                var waitMs = Math.Min(attempt * 10_000, 60_000);
+                                _logger.LogError(e,
                                     "Failed to connect to the broker. Waiting for '{waitMs}' milliseconds. Attempt '{attempts}'.",
                                     waitMs, attempt);
                                 await Task.Delay(waitMs, cancellationToken);
-                                connectSpan.SetTag("waited_ms", waitMs.ToString());
-                                connectSpan.Finish(e);
                             }
                         }
                         startSpan.Finish(SpanStatus.Ok);
