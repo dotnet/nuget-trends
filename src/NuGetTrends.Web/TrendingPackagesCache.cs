@@ -1,7 +1,5 @@
 using System.Runtime.CompilerServices;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
-using NuGet.Protocol.Catalog.Models;
 using NuGetTrends.Data;
 using NuGetTrends.Data.ClickHouse;
 using Sentry;
@@ -58,7 +56,8 @@ public class TrendingPackageDto
 
 /// <summary>
 /// Caches trending packages to avoid ClickHouse queries on every request.
-/// The snapshot data is refreshed weekly, so we cache for 7 days.
+/// The snapshot read is fast (~14ms) so we only cache for 5 minutes to reduce
+/// ClickHouse load while ensuring fast recovery after deploys.
 /// Instrumented with Sentry's Caches module conventions.
 /// </summary>
 public interface ITrendingPackagesCache
@@ -74,27 +73,20 @@ public interface ITrendingPackagesCache
 public class TrendingPackagesCache : ITrendingPackagesCache
 {
     private readonly IClickHouseService _clickHouseService;
-    private readonly NuGetTrendsContext _dbContext;
     private readonly IMemoryCache _cache;
     private readonly ILogger<TrendingPackagesCache> _logger;
 
-    // Cache configuration - data is refreshed weekly, so cache for 7 days
     private const string CacheKey = "trending_packages";
-    private static readonly TimeSpan CacheDuration = TimeSpan.FromDays(7);
+    private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(5);
 
-    // Trending query configuration - favor newer packages
-    private const long MinWeeklyDownloads = 1000;
-    private const int MaxPackageAgeMonths = 12;
     private const int MaxCachedResults = 100; // Cache more than we serve to support different limit values
 
     public TrendingPackagesCache(
         IClickHouseService clickHouseService,
-        NuGetTrendsContext dbContext,
         IMemoryCache cache,
         ILogger<TrendingPackagesCache> logger)
     {
         _clickHouseService = clickHouseService;
-        _dbContext = dbContext;
         _cache = cache;
         _logger = logger;
     }
@@ -128,7 +120,7 @@ public class TrendingPackagesCache : ITrendingPackagesCache
 
             _logger.LogDebug("Cache miss for trending packages, fetching from ClickHouse");
 
-            // Fetch fresh data
+            // Fetch fresh data — reads pre-enriched data from ClickHouse snapshot (no PostgreSQL needed)
             var freshData = await FetchTrendingPackagesAsync(ct);
 
             // Cache the results
@@ -166,7 +158,9 @@ public class TrendingPackagesCache : ITrendingPackagesCache
 
     private async Task<TrendingPackagesResponse> FetchTrendingPackagesAsync(CancellationToken ct)
     {
-        // Get trending packages from pre-computed ClickHouse snapshot (fast, milliseconds)
+        // Get trending packages from pre-computed ClickHouse snapshot (fast, milliseconds).
+        // The snapshot already contains enriched data (icon URLs, GitHub URLs, original-cased IDs)
+        // populated by the scheduler from PostgreSQL at refresh time.
         var trendingPackages = await _clickHouseService.GetTrendingPackagesFromSnapshotAsync(
             limit: MaxCachedResults,
             ct: ct);
@@ -186,56 +180,16 @@ public class TrendingPackagesCache : ITrendingPackagesCache
             };
         }
 
-        // Get the week from the first package (all packages have the same week)
         var dataWeek = trendingPackages[0].Week;
+        const string defaultIconUrl = "https://www.nuget.org/Content/gallery/img/default-package-icon.svg";
 
-        // Get package metadata from PostgreSQL (icon URLs, original casing)
-        var packageIds = trendingPackages.Select(p => p.PackageId).ToList();
-        var packageMetadata = await _dbContext.PackageDownloads
-            .Where(p => packageIds.Contains(p.PackageIdLowered))
-            .Select(p => new
-            {
-                p.PackageId,
-                p.PackageIdLowered,
-                p.IconUrl
-            })
-            .ToListAsync(ct);
-
-        // Get GitHub URLs from catalog data if available
-        var catalogData = await _dbContext.PackageDetailsCatalogLeafs
-            .Where(c => c.PackageId != null && packageIds.Contains(c.PackageId.ToLower()))
-            .Select(c => new
-            {
-                PackageIdLowered = c.PackageId!.ToLower(),
-                c.ProjectUrl
-            })
-            .ToListAsync(ct);
-
-        var metadataLookup = packageMetadata.ToDictionary(p => p.PackageIdLowered);
-        var catalogLookup = catalogData
-            .GroupBy(c => c.PackageIdLowered)
-            .ToDictionary(g => g.Key, g => g.First());
-
-        var packages = trendingPackages.Select(tp =>
+        var packages = trendingPackages.Select(tp => new TrendingPackageDto
         {
-            var hasMetadata = metadataLookup.TryGetValue(tp.PackageId, out var metadata);
-            var hasCatalog = catalogLookup.TryGetValue(tp.PackageId, out var catalog);
-
-            // Extract GitHub URL from project URL
-            string? gitHubUrl = null;
-            if (hasCatalog)
-            {
-                gitHubUrl = ExtractGitHubUrl(catalog!.ProjectUrl);
-            }
-
-            return new TrendingPackageDto
-            {
-                PackageId = hasMetadata ? metadata!.PackageId : tp.PackageId,
-                DownloadCount = tp.WeekDownloads,
-                GrowthRate = tp.GrowthRate,
-                IconUrl = metadata?.IconUrl ?? "https://www.nuget.org/Content/gallery/img/default-package-icon.svg",
-                GitHubUrl = gitHubUrl
-            };
+            PackageId = !string.IsNullOrEmpty(tp.PackageIdOriginal) ? tp.PackageIdOriginal : tp.PackageId,
+            DownloadCount = tp.WeekDownloads,
+            GrowthRate = tp.GrowthRate,
+            IconUrl = !string.IsNullOrEmpty(tp.IconUrl) ? tp.IconUrl : defaultIconUrl,
+            GitHubUrl = !string.IsNullOrEmpty(tp.GitHubUrl) ? tp.GitHubUrl : null
         }).ToList();
 
         return new TrendingPackagesResponse
@@ -243,39 +197,6 @@ public class TrendingPackagesCache : ITrendingPackagesCache
             Week = dataWeek,
             Packages = packages
         };
-    }
-
-    /// <summary>
-    /// Extracts a GitHub URL from a project or repository URL.
-    /// Returns null if not a GitHub URL.
-    /// </summary>
-    private static string? ExtractGitHubUrl(string? url)
-    {
-        if (string.IsNullOrEmpty(url))
-        {
-            return null;
-        }
-
-        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
-        {
-            return null;
-        }
-
-        if (!uri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
-        // Return just the repo URL (remove .git suffix and any deep paths)
-        var segments = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        if (segments.Length >= 2)
-        {
-            var owner = segments[0];
-            var repo = segments[1].Replace(".git", "", StringComparison.OrdinalIgnoreCase);
-            return $"https://github.com/{owner}/{repo}";
-        }
-
-        return null;
     }
 
     /// <summary>
