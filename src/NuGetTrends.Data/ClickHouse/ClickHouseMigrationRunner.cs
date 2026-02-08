@@ -1,5 +1,4 @@
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using ClickHouse.Driver.ADO;
 using Microsoft.Extensions.Logging;
 
