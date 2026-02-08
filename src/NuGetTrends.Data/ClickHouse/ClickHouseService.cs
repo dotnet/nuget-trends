@@ -524,6 +524,20 @@ public class ClickHouseService : IClickHouseService
             await using var connection = new ClickHouseConnection(_connectionString);
             await connection.OpenAsync(ct);
 
+            // Delete existing rows for the target week to avoid duplicates on retries.
+            // ReplacingMergeTree eventually deduplicates, but reads without FINAL could
+            // return duplicates until background merges run.
+            var week = packages[0].Week;
+            await using var deleteCmd = connection.CreateCommand();
+            deleteCmd.CommandText = "ALTER TABLE trending_packages_snapshot DELETE WHERE week = {week:Date}";
+            var weekParam = deleteCmd.CreateParameter();
+            weekParam.ParameterName = "week";
+            weekParam.Value = week.ToDateTime(TimeOnly.MinValue);
+            deleteCmd.Parameters.Add(weekParam);
+            await deleteCmd.ExecuteNonQueryAsync(ct);
+
+            _logger.LogInformation("Deleted existing snapshot rows for week {Week} before re-insert", week);
+
             using var bulkCopy = new ClickHouseBulkCopy(connection)
             {
                 DestinationTableName = "trending_packages_snapshot",

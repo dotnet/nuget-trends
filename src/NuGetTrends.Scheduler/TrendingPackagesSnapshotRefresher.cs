@@ -78,35 +78,59 @@ public class TrendingPackagesSnapshotRefresher(
             var computeSpan = transaction.StartChild("clickhouse.compute_trending", "Compute trending packages");
             computeSpan.SetData("min_weekly_downloads", MinWeeklyDownloads);
             computeSpan.SetData("max_package_age_months", MaxPackageAgeMonths);
-
-            var trendingPackages = await clickHouseService.ComputeTrendingPackagesAsync(
-                minWeeklyDownloads: MinWeeklyDownloads,
-                maxPackageAgeMonths: MaxPackageAgeMonths,
-                ct: token.ShutdownToken,
-                parentSpan: computeSpan);
-
-            computeSpan.SetData("packages_count", trendingPackages.Count);
-            computeSpan.Finish(SpanStatus.Ok);
+            List<TrendingPackage> trendingPackages;
+            try
+            {
+                trendingPackages = await clickHouseService.ComputeTrendingPackagesAsync(
+                    minWeeklyDownloads: MinWeeklyDownloads,
+                    maxPackageAgeMonths: MaxPackageAgeMonths,
+                    ct: token.ShutdownToken,
+                    parentSpan: computeSpan);
+                computeSpan.SetData("packages_count", trendingPackages.Count);
+                computeSpan.Finish(SpanStatus.Ok);
+            }
+            catch (Exception ex)
+            {
+                computeSpan.Finish(ex);
+                throw;
+            }
 
             logger.LogInformation("Job {JobId}: Computed {Count} trending packages from ClickHouse", jobId, trendingPackages.Count);
 
             // Step 3: Enrich with metadata from PostgreSQL (icon URLs, GitHub URLs, original casing)
             var enrichSpan = transaction.StartChild("postgres.enrich_metadata", "Enrich trending packages with PostgreSQL metadata");
-            var enrichedPackages = await EnrichWithPostgresMetadataAsync(trendingPackages, token.ShutdownToken);
-            enrichSpan.SetData("enriched_count", enrichedPackages.Count);
-            enrichSpan.Finish(SpanStatus.Ok);
+            List<TrendingPackage> enrichedPackages;
+            try
+            {
+                enrichedPackages = await EnrichWithPostgresMetadataAsync(trendingPackages, token.ShutdownToken);
+                enrichSpan.SetData("enriched_count", enrichedPackages.Count);
+                enrichSpan.Finish(SpanStatus.Ok);
+            }
+            catch (Exception ex)
+            {
+                enrichSpan.Finish(ex);
+                throw;
+            }
 
             logger.LogInformation("Job {JobId}: Enriched {Count} trending packages with PostgreSQL metadata", jobId, enrichedPackages.Count);
 
             // Step 4: Batch-insert enriched data into ClickHouse snapshot table
             var insertSpan = transaction.StartChild("clickhouse.insert_snapshot", "Insert enriched trending packages snapshot");
-            var count = await clickHouseService.InsertTrendingPackagesSnapshotAsync(
-                enrichedPackages,
-                ct: token.ShutdownToken,
-                parentSpan: insertSpan);
-
-            insertSpan.SetData("packages_count", count);
-            insertSpan.Finish(SpanStatus.Ok);
+            int count;
+            try
+            {
+                count = await clickHouseService.InsertTrendingPackagesSnapshotAsync(
+                    enrichedPackages,
+                    ct: token.ShutdownToken,
+                    parentSpan: insertSpan);
+                insertSpan.SetData("packages_count", count);
+                insertSpan.Finish(SpanStatus.Ok);
+            }
+            catch (Exception ex)
+            {
+                insertSpan.Finish(ex);
+                throw;
+            }
 
             logger.LogInformation("Job {JobId}: Trending packages snapshot refreshed with {Count} enriched packages", jobId, count);
 
@@ -153,12 +177,14 @@ public class TrendingPackagesSnapshotRefresher(
 
         // Get original-cased package IDs and icon URLs
         var packageMetadata = await dbContext.PackageDownloads
+            .AsNoTracking()
             .Where(p => packageIds.Contains(p.PackageIdLowered))
             .Select(p => new { p.PackageId, p.PackageIdLowered, p.IconUrl })
             .ToListAsync(ct);
 
         // Get project URLs for GitHub extraction
         var catalogData = await dbContext.PackageDetailsCatalogLeafs
+            .AsNoTracking()
             .Where(c => c.PackageId != null && packageIds.Contains(c.PackageIdLowered))
             .Select(c => new { c.PackageIdLowered, c.ProjectUrl })
             .ToListAsync(ct);
