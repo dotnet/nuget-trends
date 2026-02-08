@@ -2,16 +2,21 @@ namespace NuGetTrends.Web.Client.Services;
 
 /// <summary>
 /// Tracks active HTTP request count and exposes loading state for the UI.
-/// Replaces the JS-based fetch monkey-patching approach.
+/// Only shows the loading indicator after a short delay so fast responses
+/// don't cause a visible flicker.
 /// </summary>
 public class LoadingState
 {
     private int _activeRequests;
+    private CancellationTokenSource? _delayCts;
+    private bool _isVisible;
+
+    private static readonly TimeSpan ShowDelay = TimeSpan.FromMilliseconds(200);
 
     /// <summary>
-    /// Whether any requests are currently in flight.
+    /// Whether the loading indicator should be visible.
     /// </summary>
-    public bool IsLoading => _activeRequests > 0;
+    public bool IsLoading => _isVisible;
 
     /// <summary>
     /// Event raised when the loading state changes.
@@ -21,7 +26,7 @@ public class LoadingState
     public void Increment()
     {
         Interlocked.Increment(ref _activeRequests);
-        OnChange?.Invoke();
+        _ = ShowAfterDelayAsync();
     }
 
     public void Decrement()
@@ -31,7 +36,44 @@ public class LoadingState
         {
             Interlocked.Exchange(ref _activeRequests, 0);
         }
-        OnChange?.Invoke();
+
+        if (_activeRequests <= 0)
+        {
+            _delayCts?.Cancel();
+            _delayCts = null;
+
+            if (_isVisible)
+            {
+                _isVisible = false;
+                OnChange?.Invoke();
+            }
+        }
+    }
+
+    private async Task ShowAfterDelayAsync()
+    {
+        if (_isVisible)
+        {
+            return;
+        }
+
+        _delayCts?.Cancel();
+        _delayCts = new CancellationTokenSource();
+
+        try
+        {
+            await Task.Delay(ShowDelay, _delayCts.Token);
+
+            if (_activeRequests > 0 && !_isVisible)
+            {
+                _isVisible = true;
+                OnChange?.Invoke();
+            }
+        }
+        catch (TaskCanceledException)
+        {
+            // Request finished before delay elapsed — no flicker
+        }
     }
 }
 
