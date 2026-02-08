@@ -1016,13 +1016,28 @@ public class ClickHouseServiceTests : IAsyncLifetime
         await _sut.InsertTrendingPackagesSnapshotAsync(retryPackages);
 
         // Assert - Should only have the retry data (old was deleted)
-        // Note: ClickHouse ALTER DELETE is async, but in a single-node test it completes quickly
-        await Task.Delay(TimeSpan.FromSeconds(2)); // Allow mutation to complete
-        var snapshot = await _sut.GetTrendingPackagesFromSnapshotAsync(limit: 10);
+        // ClickHouse ALTER DELETE is async; poll until the mutation is reflected
+        IReadOnlyList<TrendingPackage> snapshot;
+        var deadline = DateTime.UtcNow.AddSeconds(30);
+        while (true)
+        {
+            snapshot = await _sut.GetTrendingPackagesFromSnapshotAsync(limit: 10);
+            var hasNew = snapshot.Any(p => p.PackageId == "new-package");
+            var hasOld = snapshot.Any(p => p.PackageId == "old-package");
+
+            if (hasNew && !hasOld)
+                break;
+
+            if (DateTime.UtcNow >= deadline)
+                break;
+
+            await Task.Delay(TimeSpan.FromMilliseconds(200));
+        }
 
         // After DELETE + INSERT, we should see only the retry package
         var packageIds = snapshot.Select(p => p.PackageId).ToList();
         packageIds.Should().Contain("new-package");
+        packageIds.Should().NotContain("old-package");
     }
 
     [Fact]

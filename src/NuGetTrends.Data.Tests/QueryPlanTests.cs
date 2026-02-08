@@ -38,11 +38,11 @@ public class QueryPlanTests : IAsyncLifetime
 
     /// <summary>
     /// Validates the query plan for GetUnprocessedPackageIds (NuGetTrendsContextExtensions).
-    /// The NOT EXISTS subquery must use an index on package_details_catalog_leafs.package_id_lowered
-    /// to avoid scanning 11M+ rows in production.
+    /// The NOT EXISTS subquery must use a Hash Anti Join (not Nested Loop) to avoid O(n*m)
+    /// with 11M+ catalog rows in production.
     /// </summary>
     [Fact]
-    public async Task GetUnprocessedPackageIds_UsesIndexOnPackageIdLowered()
+    public async Task GetUnprocessedPackageIds_UsesHashAntiJoin()
     {
         // Arrange
         await using var context = _fixture.CreateDbContext();
