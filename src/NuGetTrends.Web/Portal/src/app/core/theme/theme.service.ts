@@ -1,5 +1,4 @@
 import { Injectable, signal, effect, computed } from '@angular/core';
-import * as Sentry from '@sentry/angular';
 
 export type ThemePreference = 'system' | 'light' | 'dark';
 export type ResolvedTheme = 'light' | 'dark';
@@ -13,7 +12,6 @@ export class ThemeService {
   private readonly preferenceSignal = signal<ThemePreference>('system');
   private readonly systemThemeSignal = signal<ResolvedTheme>('light');
   private mediaQuery: MediaQueryList | null = null;
-  private lastSentryTheme: ResolvedTheme | null = null;
 
   readonly preference = this.preferenceSignal.asReadonly();
 
@@ -34,7 +32,6 @@ export class ThemeService {
     effect(() => {
       const theme = this.resolvedTheme();
       this.applyTheme(theme);
-      this.updateSentryTheme(theme);
     });
   }
 
@@ -75,37 +72,6 @@ export class ThemeService {
     } else {
       body.classList.add('light-theme');
       body.classList.remove('dark-theme');
-    }
-  }
-
-  private updateSentryTheme(theme: ResolvedTheme): void {
-    if (typeof document === 'undefined') return;
-
-    // Only update if theme has changed to avoid unnecessary operations
-    if (this.lastSentryTheme === theme) return;
-
-    // Get Sentry feedback integration
-    const feedback = Sentry.getFeedback();
-    if (!feedback) return;
-
-    try {
-      // Remove the existing widget
-      feedback.remove();
-
-      // Re-create the widget with the new theme
-      feedback.createWidget({
-        colorScheme: theme,
-      });
-
-      // The widget auto-attaches itself, no need to manually attach
-      this.lastSentryTheme = theme;
-    } catch (error) {
-      // Widget operations might fail if feedback is not properly initialized
-      Sentry.captureException(error, {
-        level: 'debug',
-        tags: { component: 'theme-service', operation: 'update-sentry-theme' },
-        extra: { theme, message: 'Sentry feedback widget could not be updated: feedback integration may not be initialized or configured' }
-      });
     }
   }
 
