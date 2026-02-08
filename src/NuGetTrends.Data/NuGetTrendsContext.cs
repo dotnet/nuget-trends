@@ -54,7 +54,8 @@ public class NuGetTrendsContext(DbContextOptions<NuGetTrendsContext> options) : 
 
         modelBuilder
             .Entity<PackageDetailsCatalogLeaf>()
-            .HasIndex(p => p.PackageIdLowered);
+            .HasIndex(p => p.PackageIdLowered)
+            .IncludeProperties(p => p.PackageId!);
 
         modelBuilder
             .Entity<PackageDetailsCatalogLeaf>()

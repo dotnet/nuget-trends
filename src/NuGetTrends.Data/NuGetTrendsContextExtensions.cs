@@ -17,23 +17,32 @@ public static class NuGetTrendsContextExtensions
 {
     /// <summary>
     /// Gets package IDs that haven't been checked today.
-    /// Uses a LEFT JOIN to find packages in the catalog that either:
-    /// 1. Don't exist in package_downloads yet (new packages), OR
-    /// 2. Were last checked before today (LatestDownloadCountCheckedUtc &lt; today)
+    /// Splits into two efficient queries to avoid a slow LEFT JOIN on the 11M+ row catalog table:
+    /// 1. Existing packages not checked today (from package_downloads - ~495K rows)
+    /// 2. New packages not yet in package_downloads (NOT EXISTS subquery with indexed lookup)
     /// </summary>
     /// <param name="context">DbContext to query.</param>
     /// <param name="todayUtc">Today's date in UTC (typically DateTime.UtcNow.Date).</param>
     /// <returns>Queryable of distinct package IDs that need processing.</returns>
     public static IQueryable<string> GetUnprocessedPackageIds(this NuGetTrendsContext context, DateTime todayUtc)
     {
-        return (from leaf in context.PackageDetailsCatalogLeafs
-                join pd in context.PackageDownloads
-                    on leaf.PackageIdLowered equals pd.PackageIdLowered into downloads
-                from pd in downloads.DefaultIfEmpty()
-                where pd == null || pd.LatestDownloadCountCheckedUtc < todayUtc
-                select leaf.PackageId)
-            .Distinct()
-            .Where(p => p != null)!;
+        // Fast: scans package_downloads (~495K rows, small table)
+        var uncheckedExisting = context.PackageDownloads
+            .Where(pd => pd.LatestDownloadCountCheckedUtc < todayUtc)
+            .Select(pd => pd.PackageId);
+
+        // New packages in catalog but not yet in package_downloads
+        // Uses NOT EXISTS with indexed lookup on package_id_lowered
+        var newPackages = context.PackageDetailsCatalogLeafs
+            .Where(leaf => leaf.PackageId != null
+                && !context.PackageDownloads
+                    .Any(pd => pd.PackageIdLowered == leaf.PackageIdLowered))
+            .Select(leaf => leaf.PackageId!)
+            .Distinct();
+
+        // Sets are disjoint (part 1: in package_downloads, part 2: not in package_downloads)
+        // so UNION ALL avoids unnecessary dedup
+        return uncheckedExisting.Concat(newPackages);
     }
 
     /// <summary>
