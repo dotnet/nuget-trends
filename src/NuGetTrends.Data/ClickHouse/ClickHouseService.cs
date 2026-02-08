@@ -532,7 +532,7 @@ public class ClickHouseService : IClickHouseService
             deleteCmd.CommandText = "ALTER TABLE trending_packages_snapshot DELETE WHERE week = {week:Date}";
             var weekParam = deleteCmd.CreateParameter();
             weekParam.ParameterName = "week";
-            weekParam.Value = week.ToDateTime(TimeOnly.MinValue);
+            weekParam.Value = week.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
             deleteCmd.Parameters.Add(weekParam);
             await deleteCmd.ExecuteNonQueryAsync(ct);
 
