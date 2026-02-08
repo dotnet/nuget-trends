@@ -164,6 +164,33 @@ public class ClickHouseServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task InsertDailyDownloadsAsync_HandlesDownloadCountBeyondInt32MaxValue()
+    {
+        // Arrange - Test values that exceed int.MaxValue (2,147,483,647)
+        // This is critical as Newtonsoft.Json download count is approaching this limit
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var justOverIntMax = (long)int.MaxValue + 1_000_000L; // ~2.148 billion
+        var wellOverIntMax = 3_000_000_000L; // 3 billion
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
+        {
+            ("newtonsoft.json", today, justOverIntMax),
+            ("another-popular-package", today, wellOverIntMax),
+        };
+
+        // Act
+        await _sut.InsertDailyDownloadsAsync(downloads);
+
+        // Assert - Verify both values are correctly stored
+        var newtonsoftCount = await _fixture.ExecuteScalarAsync<ulong>(
+            "SELECT download_count FROM daily_downloads WHERE package_id = 'newtonsoft.json'");
+        var otherCount = await _fixture.ExecuteScalarAsync<ulong>(
+            "SELECT download_count FROM daily_downloads WHERE package_id = 'another-popular-package'");
+
+        newtonsoftCount.Should().Be((ulong)justOverIntMax);
+        otherCount.Should().Be((ulong)wellOverIntMax);
+    }
+
+    [Fact]
     public async Task InsertDailyDownloadsAsync_DuplicateInsert_DeduplicatesAfterOptimize()
     {
         // Arrange - ReplacingMergeTree should deduplicate rows with same (package_id, date)
@@ -282,6 +309,35 @@ public class ClickHouseServiceTests : IAsyncLifetime
 
         // Assert
         result.Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public async Task GetWeeklyDownloadsAsync_HandlesDownloadCountsBeyondInt32MaxValue()
+    {
+        // Arrange - Test that weekly aggregation correctly handles large download counts
+        var packageId = "newtonsoft.json";
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var justOverIntMax = (long)int.MaxValue + 500_000L; // ~2.148 billion
+
+        // Create a week of data with large counts
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>();
+        for (var i = 0; i < 7; i++)
+        {
+            downloads.Add((packageId, today.AddDays(-i), justOverIntMax));
+        }
+        await _sut.InsertDailyDownloadsAsync(downloads);
+
+        // Act
+        var result = await _sut.GetWeeklyDownloadsAsync(packageId, months: 1);
+
+        // Assert
+        result.Should().NotBeEmpty();
+        // Weekly average should be around justOverIntMax (since all days have the same count)
+        result.Should().AllSatisfy(r =>
+        {
+            r.Count.Should().NotBeNull();
+            r.Count.Should().BeGreaterThan(int.MaxValue);
+        });
     }
 
     [Fact]

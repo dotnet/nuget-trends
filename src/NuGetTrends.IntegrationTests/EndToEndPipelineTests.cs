@@ -100,6 +100,87 @@ public class EndToEndPipelineTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ApiEndpoints_HandleDownloadCountsBeyondInt32MaxValue()
+    {
+        // Clean up from any previous test runs
+        await _fixture.ResetClickHouseTableAsync();
+        await using (var ctx = _fixture.CreateDbContext())
+        {
+            await ctx.Database.ExecuteSqlRawAsync("DELETE FROM package_downloads");
+        }
+
+        // Arrange - Create a package with downloads exceeding int.MaxValue
+        const string testPackageId = "TestPackage.WithHugeDownloads";
+        var justOverIntMax = (long)int.MaxValue + 1_000_000L; // ~2.148 billion
+        var wellOverIntMax = 3_000_000_000L; // 3 billion
+
+        await using (var ctx = _fixture.CreateDbContext())
+        {
+            // Add package to PostgreSQL with large download count
+            ctx.PackageDownloads.Add(new PackageDownload
+            {
+                PackageId = testPackageId,
+                PackageIdLowered = testPackageId.ToLower(),
+                LatestDownloadCount = wellOverIntMax,
+                LatestDownloadCountCheckedUtc = DateTime.UtcNow,
+                IconUrl = "https://example.com/icon.png"
+            });
+            await ctx.SaveChangesAsync();
+        }
+
+        // Add download history to ClickHouse with large counts
+        var clickHouseService = _factory.Services.GetRequiredService<IClickHouseService>();
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>();
+
+        // Create a week of data with large counts
+        for (var i = 0; i < 7; i++)
+        {
+            downloads.Add((testPackageId, today.AddDays(-i), justOverIntMax));
+        }
+        await clickHouseService.InsertDailyDownloadsAsync(downloads);
+
+        // Act & Assert - Verify Search API handles large download counts
+        _output.WriteLine("Testing Search API with large download counts...");
+        var searchResponse = await _client.GetAsync($"/api/package/search?q={Uri.EscapeDataString(testPackageId)}");
+        searchResponse.EnsureSuccessStatusCode();
+
+        var searchJson = await searchResponse.Content.ReadAsStringAsync();
+        var searchResults = JsonSerializer.Deserialize<List<SearchResult>>(searchJson, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
+
+        searchResults.Should().NotBeNull();
+        var result = searchResults!.FirstOrDefault(r => r.PackageId.Equals(testPackageId, StringComparison.OrdinalIgnoreCase));
+        result.Should().NotBeNull();
+        result!.LatestDownloadCount.Should().Be(wellOverIntMax);
+        _output.WriteLine($"✓ Search API correctly returned {result.LatestDownloadCount:N0} downloads (>{int.MaxValue:N0})");
+
+        // Act & Assert - Verify History API handles large download counts
+        _output.WriteLine("Testing History API with large download counts...");
+        var historyResponse = await _client.GetAsync($"/api/package/history/{Uri.EscapeDataString(testPackageId)}?months=1");
+        historyResponse.EnsureSuccessStatusCode();
+
+        var historyJson = await historyResponse.Content.ReadAsStringAsync();
+        var history = JsonSerializer.Deserialize<PackageHistory>(historyJson, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
+
+        history.Should().NotBeNull();
+        history!.Downloads.Should().NotBeEmpty();
+        history.Downloads.Should().AllSatisfy(d =>
+        {
+            d.Count.Should().NotBeNull();
+            d.Count.Should().BeGreaterThan(int.MaxValue, "Weekly count should exceed int.MaxValue");
+        });
+        _output.WriteLine($"✓ History API correctly returned weekly counts >{int.MaxValue:N0}");
+
+        _output.WriteLine("✅ All API endpoints successfully handle download counts beyond int.MaxValue");
+    }
+
+    [Fact]
     public async Task Pipeline_SecondDay_ReprocessesPackages()
     {
         // Clean up from any previous test runs (tests share the fixture and database)
