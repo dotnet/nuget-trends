@@ -16,7 +16,7 @@ public class ClickHouseServiceTests : IAsyncLifetime
     {
         _fixture = fixture;
         var connectionInfo = ClickHouseConnectionInfo.Parse(fixture.ConnectionString);
-        _sut = new ClickHouseService(fixture.ConnectionString, NullLogger<ClickHouseService>.Instance, connectionInfo);
+        _sut = new ClickHouseService(fixture.ConnectionString, NullLogger<ClickHouseService>.Instance, connectionInfo, null);
     }
 
     public async Task InitializeAsync()
@@ -886,6 +886,423 @@ public class ClickHouseServiceTests : IAsyncLifetime
         var package = result.FirstOrDefault(p => p.PackageId == packageId.ToLowerInvariant());
         package.Should().NotBeNull();
         package!.GrowthRate.Should().BeApproximately(-0.2, 0.01); // -20% growth
+    }
+
+    [Fact]
+    public async Task UpdatePackageFirstSeenAsync_WithNewPackages_AddsToFirstSeen()
+    {
+        // Arrange - Insert data for 2 weeks so packages appear in weekly_downloads
+        var monday1 = GetLastWeekMonday().AddDays(-7); // 2 weeks ago
+        var monday2 = GetLastWeekMonday();              // last week
+        var suffix = Guid.NewGuid().ToString("N");
+        var packageA = $"first-seen-a-{suffix}";
+        var packageB = $"first-seen-b-{suffix}";
+
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
+        {
+            // Package A first appears 2 weeks ago
+            (packageA, monday1, 1000),
+            (packageA, monday2, 1500),
+
+            // Package B first appears last week only
+            (packageB, monday2, 2000),
+        };
+        await _sut.InsertDailyDownloadsAsync(downloads);
+
+        // Act
+        await _sut.UpdatePackageFirstSeenAsync();
+
+        // Assert - Both packages should be in package_first_seen with correct dates
+        var results = await _fixture.ExecuteQueryAsync(
+            "SELECT package_id, first_seen FROM package_first_seen FINAL ORDER BY package_id",
+            reader => (
+                PackageId: reader.GetString(0),
+                FirstSeen: DateOnly.FromDateTime(reader.GetDateTime(1))
+            ));
+
+        var a = results.FirstOrDefault(r => r.PackageId == packageA.ToLowerInvariant());
+        var b = results.FirstOrDefault(r => r.PackageId == packageB.ToLowerInvariant());
+
+        a.Should().NotBe(default);
+        a.FirstSeen.Should().Be(monday1); // min(week) = 2 weeks ago
+        b.Should().NotBe(default);
+        b.FirstSeen.Should().Be(monday2); // min(week) = last week
+    }
+
+    [Fact]
+    public async Task UpdatePackageFirstSeenAsync_IsIdempotent()
+    {
+        // Arrange
+        var monday = GetLastWeekMonday();
+        var suffix = Guid.NewGuid().ToString("N");
+        var packageId = $"idempotent-{suffix}";
+
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
+        {
+            (packageId, monday, 1000),
+        };
+        await _sut.InsertDailyDownloadsAsync(downloads);
+
+        // Act - Call twice
+        await _sut.UpdatePackageFirstSeenAsync();
+        await _sut.UpdatePackageFirstSeenAsync();
+
+        // Assert - Should have exactly 1 row (no duplicates)
+        // Use FINAL to get deduplicated view of ReplacingMergeTree
+        var count = await _fixture.ExecuteScalarAsync<ulong>(
+            $"SELECT count() FROM package_first_seen FINAL WHERE package_id = '{packageId.ToLowerInvariant()}'");
+        count.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task UpdatePackageFirstSeenAsync_BackfillsAcrossMultipleWeeks()
+    {
+        // Arrange - Insert data for 3 non-contiguous weeks (simulates pipeline gaps)
+        var baseMonday = GetLastWeekMonday().AddDays(-28); // 4 weeks ago
+        var week1 = baseMonday;
+        var week2 = baseMonday.AddDays(14); // skip a week
+        var week3 = baseMonday.AddDays(28); // skip another week
+        var suffix = Guid.NewGuid().ToString("N");
+        var packageA = $"backfill-a-{suffix}";
+        var packageB = $"backfill-b-{suffix}";
+        var packageC = $"backfill-c-{suffix}";
+
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
+        {
+            // Package A appears in week 1 only
+            (packageA, week1, 500),
+
+            // Package B appears in weeks 1 and 3
+            (packageB, week1, 600),
+            (packageB, week3, 800),
+
+            // Package C appears in week 2 only
+            (packageC, week2, 700),
+        };
+        await _sut.InsertDailyDownloadsAsync(downloads);
+
+        // Act - Single call should find all 3 packages across all weeks
+        await _sut.UpdatePackageFirstSeenAsync();
+
+        // Assert
+        var results = await _fixture.ExecuteQueryAsync(
+            "SELECT package_id, first_seen FROM package_first_seen FINAL ORDER BY package_id",
+            reader => (
+                PackageId: reader.GetString(0),
+                FirstSeen: DateOnly.FromDateTime(reader.GetDateTime(1))
+            ));
+
+        var a = results.FirstOrDefault(r => r.PackageId == packageA.ToLowerInvariant());
+        var b = results.FirstOrDefault(r => r.PackageId == packageB.ToLowerInvariant());
+        var c = results.FirstOrDefault(r => r.PackageId == packageC.ToLowerInvariant());
+
+        a.Should().NotBe(default);
+        a.FirstSeen.Should().Be(week1);
+
+        b.Should().NotBe(default);
+        b.FirstSeen.Should().Be(week1); // min(week) across week1 and week3
+
+        c.Should().NotBe(default);
+        c.FirstSeen.Should().Be(week2);
+    }
+
+    [Fact]
+    public async Task ComputeTrendingPackagesAsync_WithTwoWeeksOfData_ReturnsResults()
+    {
+        // Arrange - Need data for both last week and two weeks ago
+        var currentMonday = GetLastWeekMonday();
+        var previousMonday = currentMonday.AddDays(-7);
+        var suffix = Guid.NewGuid().ToString("N");
+        var packageId = $"compute-test-{suffix}";
+
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
+        {
+            (packageId, previousMonday, 1000),
+            (packageId, currentMonday, 2000), // 100% growth
+        };
+        await _sut.InsertDailyDownloadsAsync(downloads);
+        await _fixture.PopulatePackageFirstSeenAsync();
+
+        // Act
+        var result = await _sut.ComputeTrendingPackagesAsync(minWeeklyDownloads: 100, maxPackageAgeMonths: 12);
+
+        // Assert
+        var package = result.FirstOrDefault(p => p.PackageId == packageId.ToLowerInvariant());
+        package.Should().NotBeNull();
+        package!.WeekDownloads.Should().Be(2000 * 7);
+        package.ComparisonWeekDownloads.Should().Be(1000 * 7);
+    }
+
+    [Fact]
+    public async Task ComputeTrendingPackagesAsync_WithNoData_ReturnsEmpty()
+    {
+        // Act
+        var result = await _sut.ComputeTrendingPackagesAsync(minWeeklyDownloads: 100, maxPackageAgeMonths: 12);
+
+        // Assert
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task InsertTrendingPackagesSnapshotAsync_RoundTrips_EnrichmentColumns()
+    {
+        // Arrange - Create enriched packages and insert directly
+        var week = GetLastWeekMonday();
+        var packages = new List<TrendingPackage>
+        {
+            new()
+            {
+                PackageId = "newtonsoft.json",
+                Week = week,
+                WeekDownloads = 21000,
+                ComparisonWeekDownloads = 14000,
+                PackageIdOriginal = "Newtonsoft.Json",
+                IconUrl = "https://www.nuget.org/Content/gallery/img/newtonsoft.svg",
+                GitHubUrl = "https://github.com/JamesNK/Newtonsoft.Json"
+            },
+            new()
+            {
+                PackageId = "sentry",
+                Week = week,
+                WeekDownloads = 7000,
+                ComparisonWeekDownloads = 5000,
+                PackageIdOriginal = "Sentry",
+                IconUrl = "https://sentry.io/icon.png",
+                GitHubUrl = "https://github.com/getsentry/sentry-dotnet"
+            }
+        };
+
+        // Act - Insert
+        var inserted = await _sut.InsertTrendingPackagesSnapshotAsync(packages);
+
+        // Assert - Insert count
+        inserted.Should().Be(2);
+
+        // Act - Read back via snapshot query
+        var snapshot = await _sut.GetTrendingPackagesFromSnapshotAsync(limit: 10);
+
+        // Assert - Enrichment columns round-trip correctly
+        snapshot.Should().HaveCount(2);
+
+        var newtonsoft = snapshot.First(p => p.PackageId == "newtonsoft.json");
+        newtonsoft.PackageIdOriginal.Should().Be("Newtonsoft.Json");
+        newtonsoft.IconUrl.Should().Be("https://www.nuget.org/Content/gallery/img/newtonsoft.svg");
+        newtonsoft.GitHubUrl.Should().Be("https://github.com/JamesNK/Newtonsoft.Json");
+        newtonsoft.WeekDownloads.Should().Be(21000);
+        newtonsoft.ComparisonWeekDownloads.Should().Be(14000);
+
+        var sentry = snapshot.First(p => p.PackageId == "sentry");
+        sentry.PackageIdOriginal.Should().Be("Sentry");
+        sentry.IconUrl.Should().Be("https://sentry.io/icon.png");
+        sentry.GitHubUrl.Should().Be("https://github.com/getsentry/sentry-dotnet");
+    }
+
+    [Fact]
+    public async Task InsertTrendingPackagesSnapshotAsync_DeletesExistingWeekOnRetry()
+    {
+        // Arrange - Insert an initial batch
+        var week = GetLastWeekMonday();
+        var initialPackages = new List<TrendingPackage>
+        {
+            new()
+            {
+                PackageId = "old-package",
+                Week = week,
+                WeekDownloads = 1000,
+                ComparisonWeekDownloads = 500,
+                PackageIdOriginal = "Old.Package",
+                IconUrl = "",
+                GitHubUrl = ""
+            }
+        };
+        await _sut.InsertTrendingPackagesSnapshotAsync(initialPackages);
+
+        // Act - Re-insert with different data (simulates retry)
+        var retryPackages = new List<TrendingPackage>
+        {
+            new()
+            {
+                PackageId = "new-package",
+                Week = week,
+                WeekDownloads = 2000,
+                ComparisonWeekDownloads = 1000,
+                PackageIdOriginal = "New.Package",
+                IconUrl = "",
+                GitHubUrl = ""
+            }
+        };
+        await _sut.InsertTrendingPackagesSnapshotAsync(retryPackages);
+
+        // Assert - Should only have the retry data (old was deleted)
+        // ClickHouse ALTER DELETE is async; poll until the mutation is reflected
+        IReadOnlyList<TrendingPackage> snapshot;
+        var deadline = DateTime.UtcNow.AddSeconds(30);
+        while (true)
+        {
+            snapshot = await _sut.GetTrendingPackagesFromSnapshotAsync(limit: 10);
+            var hasNew = snapshot.Any(p => p.PackageId == "new-package");
+            var hasOld = snapshot.Any(p => p.PackageId == "old-package");
+
+            if (hasNew && !hasOld)
+                break;
+
+            if (DateTime.UtcNow >= deadline)
+                break;
+
+            await Task.Delay(TimeSpan.FromMilliseconds(200));
+        }
+
+        // After DELETE + INSERT, we should see only the retry package
+        var packageIds = snapshot.Select(p => p.PackageId).ToList();
+        packageIds.Should().Contain("new-package");
+        packageIds.Should().NotContain("old-package");
+    }
+
+    [Fact]
+    public async Task InsertTrendingPackagesSnapshotAsync_EmptyList_ReturnsZero()
+    {
+        // Act
+        var result = await _sut.InsertTrendingPackagesSnapshotAsync([]);
+
+        // Assert
+        result.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetTrendingPackagesFromSnapshotAsync_EmptyTable_ReturnsEmpty()
+    {
+        // Act - Snapshot table is empty after reset
+        var result = await _sut.GetTrendingPackagesFromSnapshotAsync(limit: 10);
+
+        // Assert
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetTrendingPackagesFromSnapshotAsync_OrdersByGrowthRateDescending()
+    {
+        // Arrange - Insert packages with different growth rates
+        var week = GetLastWeekMonday();
+        var packages = new List<TrendingPackage>
+        {
+            new()
+            {
+                PackageId = "low-growth",
+                Week = week,
+                WeekDownloads = 1250,
+                ComparisonWeekDownloads = 1000, // 25% growth
+                PackageIdOriginal = "low-growth",
+                IconUrl = "",
+                GitHubUrl = ""
+            },
+            new()
+            {
+                PackageId = "high-growth",
+                Week = week,
+                WeekDownloads = 2000,
+                ComparisonWeekDownloads = 1000, // 100% growth
+                PackageIdOriginal = "high-growth",
+                IconUrl = "",
+                GitHubUrl = ""
+            },
+            new()
+            {
+                PackageId = "medium-growth",
+                Week = week,
+                WeekDownloads = 1500,
+                ComparisonWeekDownloads = 1000, // 50% growth
+                PackageIdOriginal = "medium-growth",
+                IconUrl = "",
+                GitHubUrl = ""
+            }
+        };
+        await _sut.InsertTrendingPackagesSnapshotAsync(packages);
+
+        // Act
+        var result = await _sut.GetTrendingPackagesFromSnapshotAsync(limit: 10);
+
+        // Assert - Should be ordered by growth rate descending
+        result.Should().HaveCount(3);
+        result[0].PackageId.Should().Be("high-growth");   // 100%
+        result[1].PackageId.Should().Be("medium-growth");  // 50%
+        result[2].PackageId.Should().Be("low-growth");     // 25%
+    }
+
+    [Fact]
+    public async Task GetTrendingPackagesFromSnapshotAsync_EmptyEnrichment_FallsBackToPackageId()
+    {
+        // Arrange - Insert with empty enrichment (simulates pre-enrichment data)
+        var week = GetLastWeekMonday();
+        var packages = new List<TrendingPackage>
+        {
+            new()
+            {
+                PackageId = "some.package",
+                Week = week,
+                WeekDownloads = 2000,
+                ComparisonWeekDownloads = 1000,
+                PackageIdOriginal = "", // Empty - should fall back to package_id
+                IconUrl = "",
+                GitHubUrl = ""
+            }
+        };
+        await _sut.InsertTrendingPackagesSnapshotAsync(packages);
+
+        // Act
+        var result = await _sut.GetTrendingPackagesFromSnapshotAsync(limit: 10);
+
+        // Assert - PackageIdOriginal should fall back to PackageId when empty
+        result.Should().HaveCount(1);
+        result[0].PackageIdOriginal.Should().Be("some.package");
+    }
+
+    [Fact]
+    public async Task FullSnapshotPipeline_Compute_Insert_Read_RoundTrip()
+    {
+        // Arrange - Set up data for trending computation
+        var currentMonday = GetLastWeekMonday();
+        var previousMonday = currentMonday.AddDays(-7);
+        var suffix = Guid.NewGuid().ToString("N");
+
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
+        {
+            ($"pipeline-pkg-{suffix}", previousMonday, 1000),
+            ($"pipeline-pkg-{suffix}", currentMonday, 2000),
+        };
+        await _sut.InsertDailyDownloadsAsync(downloads);
+        await _fixture.PopulatePackageFirstSeenAsync();
+
+        // Act - Step 1: Compute trending
+        var computed = await _sut.ComputeTrendingPackagesAsync(minWeeklyDownloads: 100, maxPackageAgeMonths: 12);
+        computed.Should().NotBeEmpty();
+
+        // Act - Step 2: Add enrichment data (simulates scheduler enrichment)
+        var enriched = computed.Select(p => new TrendingPackage
+        {
+            PackageId = p.PackageId,
+            Week = p.Week,
+            WeekDownloads = p.WeekDownloads,
+            ComparisonWeekDownloads = p.ComparisonWeekDownloads,
+            PackageIdOriginal = "Pipeline.Pkg",
+            IconUrl = "https://example.com/icon.png",
+            GitHubUrl = "https://github.com/test/repo"
+        }).ToList();
+
+        // Act - Step 3: Insert enriched snapshot
+        var insertCount = await _sut.InsertTrendingPackagesSnapshotAsync(enriched);
+        insertCount.Should().BeGreaterThan(0);
+
+        // Act - Step 4: Read snapshot
+        var snapshot = await _sut.GetTrendingPackagesFromSnapshotAsync(limit: 100);
+
+        // Assert - Full pipeline round-trip
+        var pkg = snapshot.FirstOrDefault(p => p.PackageId.Contains(suffix));
+        pkg.Should().NotBeNull("Package from compute step should appear in snapshot");
+        pkg!.PackageIdOriginal.Should().Be("Pipeline.Pkg");
+        pkg.IconUrl.Should().Be("https://example.com/icon.png");
+        pkg.GitHubUrl.Should().Be("https://github.com/test/repo");
+        pkg.WeekDownloads.Should().Be(2000 * 7);
+        pkg.ComparisonWeekDownloads.Should().Be(1000 * 7);
     }
 
     /// <summary>

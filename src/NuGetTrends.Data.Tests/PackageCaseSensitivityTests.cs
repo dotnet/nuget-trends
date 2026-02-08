@@ -22,7 +22,7 @@ public class PackageCaseSensitivityTests : IAsyncLifetime
     {
         _fixture = fixture;
         var connectionInfo = ClickHouseConnectionInfo.Parse(fixture.ConnectionString);
-        _sut = new ClickHouseService(fixture.ConnectionString, NullLogger<ClickHouseService>.Instance, connectionInfo);
+        _sut = new ClickHouseService(fixture.ConnectionString, NullLogger<ClickHouseService>.Instance, connectionInfo, null);
     }
 
     public async Task InitializeAsync()

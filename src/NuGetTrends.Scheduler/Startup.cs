@@ -55,7 +55,8 @@ public class Startup(
             connString = ClickHouseConnectionInfo.NormalizeConnectionString(connString);
             var logger = sp.GetRequiredService<ILogger<ClickHouseService>>();
             var connectionInfo = sp.GetRequiredService<ClickHouseConnectionInfo>();
-            return new ClickHouseService(connString, logger, connectionInfo);
+            var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+            return new ClickHouseService(connString, logger, connectionInfo, loggerFactory);
         });
 
         // RabbitMQ connection factory - supports both Aspire service discovery and manual config
@@ -200,6 +201,29 @@ public class Startup(
         catch (Exception e)
         {
             migrationTransaction.Finish(e);
+            throw;
+        }
+        finally
+        {
+            SentrySdk.FlushAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
+        }
+
+        // Run ClickHouse migrations on startup.
+        // Like EF Core migrations above, this assumes a single scheduler instance.
+        // Multiple concurrent instances could race on DDL and tracking inserts.
+        var clickHouseMigrationTransaction = SentrySdk.StartTransaction("clickhouse-migrate", "db.migrate");
+        SentrySdk.ConfigureScope(s => s.Transaction = clickHouseMigrationTransaction);
+        try
+        {
+            using var chScope = app.ApplicationServices.CreateScope();
+            var clickHouseService = chScope.ServiceProvider.GetRequiredService<IClickHouseService>();
+            
+            clickHouseService.RunMigrationsAsync().GetAwaiter().GetResult();
+            clickHouseMigrationTransaction.Finish(SpanStatus.Ok);
+        }
+        catch (Exception e)
+        {
+            clickHouseMigrationTransaction.Finish(e);
             throw;
         }
         finally

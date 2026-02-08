@@ -68,10 +68,10 @@ public class DailyDownloadWorker : IHostedService
 
                     try
                     {
-                        // Poor man's Polly
-                        const int maxAttempts = 3;
-                        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+                        var attempt = 0;
+                        while (true)
                         {
+                            attempt++;
                             var connectSpan =
                                 startSpan.StartChild("rabbit.mq.connect", "Connecting to RabbitMQ");
                             try
@@ -82,21 +82,14 @@ public class DailyDownloadWorker : IHostedService
                             }
                             catch (Exception e)
                             {
-                                if (attempt == maxAttempts)
-                                {
-                                    connectSpan.Finish(e);
-                                    _logger.LogCritical(e, "Couldn't connect to the broker. Attempt '{attempts}'.",
-                                        attempt);
-                                    throw;
-                                }
+                                connectSpan.Finish(e);
+                                SentrySdk.CaptureException(e);
 
-                                var waitMs = attempt * 10000;
-                                _logger.LogInformation(e,
+                                var waitMs = attempt >= 6 ? 60_000 : attempt * 10_000;
+                                _logger.LogError(e,
                                     "Failed to connect to the broker. Waiting for '{waitMs}' milliseconds. Attempt '{attempts}'.",
                                     waitMs, attempt);
-                                await Task.Delay(waitMs, cancellationToken);
-                                connectSpan.SetTag("waited_ms", waitMs.ToString());
-                                connectSpan.Finish(e);
+                                await Task.Delay(waitMs, _cancellationTokenSource.Token);
                             }
                         }
                         startSpan.Finish(SpanStatus.Ok);
@@ -408,19 +401,19 @@ public class DailyDownloadWorker : IHostedService
             }
         }
 
-        // Handle deleted packages
+        // Handle deleted packages (batch query to avoid N+1)
         if (deletedPackageIds.Count > 0)
         {
-            var deleteSpan = StartDbSpan(parentSpan, "DELETE FROM package_details_catalog_leafs", "postgresql", "DELETE");
+            var deleteSpan = StartDbSpan(parentSpan, "DELETE FROM package_details_catalog_leafs WHERE package_id_lowered IN (...)", "postgresql", "DELETE");
             deleteSpan.SetTag("count", deletedPackageIds.Count.ToString());
             try
             {
-                foreach (var deletedPackageId in deletedPackageIds)
-                {
-                    await RemovePackage(context, deletedPackageId, _cancellationTokenSource.Token);
-                }
-                await context.SaveChangesAsync(_cancellationTokenSource.Token);
-                deleteSpan.SetData("db.rows_affected", deletedPackageIds.Count);
+                var loweredIds = deletedPackageIds.Select(id => id.ToLowerInvariant()).Distinct().ToList();
+                var deletedCount = await context.PackageDetailsCatalogLeafs
+                    .Where(p => loweredIds.Contains(p.PackageIdLowered))
+                    .ExecuteDeleteAsync(_cancellationTokenSource.Token);
+
+                deleteSpan.SetData("db.rows_affected", deletedCount);
                 deleteSpan.Finish(SpanStatus.Ok);
             }
             catch (Exception e)
@@ -448,22 +441,6 @@ public class DailyDownloadWorker : IHostedService
         span.SetData("db.operation", dbOperation);
         TelemetryHelpers.SetQuerySource<DailyDownloadWorker>(span, filePath, memberName, lineNumber);
         return span;
-    }
-
-    private async Task RemovePackage(NuGetTrendsContext context, string packageId, CancellationToken token)
-    {
-        var package = await context.PackageDetailsCatalogLeafs.Where(p => p.PackageId == packageId)
-            .ToListAsync(token)
-            .ConfigureAwait(false);
-
-        if (package.Count == 0)
-        {
-            // This happens a lot.
-            _logger.LogInformation("Package with id '{packageId}' not found!.", packageId);
-            return;
-        }
-
-        context.PackageDetailsCatalogLeafs.RemoveRange(package);
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)

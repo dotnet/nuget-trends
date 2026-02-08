@@ -18,4 +18,8 @@
     <PackageReference Include="Sentry" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="ClickHouse\migrations\*.sql" />
+  </ItemGroup>
+
 </Project>

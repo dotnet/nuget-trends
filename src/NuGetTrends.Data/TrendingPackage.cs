@@ -11,6 +11,25 @@ public class TrendingPackage
     public required string PackageId { get; init; }
 
     /// <summary>
+    /// Original-cased package ID (e.g. "Newtonsoft.Json").
+    /// Populated from PostgreSQL during snapshot enrichment.
+    /// Empty if not yet enriched.
+    /// </summary>
+    public string PackageIdOriginal { get; init; } = "";
+
+    /// <summary>
+    /// Package icon URL. Empty if not available.
+    /// Populated from PostgreSQL during snapshot enrichment.
+    /// </summary>
+    public string IconUrl { get; init; } = "";
+
+    /// <summary>
+    /// GitHub repository URL. Empty if not a GitHub project.
+    /// Populated from PostgreSQL during snapshot enrichment.
+    /// </summary>
+    public string GitHubUrl { get; init; } = "";
+
+    /// <summary>
     /// The week this data represents (Monday of the week).
     /// This is the most recently completed week, not the current partial week.
     /// </summary>

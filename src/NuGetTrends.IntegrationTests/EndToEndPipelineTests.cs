@@ -9,7 +9,9 @@ using NuGetTrends.Data;
 using NuGetTrends.Data.ClickHouse;
 using NuGetTrends.IntegrationTests.Infrastructure;
 using NuGetTrends.Scheduler;
+using NuGetTrends.Web;
 using RabbitMQ.Client;
+using Sentry;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -91,6 +93,10 @@ public class EndToEndPipelineTests : IAsyncLifetime
 
         // Verify history API
         await VerifyHistoryEndpoint();
+
+        // Run trending snapshot refresh and verify trending API
+        await RunTrendingSnapshotRefresh();
+        await VerifyTrendingEndpoint();
     }
 
     [Fact]
@@ -138,6 +144,77 @@ public class EndToEndPipelineTests : IAsyncLifetime
         await VerifyTodaysDataExists();
 
         _output.WriteLine("Second-day pipeline re-processing verified successfully.");
+    }
+
+    [Fact]
+    public async Task Pipeline_RemovesDeletedPackages_FromCatalog()
+    {
+        const string fakePackageId = "__test-nonexistent-pkg__";
+
+        // Clean up from any previous test runs
+        await _fixture.ResetClickHouseTableAsync();
+        await using (var ctx = _fixture.CreateDbContext())
+        {
+            await ctx.Database.ExecuteSqlRawAsync("DELETE FROM package_downloads");
+            // Clean up leftover fake package from previous runs
+            await ctx.Database.ExecuteSqlRawAsync(
+                "DELETE FROM package_details_catalog_leafs WHERE package_id = {0}", fakePackageId);
+        }
+
+        // Verify catalog import and seed historical data (same as other tests)
+        await VerifyCatalogImport();
+        await SeedHistoricalDownloads();
+
+        // Insert a fake catalog entry for a package that doesn't exist on NuGet.org
+        await using (var context = _fixture.CreateDbContext())
+        {
+            context.PackageDetailsCatalogLeafs.Add(new NuGet.Protocol.Catalog.Models.PackageDetailsCatalogLeaf
+            {
+                PackageId = fakePackageId,
+                PackageIdLowered = fakePackageId,
+                PackageVersion = "1.0.0",
+                Listed = true,
+                CommitTimestamp = DateTimeOffset.UtcNow
+            });
+            await context.SaveChangesAsync();
+
+            // Verify it was inserted
+            var exists = await context.PackageDetailsCatalogLeafs
+                .AnyAsync(p => p.PackageId == fakePackageId);
+            exists.Should().BeTrue("fake package should exist in catalog before pipeline runs");
+            _output.WriteLine($"Inserted fake catalog entry: {fakePackageId}");
+        }
+
+        // Run the pipeline — NuGet API returns null for the fake package, triggering deletion
+        await RunDailyDownloadPipeline();
+
+        // Assert: fake package was removed from catalog
+        await using (var context = _fixture.CreateDbContext())
+        {
+            var fakeExists = await context.PackageDetailsCatalogLeafs
+                .AnyAsync(p => p.PackageId == fakePackageId);
+            fakeExists.Should().BeFalse(
+                "fake non-existent package should have been removed from catalog by the pipeline");
+            _output.WriteLine("Verified: fake package was removed from catalog.");
+        }
+
+        // Assert: real packages still have their catalog entries
+        await using (var context = _fixture.CreateDbContext())
+        {
+            foreach (var pkg in _fixture.ImportedPackages)
+            {
+                var exists = await context.PackageDetailsCatalogLeafs
+                    .AnyAsync(p => p.PackageId == pkg.PackageId && p.PackageVersion == pkg.PackageVersion);
+                exists.Should().BeTrue(
+                    $"real package {pkg.PackageId} v{pkg.PackageVersion} should still exist in catalog");
+            }
+            _output.WriteLine("Verified: all real packages still exist in catalog.");
+        }
+
+        // Assert: real packages have download data in ClickHouse
+        await VerifyTodaysDataExists();
+
+        _output.WriteLine("Deleted-package removal test passed.");
     }
 
     private async Task VerifyCatalogImport()
@@ -360,6 +437,108 @@ public class EndToEndPipelineTests : IAsyncLifetime
         }
 
         _output.WriteLine("Today's download data verified.");
+    }
+
+    private async Task RunTrendingSnapshotRefresh()
+    {
+        _output.WriteLine("Running trending packages snapshot refresh...");
+
+        var clickHouseService = _fixture.CreateClickHouseService();
+
+        // The trending query needs package_first_seen populated
+        await clickHouseService.UpdatePackageFirstSeenAsync();
+
+        // Compute trending packages (needs data for 2 consecutive weeks)
+        var trendingPackages = await clickHouseService.ComputeTrendingPackagesAsync(
+            minWeeklyDownloads: 1, // Use low threshold for test data
+            maxPackageAgeMonths: 12);
+
+        _output.WriteLine($"Computed {trendingPackages.Count} trending packages from ClickHouse");
+
+        if (trendingPackages.Count == 0)
+        {
+            _output.WriteLine("No trending packages computed (test data may not span 2 complete weeks). " +
+                              "Inserting synthetic snapshot for API verification.");
+
+            // The seeded 30-day history may not align with ClickHouse's toMonday() boundaries.
+            // Insert a synthetic snapshot so we can still verify the API endpoint works.
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var lastMonday = today.AddDays(-(((int)today.DayOfWeek - 1 + 7) % 7) - 7);
+
+            var syntheticPackages = _fixture.ImportedPackages.Select((pkg, i) => new TrendingPackage
+            {
+                PackageId = pkg.PackageId.ToLowerInvariant(),
+                Week = lastMonday,
+                WeekDownloads = (i + 1) * 7000,
+                ComparisonWeekDownloads = (i + 1) * 5000,
+                PackageIdOriginal = pkg.PackageId,
+                IconUrl = "",
+                GitHubUrl = ""
+            }).ToList();
+
+            var inserted = await clickHouseService.InsertTrendingPackagesSnapshotAsync(syntheticPackages);
+            _output.WriteLine($"Inserted {inserted} synthetic trending packages into snapshot");
+            return;
+        }
+
+        // Enrich with PostgreSQL metadata (same as the scheduler does)
+        await using var context = _fixture.CreateDbContext();
+        var packageIds = trendingPackages.Select(p => p.PackageId).ToList();
+
+        var packageMetadata = await context.PackageDownloads
+            .AsNoTracking()
+            .Where(p => packageIds.Contains(p.PackageIdLowered))
+            .Select(p => new { p.PackageId, p.PackageIdLowered, p.IconUrl })
+            .ToListAsync();
+
+        var metadataLookup = packageMetadata.ToDictionary(p => p.PackageIdLowered);
+
+        var enriched = trendingPackages.Select(tp =>
+        {
+            metadataLookup.TryGetValue(tp.PackageId, out var metadata);
+            return new TrendingPackage
+            {
+                PackageId = tp.PackageId,
+                Week = tp.Week,
+                WeekDownloads = tp.WeekDownloads,
+                ComparisonWeekDownloads = tp.ComparisonWeekDownloads,
+                PackageIdOriginal = metadata?.PackageId ?? tp.PackageId,
+                IconUrl = metadata?.IconUrl ?? "",
+                GitHubUrl = ""
+            };
+        }).ToList();
+
+        var count = await clickHouseService.InsertTrendingPackagesSnapshotAsync(enriched);
+        _output.WriteLine($"Inserted {count} enriched trending packages into snapshot");
+    }
+
+    private async Task VerifyTrendingEndpoint()
+    {
+        _output.WriteLine("Verifying trending API endpoint...");
+
+        var response = await _client.GetAsync("/api/package/trending?limit=10");
+        response.EnsureSuccessStatusCode();
+
+        var json = await response.Content.ReadAsStringAsync();
+        var trending = JsonSerializer.Deserialize<List<TrendingPackageDto>>(json, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
+
+        trending.Should().NotBeNull();
+        trending.Should().NotBeEmpty("Trending packages should be available after snapshot refresh");
+
+        foreach (var pkg in trending!)
+        {
+            pkg.PackageId.Should().NotBeNullOrEmpty();
+            pkg.DownloadCount.Should().BeGreaterThan(0);
+            pkg.GrowthRate.Should().NotBeNull();
+
+            _output.WriteLine($"  - {pkg.PackageId}: {pkg.DownloadCount:N0} downloads, " +
+                              $"{pkg.GrowthRate:P0} growth, icon={!string.IsNullOrEmpty(pkg.IconUrl)}");
+        }
+
+        _output.WriteLine($"Trending API verified: {trending.Count} packages returned.");
     }
 
     private async Task VerifySearchEndpoint()

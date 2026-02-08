@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using ClickHouse.Driver.ADO;
 using ClickHouse.Driver.Copy;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace NuGetTrends.Data.ClickHouse;
 
@@ -118,15 +119,18 @@ public class ClickHouseService : IClickHouseService
     private readonly string _connectionString;
     private readonly ILogger<ClickHouseService> _logger;
     private readonly ClickHouseConnectionInfo _connectionInfo;
+    private readonly ILoggerFactory? _loggerFactory;
 
     public ClickHouseService(
         string connectionString,
         ILogger<ClickHouseService> logger,
-        ClickHouseConnectionInfo connectionInfo)
+        ClickHouseConnectionInfo connectionInfo,
+        ILoggerFactory? loggerFactory = null)
     {
         _connectionString = connectionString;
         _logger = logger;
         _connectionInfo = connectionInfo;
+        _loggerFactory = loggerFactory;
     }
 
     public async Task InsertDailyDownloadsAsync(
@@ -351,13 +355,17 @@ public class ClickHouseService : IClickHouseService
         ISpan? parentSpan = null)
     {
         // Query the pre-computed snapshot table for the most recent week
-        // We ORDER BY growth_rate DESC to get top trending packages
+        // Includes enrichment columns (package_id_original, icon_url, github_url)
+        // populated by the scheduler from PostgreSQL at snapshot-refresh time
         const string query = """
             SELECT
                 week,
                 package_id,
                 week_downloads,
-                comparison_week_downloads
+                comparison_week_downloads,
+                package_id_original,
+                icon_url,
+                github_url
             FROM trending_packages_snapshot
             WHERE week = (SELECT max(week) FROM trending_packages_snapshot)
             ORDER BY growth_rate DESC
@@ -384,12 +392,18 @@ public class ClickHouseService : IClickHouseService
 
             while (await reader.ReadAsync(ct))
             {
+                var packageId = reader.GetString(1);
+                var packageIdOriginal = reader.GetString(4);
+
                 results.Add(new TrendingPackage
                 {
                     Week = DateOnly.FromDateTime(reader.GetDateTime(0)),
-                    PackageId = reader.GetString(1),
+                    PackageId = packageId,
                     WeekDownloads = reader.GetInt64(2),
-                    ComparisonWeekDownloads = reader.GetInt64(3)
+                    ComparisonWeekDownloads = reader.GetInt64(3),
+                    PackageIdOriginal = string.IsNullOrEmpty(packageIdOriginal) ? packageId : packageIdOriginal,
+                    IconUrl = reader.GetString(5),
+                    GitHubUrl = reader.GetString(6)
                 });
             }
 
@@ -406,15 +420,15 @@ public class ClickHouseService : IClickHouseService
         }
     }
 
-    public async Task<int> RefreshTrendingPackagesSnapshotAsync(
+    public async Task<List<TrendingPackage>> ComputeTrendingPackagesAsync(
         long minWeeklyDownloads = 1000,
         int maxPackageAgeMonths = 12,
         CancellationToken ct = default,
         ISpan? parentSpan = null)
     {
-        // Insert computed trending packages into the snapshot table
-        // This runs the expensive query once and stores results for fast retrieval
-        // We store a generous number (1000) to allow filtering on the read side
+        // Compute trending packages but return them to the caller instead of inserting directly.
+        // The caller (scheduler) will enrich with PostgreSQL metadata and then call
+        // InsertTrendingPackagesSnapshotAsync to store the enriched data.
         //
         // IMPORTANT: We use LAST week vs WEEK BEFORE (not current vs previous)
         // This ensures we're comparing complete weeks, not partial data.
@@ -423,8 +437,6 @@ public class ClickHouseService : IClickHouseService
         // The query joins against package_first_seen (pre-computed) to avoid the expensive
         // subquery that computes min(week) for every package (which caused OOM).
         const string query = """
-            INSERT INTO trending_packages_snapshot
-                (week, package_id, week_downloads, comparison_week_downloads, growth_rate)
             WITH
                 toMonday(today() - INTERVAL 1 WEEK) AS data_week,
                 toMonday(today() - INTERVAL 2 WEEK) AS comparison_week,
@@ -433,8 +445,7 @@ public class ClickHouseService : IClickHouseService
                 data_week AS week,
                 cur.package_id AS package_id,
                 toInt64(avgMerge(cur.download_avg) * 7) AS week_downloads,
-                toInt64(avgMerge(prev.download_avg) * 7) AS comparison_downloads,
-                (week_downloads - comparison_downloads) / comparison_downloads AS growth_rate
+                toInt64(avgMerge(prev.download_avg) * 7) AS comparison_downloads
             FROM weekly_downloads cur
             INNER JOIN weekly_downloads prev
                 ON cur.package_id = prev.package_id
@@ -446,11 +457,11 @@ public class ClickHouseService : IClickHouseService
             GROUP BY cur.package_id
             HAVING week_downloads >= {minDownloads:Int64}
                AND comparison_downloads > 0
-            ORDER BY growth_rate DESC
+            ORDER BY (week_downloads - comparison_downloads) / comparison_downloads DESC
             LIMIT 1000
             """;
 
-        var span = StartDatabaseSpan(parentSpan, query, "INSERT");
+        var span = StartDatabaseSpan(parentSpan, query, "SELECT");
 
         try
         {
@@ -470,13 +481,94 @@ public class ClickHouseService : IClickHouseService
             minDownloadsParam.Value = minWeeklyDownloads;
             cmd.Parameters.Add(minDownloadsParam);
 
-            var rowsAffected = await cmd.ExecuteNonQueryAsync(ct);
+            var results = new List<TrendingPackage>();
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
 
-            span?.SetData("db.rows_affected", rowsAffected);
+            while (await reader.ReadAsync(ct))
+            {
+                results.Add(new TrendingPackage
+                {
+                    Week = DateOnly.FromDateTime(reader.GetDateTime(0)),
+                    PackageId = reader.GetString(1),
+                    WeekDownloads = reader.GetInt64(2),
+                    ComparisonWeekDownloads = reader.GetInt64(3)
+                });
+            }
+
+            span?.SetData("db.rows_affected", results.Count);
             span?.Finish(SpanStatus.Ok);
 
-            _logger.LogInformation("Refreshed trending packages snapshot with {Count} packages", rowsAffected);
-            return rowsAffected;
+            _logger.LogInformation("Computed {Count} trending packages", results.Count);
+            return results;
+        }
+        catch (Exception ex)
+        {
+            span?.Finish(ex);
+            throw;
+        }
+    }
+
+    public async Task<int> InsertTrendingPackagesSnapshotAsync(
+        List<TrendingPackage> packages,
+        CancellationToken ct = default,
+        ISpan? parentSpan = null)
+    {
+        if (packages.Count == 0)
+        {
+            _logger.LogWarning("No trending packages to insert into snapshot");
+            return 0;
+        }
+
+        const string bulkInsertDescription =
+            "INSERT INTO trending_packages_snapshot (week, package_id, week_downloads, comparison_week_downloads, growth_rate, package_id_original, icon_url, github_url)";
+        var span = StartDatabaseSpan(parentSpan, bulkInsertDescription, "INSERT");
+
+        try
+        {
+            await using var connection = new ClickHouseConnection(_connectionString);
+            await connection.OpenAsync(ct);
+
+            // Delete existing rows for the target week to avoid duplicates on retries.
+            // ReplacingMergeTree eventually deduplicates, but reads without FINAL could
+            // return duplicates until background merges run.
+            var week = packages[0].Week;
+            await using var deleteCmd = connection.CreateCommand();
+            deleteCmd.CommandText = "ALTER TABLE trending_packages_snapshot DELETE WHERE week = {week:Date}";
+            var weekParam = deleteCmd.CreateParameter();
+            weekParam.ParameterName = "week";
+            weekParam.Value = week.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+            deleteCmd.Parameters.Add(weekParam);
+            await deleteCmd.ExecuteNonQueryAsync(ct);
+
+            _logger.LogInformation("Deleted existing snapshot rows for week {Week} before re-insert", week);
+
+            using var bulkCopy = new ClickHouseBulkCopy(connection)
+            {
+                DestinationTableName = "trending_packages_snapshot",
+                ColumnNames = ["week", "package_id", "week_downloads", "comparison_week_downloads", "growth_rate", "package_id_original", "icon_url", "github_url"],
+                BatchSize = packages.Count
+            };
+
+            var data = packages.Select(p => new object[]
+            {
+                p.Week.ToDateTime(TimeOnly.MinValue),
+                p.PackageId,
+                p.WeekDownloads,
+                p.ComparisonWeekDownloads,
+                p.GrowthRate ?? 0.0,
+                p.PackageIdOriginal,
+                p.IconUrl,
+                p.GitHubUrl
+            });
+
+            await bulkCopy.InitAsync();
+            await bulkCopy.WriteToServerAsync(data, ct);
+
+            span?.SetData("db.rows_affected", packages.Count);
+            span?.Finish(SpanStatus.Ok);
+
+            _logger.LogInformation("Inserted {Count} enriched trending packages into snapshot", packages.Count);
+            return packages.Count;
         }
         catch (Exception ex)
         {
@@ -489,18 +581,21 @@ public class ClickHouseService : IClickHouseService
         CancellationToken ct = default,
         ISpan? parentSpan = null)
     {
-        // Add new packages from last week to package_first_seen table.
+        // Self-healing: scans ALL weeks in weekly_downloads for missing packages.
         // This must be called BEFORE RefreshTrendingPackagesSnapshotAsync to ensure
         // newly published packages are included in the trending calculation.
         //
+        // Unlike a last-week-only query, this catches up after any pipeline gaps.
+        // min(week) gives the correct first_seen date for each package.
+        // FINAL on the subquery ensures correct ReplacingMergeTree dedup.
         // The query is idempotent - packages already in the table are skipped.
-        // This allows safe retries without duplicating data.
         const string query = """
             INSERT INTO package_first_seen (package_id, first_seen)
-            SELECT DISTINCT package_id, toMonday(today() - INTERVAL 1 WEEK) AS first_seen
+            SELECT package_id, min(week) AS first_seen
             FROM weekly_downloads
-            WHERE week = toMonday(today() - INTERVAL 1 WEEK)
-              AND package_id NOT IN (SELECT package_id FROM package_first_seen)
+            WHERE package_id NOT IN (SELECT package_id FROM package_first_seen FINAL)
+            GROUP BY package_id
+            SETTINGS max_memory_usage = 10000000000
             """;
 
         var span = StartDatabaseSpan(parentSpan, query, "INSERT");
@@ -526,6 +621,24 @@ public class ClickHouseService : IClickHouseService
             span?.Finish(ex);
             throw;
         }
+    }
+
+    public async Task RunMigrationsAsync(CancellationToken ct = default)
+    {
+        _logger.LogInformation("Starting ClickHouse migrations");
+
+        var migrationLogger = _loggerFactory?.CreateLogger<ClickHouseMigrationRunner>() 
+            ?? NullLogger<ClickHouseMigrationRunner>.Instance;
+        // Strip Database from connection string - the runner creates the database itself
+        // and uses fully-qualified table names. On a fresh instance, the database won't exist yet.
+        var adminConnectionString = string.Join(";",
+            _connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries)
+                .Where(p => !p.Trim().StartsWith("Database=", StringComparison.OrdinalIgnoreCase)));
+        var migrationRunner = new ClickHouseMigrationRunner(adminConnectionString, migrationLogger);
+
+        await migrationRunner.RunMigrationsAsync(ct);
+
+        _logger.LogInformation("ClickHouse migrations completed");
     }
 
     /// <summary>

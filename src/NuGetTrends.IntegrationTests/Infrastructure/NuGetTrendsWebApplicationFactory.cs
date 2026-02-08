@@ -69,7 +69,8 @@ public class NuGetTrendsWebApplicationFactory : WebApplicationFactory<Program>
                 new ClickHouseService(
                     _fixture.ClickHouseConnectionString,
                     NullLogger<ClickHouseService>.Instance,
-                    connectionInfo));
+                    connectionInfo,
+                    null));
         });
     }
 }
