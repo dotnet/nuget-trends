@@ -404,21 +404,16 @@ public class DailyDownloadWorker : IHostedService
         // Handle deleted packages (batch query to avoid N+1)
         if (deletedPackageIds.Count > 0)
         {
-            var deleteSpan = StartDbSpan(parentSpan, "DELETE FROM package_details_catalog_leafs WHERE package_id IN (...)", "postgresql", "DELETE");
+            var deleteSpan = StartDbSpan(parentSpan, "DELETE FROM package_details_catalog_leafs WHERE package_id_lowered IN (...)", "postgresql", "DELETE");
             deleteSpan.SetTag("count", deletedPackageIds.Count.ToString());
             try
             {
-                var packagesToRemove = await context.PackageDetailsCatalogLeafs
-                    .Where(p => p.PackageId != null && deletedPackageIds.Contains(p.PackageId))
-                    .ToListAsync(_cancellationTokenSource.Token);
+                var loweredIds = deletedPackageIds.Select(id => id.ToLowerInvariant()).Distinct().ToList();
+                var deletedCount = await context.PackageDetailsCatalogLeafs
+                    .Where(p => loweredIds.Contains(p.PackageIdLowered))
+                    .ExecuteDeleteAsync(_cancellationTokenSource.Token);
 
-                if (packagesToRemove.Count > 0)
-                {
-                    context.PackageDetailsCatalogLeafs.RemoveRange(packagesToRemove);
-                    await context.SaveChangesAsync(_cancellationTokenSource.Token);
-                }
-
-                deleteSpan.SetData("db.rows_affected", packagesToRemove.Count);
+                deleteSpan.SetData("db.rows_affected", deletedCount);
                 deleteSpan.Finish(SpanStatus.Ok);
             }
             catch (Exception e)
