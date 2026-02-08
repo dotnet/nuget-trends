@@ -6,7 +6,7 @@ This directory contains SQL migration scripts for ClickHouse schema changes.
 
 The ClickHouse migration system works similarly to Entity Framework migrations:
 
-1. **Migration Files**: SQL files in this directory are executed in alphabetical order by filename
+1. **Migration Files**: SQL files in this directory are embedded as resources and executed in alphabetical order by filename
 2. **Tracking**: Applied migrations are tracked in the `clickhouse_migrations` table
 3. **Automatic Execution**: Migrations run automatically when the Scheduler starts (see `Startup.cs`)
 4. **Idempotent**: Running migrations multiple times is safe - only new migrations are applied
@@ -30,7 +30,8 @@ The date and sequence number (NN) ensure proper ordering.
 1. Create a new `.sql` file in this directory following the naming convention
 2. Write your SQL statements (CREATE TABLE, ALTER TABLE, etc.)
 3. Use `IF NOT EXISTS` or `IF EXISTS` clauses to make migrations idempotent
-4. Test locally by restarting the Scheduler - it will automatically apply the new migration
+4. The file is automatically embedded as a resource during build (see `NuGetTrends.Data.csproj`)
+5. Test locally by restarting the Scheduler - it will automatically apply the new migration
 
 ## Migration Tracking
 
@@ -40,6 +41,7 @@ The `clickhouse_migrations` table stores:
 
 ## Implementation Details
 
+- **Embedded Resources**: SQL files are embedded in the assembly at build time for Docker deployment
 - **Runner**: `ClickHouseMigrationRunner.cs` handles migration execution
 - **Service**: Exposed via `IClickHouseService.RunMigrationsAsync()`
 - **Startup**: Called in `Scheduler/Startup.cs` after EF Core migrations

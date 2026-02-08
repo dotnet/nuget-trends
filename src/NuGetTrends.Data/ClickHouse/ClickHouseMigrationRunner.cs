@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using ClickHouse.Driver.ADO;
 using Microsoft.Extensions.Logging;
@@ -174,36 +175,44 @@ public class ClickHouseMigrationRunner
     }
 
     /// <summary>
-    /// Gets all migration scripts from the migrations directory, ordered by filename.
+    /// Gets all migration scripts from embedded resources, ordered by filename.
+    /// Migration SQL files are embedded in the assembly at build time.
     /// </summary>
-    private List<(string Name, string Content)> GetMigrationScripts([CallerFilePath] string callerFilePath = "")
+    private List<(string Name, string Content)> GetMigrationScripts()
     {
-        // Navigate from this file to the migrations folder:
-        // From: src/NuGetTrends.Data/ClickHouse/ClickHouseMigrationRunner.cs
-        // To:   src/NuGetTrends.Data/ClickHouse/migrations/
-        var thisFileDir = Path.GetDirectoryName(callerFilePath)
-            ?? throw new InvalidOperationException("Could not determine directory of ClickHouseMigrationRunner.cs");
-
-        var migrationsDir = Path.GetFullPath(Path.Combine(thisFileDir, "migrations"));
-
-        if (!Directory.Exists(migrationsDir))
-        {
-            throw new DirectoryNotFoundException(
-                $"ClickHouse migrations directory not found at '{migrationsDir}'. " +
-                "The directory structure may have changed - please update the path in ClickHouseMigrationRunner.cs");
-        }
-
-        var sqlFiles = Directory.GetFiles(migrationsDir, "*.sql")
-            .OrderBy(f => f, StringComparer.Ordinal)
+        var assembly = typeof(ClickHouseMigrationRunner).Assembly;
+        var resourcePrefix = "NuGetTrends.Data.ClickHouse.migrations.";
+        
+        // Get all embedded resource names that are SQL files in the migrations folder
+        var migrationResources = assembly.GetManifestResourceNames()
+            .Where(name => name.StartsWith(resourcePrefix) && name.EndsWith(".sql"))
+            .OrderBy(name => name, StringComparer.Ordinal)
             .ToList();
 
-        if (sqlFiles.Count == 0)
+        if (migrationResources.Count == 0)
         {
             throw new InvalidOperationException(
-                $"No .sql migration files found in '{migrationsDir}'. " +
-                "At least one migration file is required.");
+                "No embedded .sql migration files found. " +
+                "Ensure migration SQL files are marked as EmbeddedResource in NuGetTrends.Data.csproj");
         }
 
-        return sqlFiles.Select(f => (Name: Path.GetFileName(f), Content: File.ReadAllText(f))).ToList();
+        var migrations = new List<(string Name, string Content)>();
+        foreach (var resourceName in migrationResources)
+        {
+            // Extract filename from resource name (e.g., "NuGetTrends.Data.ClickHouse.migrations.2025-12-26-01-init.sql" -> "2025-12-26-01-init.sql")
+            var fileName = resourceName.Substring(resourcePrefix.Length);
+            
+            using var stream = assembly.GetManifestResourceStream(resourceName);
+            if (stream == null)
+            {
+                throw new InvalidOperationException($"Failed to read embedded resource: {resourceName}");
+            }
+
+            using var reader = new StreamReader(stream);
+            var content = reader.ReadToEnd();
+            migrations.Add((fileName, content));
+        }
+
+        return migrations;
     }
 }
