@@ -87,7 +87,13 @@ window.chartInterop = {
             }));
         }
 
-        this.chart.data.datasets.push(dataset);
+        // Replace existing dataset with same label, or add new one
+        const existingIndex = this.chart.data.datasets.findIndex(ds => ds.label === dataset.label);
+        if (existingIndex >= 0) {
+            this.chart.data.datasets[existingIndex] = dataset;
+        } else {
+            this.chart.data.datasets.push(dataset);
+        }
         this.safeUpdate();
     },
 
