@@ -629,7 +629,12 @@ public class ClickHouseService : IClickHouseService
 
         var migrationLogger = _loggerFactory?.CreateLogger<ClickHouseMigrationRunner>() 
             ?? NullLogger<ClickHouseMigrationRunner>.Instance;
-        var migrationRunner = new ClickHouseMigrationRunner(_connectionString, migrationLogger);
+        // Strip Database from connection string - the runner creates the database itself
+        // and uses fully-qualified table names. On a fresh instance, the database won't exist yet.
+        var adminConnectionString = string.Join(";",
+            _connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries)
+                .Where(p => !p.Trim().StartsWith("Database=", StringComparison.OrdinalIgnoreCase)));
+        var migrationRunner = new ClickHouseMigrationRunner(adminConnectionString, migrationLogger);
 
         await migrationRunner.RunMigrationsAsync(ct);
 

@@ -60,12 +60,21 @@ public class ClickHouseMigrationRunner
     }
 
     /// <summary>
-    /// Creates the migration tracking table in ClickHouse if it doesn't exist.
+    /// Ensures the database and migration tracking table exist in ClickHouse.
+    /// This must run before any migrations so the runner works on a completely fresh instance.
     /// </summary>
     private async Task EnsureMigrationTableExistsAsync(
         ClickHouseConnection connection,
         CancellationToken ct)
     {
+        // The database must exist before we can create the tracking table.
+        // On a fresh ClickHouse instance, it won't exist yet.
+        await using (var dbCmd = connection.CreateCommand())
+        {
+            dbCmd.CommandText = "CREATE DATABASE IF NOT EXISTS nugettrends";
+            await dbCmd.ExecuteNonQueryAsync(ct);
+        }
+
         const string createTableSql = """
             CREATE TABLE IF NOT EXISTS nugettrends.clickhouse_migrations
             (
@@ -123,15 +132,13 @@ public class ClickHouseMigrationRunner
 
         foreach (var statement in statements)
         {
-            // Skip empty statements or comment-only statements
-            var trimmed = statement.Trim();
-            if (string.IsNullOrWhiteSpace(trimmed))
+            if (string.IsNullOrWhiteSpace(statement))
             {
                 continue;
             }
 
-            // Check if it's a comment-only block (all lines start with --)
-            var lines = trimmed.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            // Skip comment-only blocks (all lines start with --)
+            var lines = statement.Split('\n', StringSplitOptions.RemoveEmptyEntries);
             var hasNonCommentLine = lines.Any(line =>
             {
                 var l = line.Trim();
@@ -144,7 +151,7 @@ public class ClickHouseMigrationRunner
             }
 
             await using var cmd = connection.CreateCommand();
-            cmd.CommandText = trimmed;
+            cmd.CommandText = statement;
             await cmd.ExecuteNonQueryAsync(ct);
         }
 
@@ -180,7 +187,7 @@ public class ClickHouseMigrationRunner
     private List<(string Name, string Content)> GetMigrationScripts()
     {
         var assembly = typeof(ClickHouseMigrationRunner).Assembly;
-        var resourcePrefix = "NuGetTrends.Data.ClickHouse.migrations.";
+        var resourcePrefix = $"{assembly.GetName().Name}.ClickHouse.migrations.";
         
         // Get all embedded resource names that are SQL files in the migrations folder
         var migrationResources = assembly.GetManifestResourceNames()

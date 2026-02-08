@@ -208,7 +208,9 @@ public class Startup(
             SentrySdk.FlushAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
         }
 
-        // Run ClickHouse migrations on startup
+        // Run ClickHouse migrations on startup.
+        // Like EF Core migrations above, this assumes a single scheduler instance.
+        // Multiple concurrent instances could race on DDL and tracking inserts.
         var clickHouseMigrationTransaction = SentrySdk.StartTransaction("clickhouse-migrate", "db.migrate");
         SentrySdk.ConfigureScope(s => s.Transaction = clickHouseMigrationTransaction);
         try

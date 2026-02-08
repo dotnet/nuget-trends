@@ -286,6 +286,66 @@ public class ClickHouseFixture : IAsyncLifetime
     }
 
     /// <summary>
+    /// Drops the entire nugettrends database, giving the migration runner a completely fresh start.
+    /// </summary>
+    public async Task DropDatabaseAsync()
+    {
+        await using var connection = new ClickHouseConnection(AdminConnectionString);
+        await connection.OpenAsync();
+
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = "DROP DATABASE IF EXISTS nugettrends";
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    /// <summary>
+    /// Executes a raw SQL command against the admin connection (no database context).
+    /// </summary>
+    public async Task ExecuteNonQueryAsync(string sql)
+    {
+        await using var connection = new ClickHouseConnection(AdminConnectionString);
+        await connection.OpenAsync();
+
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = sql;
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    /// <summary>
+    /// Drops only the migration tracking table, simulating a database that was set up
+    /// manually (or by a previous version) without migration tracking.
+    /// </summary>
+    public async Task DropMigrationTrackingAsync()
+    {
+        await using var connection = new ClickHouseConnection(AdminConnectionString);
+        await connection.OpenAsync();
+
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = "DROP TABLE IF EXISTS nugettrends.clickhouse_migrations";
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    /// <summary>
+    /// Inserts a migration record into the tracking table without actually running the migration.
+    /// Used to simulate partial migration state in tests.
+    /// </summary>
+    public async Task InsertMigrationRecordAsync(string migrationName)
+    {
+        await using var connection = new ClickHouseConnection(AdminConnectionString);
+        await connection.OpenAsync();
+
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = "INSERT INTO nugettrends.clickhouse_migrations (migration_name) VALUES ({migrationName:String})";
+
+        var param = cmd.CreateParameter();
+        param.ParameterName = "migrationName";
+        param.Value = migrationName;
+        cmd.Parameters.Add(param);
+
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    /// <summary>
     /// Gets the list of applied migrations from the tracking table.
     /// </summary>
     public async Task<List<string>> GetAppliedMigrationsAsync()
