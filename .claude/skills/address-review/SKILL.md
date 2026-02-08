@@ -17,7 +17,6 @@ Fetch the PR details and all review comments:
 gh pr view $ARGUMENTS --json title,body,headRefName,baseRefName
 gh api repos/{owner}/{repo}/pulls/$ARGUMENTS/comments --paginate
 gh api repos/{owner}/{repo}/pulls/$ARGUMENTS/reviews --paginate
-gh api repos/{owner}/{repo}/issues/$ARGUMENTS/comments --paginate
 ```
 
 Also fetch the current diff so you understand the changes being reviewed:
@@ -50,7 +49,7 @@ For **each** comment, do ALL of the following:
    ```
 3. **Reply** explaining what you changed:
    ```bash
-   gh api repos/{owner}/{repo}/pulls/$ARGUMENTS/comments -f body="..." -f in_reply_to={comment_id}
+   gh api repos/{owner}/{repo}/pulls/$ARGUMENTS/comments -f body="..." -f in_reply_to_id={comment_id}
    ```
 4. **Resolve the thread**:
    ```bash
@@ -64,12 +63,16 @@ For **each** comment, do ALL of the following:
    ```
 2. **Reply** explaining why the feedback was rejected with a clear, respectful rationale:
    ```bash
-   gh api repos/{owner}/{repo}/pulls/$ARGUMENTS/comments -f body="..." -f in_reply_to={comment_id}
+   gh api repos/{owner}/{repo}/pulls/$ARGUMENTS/comments -f body="..." -f in_reply_to_id={comment_id}
    ```
-3. **Resolve the thread** (so the PR is ready to merge):
+3. **Resolve the thread**:
    ```bash
    gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "THREAD_NODE_ID"}) { thread { isResolved } } }'
    ```
+
+### C. If you're unsure whether the comment is valid:
+1. **Reply** with your analysis and conclusion, explaining what you found and why you're uncertain.
+2. **Do NOT resolve the thread** — leave it open for the reviewer to follow up.
 
 ## Step 4: Commit and push (if changes were made)
 
@@ -91,11 +94,11 @@ After processing all comments, provide a summary table:
 - **Process EVERY comment** - don't skip any, even bot comments.
 - **Always reply** - every comment gets a response explaining your assessment.
 - **Always react** - thumbs-up for accepted, thumbs-down for rejected.
-- **Always resolve** - resolve every thread you've reviewed so the PR is clean.
+- **Resolve when confident** - resolve threads you've accepted or rejected. Leave uncertain threads open.
 - When replying, be respectful and concise. If rejecting, explain *why* clearly.
 - Get the correct `{owner}/{repo}` from `gh repo view --json nameWithOwner -q .nameWithOwner`.
-- To find the GraphQL thread node ID for resolving, use:
+- To find the GraphQL thread node ID for resolving, use a paginated query (use `after` cursor if `hasNextPage` is true):
   ```bash
-  gh api graphql -f query='query { repository(owner:"{owner}", name:"{repo}") { pullRequest(number:$ARGUMENTS) { reviewThreads(first:100) { nodes { id isResolved comments(first:1) { nodes { body databaseId } } } } } } }'
+  gh api graphql -f query='query { repository(owner:"{owner}", name:"{repo}") { pullRequest(number:$ARGUMENTS) { reviewThreads(first:100) { pageInfo { hasNextPage endCursor } nodes { id isResolved comments(first:1) { nodes { body databaseId } } } } } } }'
   ```
-  Match threads by the `databaseId` of the first comment in each thread.
+  Match threads by the `databaseId` of the first comment in each thread. If `hasNextPage` is true, repeat the query with `after:"{endCursor}"` to fetch remaining threads.
