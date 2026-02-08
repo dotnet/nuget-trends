@@ -889,6 +889,124 @@ public class ClickHouseServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task UpdatePackageFirstSeenAsync_WithNewPackages_AddsToFirstSeen()
+    {
+        // Arrange - Insert data for 2 weeks so packages appear in weekly_downloads
+        var monday1 = GetLastWeekMonday().AddDays(-7); // 2 weeks ago
+        var monday2 = GetLastWeekMonday();              // last week
+        var suffix = Guid.NewGuid().ToString("N");
+        var packageA = $"first-seen-a-{suffix}";
+        var packageB = $"first-seen-b-{suffix}";
+
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
+        {
+            // Package A first appears 2 weeks ago
+            (packageA, monday1, 1000),
+            (packageA, monday2, 1500),
+
+            // Package B first appears last week only
+            (packageB, monday2, 2000),
+        };
+        await _sut.InsertDailyDownloadsAsync(downloads);
+
+        // Act
+        await _sut.UpdatePackageFirstSeenAsync();
+
+        // Assert - Both packages should be in package_first_seen with correct dates
+        var results = await _fixture.ExecuteQueryAsync(
+            "SELECT package_id, first_seen FROM package_first_seen FINAL ORDER BY package_id",
+            reader => (
+                PackageId: reader.GetString(0),
+                FirstSeen: DateOnly.FromDateTime(reader.GetDateTime(1))
+            ));
+
+        var a = results.FirstOrDefault(r => r.PackageId == packageA.ToLowerInvariant());
+        var b = results.FirstOrDefault(r => r.PackageId == packageB.ToLowerInvariant());
+
+        a.Should().NotBe(default);
+        a.FirstSeen.Should().Be(monday1); // min(week) = 2 weeks ago
+        b.Should().NotBe(default);
+        b.FirstSeen.Should().Be(monday2); // min(week) = last week
+    }
+
+    [Fact]
+    public async Task UpdatePackageFirstSeenAsync_IsIdempotent()
+    {
+        // Arrange
+        var monday = GetLastWeekMonday();
+        var suffix = Guid.NewGuid().ToString("N");
+        var packageId = $"idempotent-{suffix}";
+
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
+        {
+            (packageId, monday, 1000),
+        };
+        await _sut.InsertDailyDownloadsAsync(downloads);
+
+        // Act - Call twice
+        await _sut.UpdatePackageFirstSeenAsync();
+        await _sut.UpdatePackageFirstSeenAsync();
+
+        // Assert - Should have exactly 1 row (no duplicates)
+        // Use FINAL to get deduplicated view of ReplacingMergeTree
+        var count = await _fixture.ExecuteScalarAsync<ulong>(
+            $"SELECT count() FROM package_first_seen FINAL WHERE package_id = '{packageId.ToLowerInvariant()}'");
+        count.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task UpdatePackageFirstSeenAsync_BackfillsAcrossMultipleWeeks()
+    {
+        // Arrange - Insert data for 3 non-contiguous weeks (simulates pipeline gaps)
+        var baseMonday = GetLastWeekMonday().AddDays(-28); // 4 weeks ago
+        var week1 = baseMonday;
+        var week2 = baseMonday.AddDays(14); // skip a week
+        var week3 = baseMonday.AddDays(28); // skip another week
+        var suffix = Guid.NewGuid().ToString("N");
+        var packageA = $"backfill-a-{suffix}";
+        var packageB = $"backfill-b-{suffix}";
+        var packageC = $"backfill-c-{suffix}";
+
+        var downloads = new List<(string PackageId, DateOnly Date, long DownloadCount)>
+        {
+            // Package A appears in week 1 only
+            (packageA, week1, 500),
+
+            // Package B appears in weeks 1 and 3
+            (packageB, week1, 600),
+            (packageB, week3, 800),
+
+            // Package C appears in week 2 only
+            (packageC, week2, 700),
+        };
+        await _sut.InsertDailyDownloadsAsync(downloads);
+
+        // Act - Single call should find all 3 packages across all weeks
+        await _sut.UpdatePackageFirstSeenAsync();
+
+        // Assert
+        var results = await _fixture.ExecuteQueryAsync(
+            "SELECT package_id, first_seen FROM package_first_seen FINAL ORDER BY package_id",
+            reader => (
+                PackageId: reader.GetString(0),
+                FirstSeen: DateOnly.FromDateTime(reader.GetDateTime(1))
+            ));
+
+        var a = results.FirstOrDefault(r => r.PackageId == packageA.ToLowerInvariant());
+        var b = results.FirstOrDefault(r => r.PackageId == packageB.ToLowerInvariant());
+        var c = results.FirstOrDefault(r => r.PackageId == packageC.ToLowerInvariant());
+
+        a.Should().NotBe(default);
+        a.FirstSeen.Should().Be(week1);
+
+        b.Should().NotBe(default);
+        b.FirstSeen.Should().Be(week1); // min(week) across week1 and week3
+
+        c.Should().NotBe(default);
+        c.FirstSeen.Should().Be(week2);
+    }
+
+    [Fact]
     public async Task ComputeTrendingPackagesAsync_WithTwoWeeksOfData_ReturnsResults()
     {
         // Arrange - Need data for both last week and two weeks ago

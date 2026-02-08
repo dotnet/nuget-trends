@@ -577,18 +577,21 @@ public class ClickHouseService : IClickHouseService
         CancellationToken ct = default,
         ISpan? parentSpan = null)
     {
-        // Add new packages from last week to package_first_seen table.
+        // Self-healing: scans ALL weeks in weekly_downloads for missing packages.
         // This must be called BEFORE RefreshTrendingPackagesSnapshotAsync to ensure
         // newly published packages are included in the trending calculation.
         //
+        // Unlike a last-week-only query, this catches up after any pipeline gaps.
+        // min(week) gives the correct first_seen date for each package.
+        // FINAL on the subquery ensures correct ReplacingMergeTree dedup.
         // The query is idempotent - packages already in the table are skipped.
-        // This allows safe retries without duplicating data.
         const string query = """
             INSERT INTO package_first_seen (package_id, first_seen)
-            SELECT DISTINCT package_id, toMonday(today() - INTERVAL 1 WEEK) AS first_seen
+            SELECT package_id, min(week) AS first_seen
             FROM weekly_downloads
-            WHERE week = toMonday(today() - INTERVAL 1 WEEK)
-              AND package_id NOT IN (SELECT package_id FROM package_first_seen)
+            WHERE package_id NOT IN (SELECT package_id FROM package_first_seen FINAL)
+            GROUP BY package_id
+            SETTINGS max_memory_usage = 10000000000
             """;
 
         var span = StartDatabaseSpan(parentSpan, query, "INSERT");
