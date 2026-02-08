@@ -53,6 +53,7 @@
     <PackageVersion Include="Testcontainers.ClickHouse" Version="4.9.0" />
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.9.0" />
     <PackageVersion Include="Testcontainers.RabbitMq" Version="4.9.0" />
+    <PackageVersion Include="Microsoft.Playwright" Version="1.51.0" />
     <PackageVersion Include="xunit" Version="2.9.2" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
   </ItemGroup>
