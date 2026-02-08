@@ -52,7 +52,7 @@ jobs:
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
-        if: always()
+        if: failure()
         with:
           name: playwright-test-results
           path: src/NuGetTrends.Web/Portal/test-results/
