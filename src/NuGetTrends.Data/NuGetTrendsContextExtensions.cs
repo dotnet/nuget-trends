@@ -18,7 +18,7 @@ public static class NuGetTrendsContextExtensions
     /// <summary>
     /// Gets package IDs that haven't been checked today.
     /// Splits into two efficient queries to avoid a slow LEFT JOIN on the 11M+ row catalog table:
-    /// 1. Existing packages not checked today (from package_downloads - ~495K rows, indexed)
+    /// 1. Existing packages not checked today (from package_downloads - ~495K rows)
     /// 2. New packages not yet in package_downloads (NOT EXISTS subquery with indexed lookup)
     /// </summary>
     /// <param name="context">DbContext to query.</param>
@@ -26,7 +26,7 @@ public static class NuGetTrendsContextExtensions
     /// <returns>Queryable of distinct package IDs that need processing.</returns>
     public static IQueryable<string> GetUnprocessedPackageIds(this NuGetTrendsContext context, DateTime todayUtc)
     {
-        // Fast: scans package_downloads (~495K rows) with index on latest_download_count_checked_utc
+        // Fast: scans package_downloads (~495K rows, small table)
         var uncheckedExisting = context.PackageDownloads
             .Where(pd => pd.LatestDownloadCountCheckedUtc < todayUtc)
             .Select(pd => pd.PackageId);
@@ -40,7 +40,9 @@ public static class NuGetTrendsContextExtensions
             .Select(leaf => leaf.PackageId!)
             .Distinct();
 
-        return uncheckedExisting.Union(newPackages);
+        // Sets are disjoint (part 1: in package_downloads, part 2: not in package_downloads)
+        // so UNION ALL avoids unnecessary dedup
+        return uncheckedExisting.Concat(newPackages);
     }
 
     /// <summary>
