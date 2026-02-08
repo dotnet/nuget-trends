@@ -7,7 +7,7 @@ export default defineConfig({
   fullyParallel: true,
   retries: 0,
   use: {
-    baseURL: process.env['BASE_URL'] || 'http://localhost:49600',
+    baseURL: process.env['BASE_URL'] || 'http://localhost:4200',
     headless: true,
     screenshot: 'only-on-failure',
   },

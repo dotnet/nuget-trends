@@ -94,9 +94,10 @@ test.describe('Sentry Feedback Widget – Theme Integration', () => {
 
   test('clicking the page body does NOT open the feedback dialog', async ({ page }) => {
     await page.locator('body').click({ position: { x: 300, y: 300 } });
-    await page.waitForTimeout(500);
 
-    const dialogOpen = await page.evaluate(() => {
+    // The dialog lives inside the Shadow DOM so we must use page.evaluate.
+    // Use expect.poll instead of waitForTimeout to avoid flaky timing.
+    await expect.poll(async () => page.evaluate(() => {
       const host = document.querySelector('#sentry-feedback');
       if (!host?.shadowRoot) return false;
       const dialog = host.shadowRoot.querySelector('dialog[open]')
@@ -104,18 +105,15 @@ test.describe('Sentry Feedback Widget – Theme Integration', () => {
       if (!dialog) return false;
       const rect = (dialog as HTMLElement).getBoundingClientRect();
       return rect.width > 0 && rect.height > 0;
-    });
-
-    expect(dialogOpen).toBe(false);
+    }), { timeout: 1000 }).toBe(false);
   });
 
   test('clicking body does NOT open feedback dialog after theme toggle', async ({ page }) => {
     await toggleToTheme(page, 'light-theme');
 
     await page.locator('body').click({ position: { x: 300, y: 300 } });
-    await page.waitForTimeout(500);
 
-    const dialogOpen = await page.evaluate(() => {
+    await expect.poll(async () => page.evaluate(() => {
       const host = document.querySelector('#sentry-feedback');
       if (!host?.shadowRoot) return false;
       const dialog = host.shadowRoot.querySelector('dialog[open]')
@@ -123,9 +121,7 @@ test.describe('Sentry Feedback Widget – Theme Integration', () => {
       if (!dialog) return false;
       const rect = (dialog as HTMLElement).getBoundingClientRect();
       return rect.width > 0 && rect.height > 0;
-    });
-
-    expect(dialogOpen).toBe(false);
+    }), { timeout: 1000 }).toBe(false);
   });
 
   test('widget uses dark accent color when app is in dark theme', async ({ page }) => {
