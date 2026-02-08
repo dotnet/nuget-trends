@@ -2,12 +2,25 @@
 name: address-review
 description: Address all code review comments on a PR. Assesses each comment, replies, reacts, and resolves threads.
 argument-hint: [pr-number]
-allowed-tools: Bash(gh *), Read, Grep, Glob, Edit, Write, WebFetch
+allowed-tools: Bash(gh *), Bash(git add *), Bash(git commit *), Bash(git push *), Bash(dotnet build *), Read, Grep, Glob, Edit, Write, WebFetch
 ---
 
 # Address Code Review Comments
 
 You are addressing code review comments on PR #$ARGUMENTS.
+
+## Step 0: Wait for reviews to arrive
+
+Bot reviewers (Copilot, Sentry, Codex, etc.) take time to post their comments after a commit is pushed. Before processing, wait until reviews have landed:
+
+1. Check the timestamp of the latest commit on the PR:
+   ```bash
+   gh pr view $ARGUMENTS --json commits --jq '.commits[-1].committedDate'
+   ```
+2. If less than 5 minutes have passed since that commit, wait and re-check for new comments periodically (every 30–60 seconds).
+3. Once 5 minutes have passed since the last commit with no new comments arriving, proceed to Step 1.
+
+This ensures you don't start processing before all reviewers have had a chance to comment.
 
 ## Step 1: Gather context
 
