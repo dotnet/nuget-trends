@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
-import { Observable, map, catchError, of } from 'rxjs';
+import { Observable, map, catchError, of, timeout } from 'rxjs';
 
 import { IPackageSearchResult, IPackageDownloadHistory, ITrendingPackage } from '../../shared/models/package-models';
 
@@ -50,6 +50,8 @@ export class PackagesService {
    * Returns packages that are relatively new (up to 1 year old) with significant downloads.
    */
   getTrendingPackages(limit: number = 10): Observable<ITrendingPackage[]> {
-    return this.httpClient.get<ITrendingPackage[]>(`${this.baseUrl}/package/trending?limit=${limit}`);
+    return this.httpClient.get<ITrendingPackage[]>(`${this.baseUrl}/package/trending?limit=${limit}`).pipe(
+      timeout(3000)
+    );
   }
 }
