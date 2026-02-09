@@ -6,8 +6,6 @@ Please raise an issue to discuss changes before raising large PRs.
 
 - .NET SDK 10
 - Docker (for Aspire-managed containers: PostgreSQL, RabbitMQ, ClickHouse)
-- Node.js 20.10.0 (might also work with higher versions)
-- NPM
 
 ## Running Locally with .NET Aspire
 
@@ -21,8 +19,7 @@ This starts:
 - **PostgreSQL** with PgAdmin
 - **RabbitMQ** with Management UI
 - **ClickHouse** (with migrations auto-applied)
-- **Angular dev server** (Portal)
-- **NuGetTrends.Web** (API)
+- **NuGetTrends.Web** (Blazor app + API)
 - **NuGetTrends.Scheduler** (Hangfire jobs)
 
 ### Aspire Dashboard
@@ -39,7 +36,7 @@ Click on any service URL in the Resources table to open it.
 
 | Service | Description |
 |---------|-------------|
-| Web | Main API and Angular SPA |
+| Web | Blazor app and API |
 | Scheduler | Hangfire dashboard for background jobs |
 | PgAdmin | PostgreSQL administration |
 | RabbitMQ Management | Message queue management |

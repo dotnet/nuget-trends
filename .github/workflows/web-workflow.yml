@@ -1,7 +1,6 @@
 name: Web
 env:
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
-  IS_BUILD_SERVER: true # Needed by spa testing
   # SENTRY_LOG_LEVEL: "debug"
 on:
   push:
@@ -11,21 +10,21 @@ on:
       - main
     paths:
       - 'src/NuGetTrends.Web/**'
+      - 'src/NuGetTrends.Web.Client/**'
       - 'src/NuGetTrends.Data/**'
       - 'src/Directory.Build.props'
       - '**/web-workflow.yml'
   pull_request:
     paths:
       - 'src/NuGetTrends.Web/**'
+      - 'src/NuGetTrends.Web.Client/**'
       - 'src/NuGetTrends.Data/**'
       - 'src/Directory.Build.props'
       - '**/web-workflow.yml'
   workflow_dispatch:
 jobs:
   build:
-    # Pinning to 22.04 due to:
-    # https://github.com/puppeteer/puppeteer/issues/12818#issuecomment-2593659514
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: 1
       DOTNET_NOLOGO: 1
@@ -70,53 +69,6 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'npm'
-          cache-dependency-path: src/NuGetTrends.Web/Portal/package-lock.json
-
-      - name: Install Angular CLI
-        run: npm install -g @angular/cli@17.1.3
-
-      - name: Test/print Angular CLI version
-        run: ng version
-
-      - name: 'Install SPA packages'
-        run: npm install
-        working-directory: src/NuGetTrends.Web/Portal
-
-      # TODO: Enable again when we migrate to ESLint
-      # - name: 'SPA lint'
-      #   run: yarn run lint
-      #   working-directory: src/NuGetTrends.Web/Portal
-
-      - name: 'SPA test'
-        run: npm run test-cc
-        working-directory: src/NuGetTrends.Web/Portal
-
-      - name: 'SPA prod build'
-        # Angular runs a prod build by default
-        run: npm run build
-        working-directory: src/NuGetTrends.Web/Portal
-
-      - name: Upload source maps to Sentry
-        if: ${{ github.event_name != 'pull_request' }}
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: nugettrends
-          SENTRY_PROJECT: spa
-        run: |
-          RELEASE="NuGetTrends.Spa@1.0.0+${GITHUB_SHA}"
-          npx @sentry/cli sourcemaps upload --release "$RELEASE" --url-prefix '~/' ./dist
-        working-directory: src/NuGetTrends.Web/Portal
-
-      - name: Replace SPA path on coverage file (Hack codecov) # https://community.codecov.io/t/looking-for-assistance-with-path-fixing/1669/9
-        run: sed -i 's/SF:/SF:src\/NuGetTrends.Web\/Portal\//g' src/NuGetTrends.Web/Portal/coverage/lcov.info
-
-      - name: Upload SPA coverage report to Codecov
-        uses: codecov/codecov-action@v3
 
       - name: Web Build
         run: dotnet build -c Release -p:SourceRevisionId=${GITHUB_SHA::8}

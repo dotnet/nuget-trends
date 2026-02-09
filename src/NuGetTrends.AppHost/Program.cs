@@ -45,11 +45,6 @@ var clickhouse = builder.AddContainer("clickhouse", "clickhouse/clickhouse-serve
     .WithBindMount("../NuGetTrends.Data/ClickHouse/migrations", "/docker-entrypoint-initdb.d", isReadOnly: true)
     .WithVolume($"nugettrends-clickhouse-{instanceId}", "/var/lib/clickhouse");
 
-// Angular Portal dev server (Web app proxies to this, no need to expose externally)
-// PORT env var is set by Aspire to a random available port; ng serve reads it.
-var portal = builder.AddNpmApp("portal", "../NuGetTrends.Web/Portal", "start")
-    .WithHttpEndpoint(env: "PORT");
-
 // Application services
 // ClickHouse endpoint URL for injection into services.
 // Aspire's WithReference on custom container endpoints sets services__* env vars,
@@ -59,10 +54,8 @@ var clickhouseEndpoint = clickhouse.GetEndpoint("http");
 var web = builder.AddProject<Projects.NuGetTrends_Web>("web")
     .WithReference(postgresDb)
     .WithEnvironment("ConnectionStrings__clickhouse", clickhouseEndpoint)
-    .WithEnvironment("SPA_DEV_SERVER_URL", portal.GetEndpoint("http"))
     .WaitFor(postgresDb)
     .WaitFor(clickhouse)
-    .WaitFor(portal)
     .WithExternalHttpEndpoints();
 
 var scheduler = builder.AddProject<Projects.NuGetTrends_Scheduler>("scheduler")
