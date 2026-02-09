@@ -468,6 +468,61 @@ public class CatalogLeafProcessorTests : IClassFixture<PostgresFixture>
             "PackageIdLowered should be populated in individual processing path");
     }
 
+    /// <summary>
+    /// Tests that ProcessPackageDetailsBatchAsync throws InvalidOperationException
+    /// when PackageId is null or whitespace.
+    /// </summary>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("\t")]
+    public async Task ProcessPackageDetailsBatchAsync_NullOrWhitespacePackageId_ThrowsInvalidOperationException(string? packageId)
+    {
+        // Arrange
+        var (provider, processor) = CreateProcessor();
+        using var _ = provider;
+
+        var leaves = new List<PackageDetailsCatalogLeaf>
+        {
+            new() { PackageId = packageId, PackageVersion = "1.0.0", CommitTimestamp = DateTimeOffset.UtcNow },
+        };
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            processor.ProcessPackageDetailsBatchAsync(leaves, CancellationToken.None));
+        
+        ex.Message.Should().Contain("PackageId must be set and non-empty");
+    }
+
+    /// <summary>
+    /// Tests that ProcessPackageDetailsAsync (individual) throws InvalidOperationException
+    /// when PackageId is null or whitespace.
+    /// </summary>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task ProcessPackageDetailsAsync_NullOrWhitespacePackageId_ThrowsInvalidOperationException(string? packageId)
+    {
+        // Arrange
+        var (provider, processor) = CreateProcessor();
+        using var _ = provider;
+
+        var leaf = new PackageDetailsCatalogLeaf
+        {
+            PackageId = packageId,
+            PackageVersion = "1.0.0",
+            CommitTimestamp = DateTimeOffset.UtcNow,
+        };
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            processor.ProcessPackageDetailsAsync(leaf, CancellationToken.None));
+        
+        ex.Message.Should().Contain("PackageId must be set and non-empty");
+    }
+
 }
 
 /// <summary>
