@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <ContainerRepository>nugettrends/nugettrends.web</ContainerRepository>
+    <ContainerWorkingDirectory>/App</ContainerWorkingDirectory>
   </PropertyGroup>
 
   <ItemGroup>
