@@ -45,16 +45,15 @@ jobs:
         working-directory: src/NuGetTrends.Web/
 
       - name: Compute image tags
-        if: github.event_name != 'pull_request'
         id: tags
         run: |
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             VERSION="${GITHUB_REF#refs/tags/}"
             MINOR="${VERSION%.*}"
             MAJOR="${MINOR%.*}"
-            echo "tags=${VERSION}%3B${MINOR}%3B${MAJOR}%3Blatest" >> "$GITHUB_OUTPUT"
+            echo "tags=${VERSION};${MINOR};${MAJOR};latest" >> "$GITHUB_OUTPUT"
           else
-            echo "tags=main%3Bsha-${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
+            echo "tags=main;sha-${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Login to DockerHub
@@ -64,11 +63,11 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Push container image
-        if: github.event_name != 'pull_request'
+      - name: Create container image
         run: >
           dotnet publish --no-build -c Release
           /t:PublishContainer
-          -p:ContainerRegistry=docker.io
-          -p:ContainerImageTags=${{ steps.tags.outputs.tags }}
+          ${{ github.event_name == 'pull_request' && '-p:ContainerArchiveOutputPath=./container.tar.gz' || '-p:ContainerRegistry=docker.io' }}
+        env:
+          ContainerImageTags: ${{ steps.tags.outputs.tags }}
         working-directory: src/NuGetTrends.Web/
