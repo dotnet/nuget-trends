@@ -72,3 +72,15 @@ jobs:
         env:
           ContainerImageTags: ${{ steps.tags.outputs.tags }}
         working-directory: src/NuGetTrends.Scheduler/
+
+      - name: Smoke test container
+        if: github.event_name == 'pull_request'
+        working-directory: src/NuGetTrends.Scheduler/
+        run: |
+          docker load -i container.tar.gz
+          output=$(docker run --rm nugettrends/nugettrends.scheduler:sha-${GITHUB_SHA::8} 2>&1 || true)
+          echo "$output"
+          if echo "$output" | grep -q "does not exist"; then
+            echo "::error::Container entrypoint is broken"
+            exit 1
+          fi
