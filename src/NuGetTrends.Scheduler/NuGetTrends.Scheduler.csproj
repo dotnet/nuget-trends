@@ -4,7 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>true</ImplicitUsings>
     <ContainerRepository>nugettrends/nugettrends.scheduler</ContainerRepository>
-    <ContainerWorkingDirectory>/App</ContainerWorkingDirectory>
+    <ContainerWorkingDirectory>/App/</ContainerWorkingDirectory>
   </PropertyGroup>
 
   <ItemGroup>
