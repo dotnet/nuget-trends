@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://nugettrends.com/sitemap.xml

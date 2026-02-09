@@ -59,6 +59,26 @@
     </script>
     <Routes @rendermode="new InteractiveWebAssemblyRenderMode(prerender: true)" />
 
+    <!-- WASM loading progress bar — removed once Blazor boots -->
+    <div id="wasm-loading-bar"></div>
+    <style>
+        #wasm-loading-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            height: 3px;
+            background: var(--primary-color, #055499);
+            z-index: 99999;
+            animation: wasm-progress 8s ease-out forwards;
+        }
+        @@keyframes wasm-progress {
+            0%   { width: 0; }
+            30%  { width: 50%; }
+            60%  { width: 75%; }
+            100% { width: 95%; }
+        }
+    </style>
+
     <!-- Chart.js -->
     <script src="lib/chart.js@4.4.7/chart.umd.min.js"></script>
     <script src="lib/chartjs-adapter-date-fns@3.0.0/chartjs-adapter-date-fns.bundle.min.js"></script>
@@ -68,7 +88,18 @@
     <!-- App version (server-rendered, read by Footer via JS interop) -->
     <script>window.__appVersion = "@_appVersion";</script>
     <!-- Blazor WebAssembly -->
-    <script src="_framework/blazor.web.js"></script>
+    <script src="_framework/blazor.web.js" autostart="false"></script>
+    <script>
+        Blazor.start().then(function() {
+            var bar = document.getElementById('wasm-loading-bar');
+            if (bar) {
+                bar.style.width = '100%';
+                bar.style.transition = 'width 0.2s ease, opacity 0.3s ease 0.2s';
+                bar.style.opacity = '0';
+                setTimeout(function() { bar.remove(); }, 500);
+            }
+        });
+    </script>
 </body>
 
 </html>

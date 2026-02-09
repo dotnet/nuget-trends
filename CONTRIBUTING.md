@@ -130,12 +130,20 @@ The system collects daily download statistics for all NuGet packages (~400K+) us
 
 ## Website
 
-The website is composed of two parts: An Angular SPA and an ASP.NET Core API.
+The website is a Blazor SSR + WebAssembly app with an ASP.NET Core API backend:
 
-- **API**: `src/NuGetTrends.Web/`
-- **SPA**: `src/NuGetTrends.Web/Portal/`
+- **Blazor App (server + components)**: `src/NuGetTrends.Web/`
+- **Blazor Client (WASM components)**: `src/NuGetTrends.Web.Client/`
+- **Vendored JS/CSS libs**: `src/NuGetTrends.Web/wwwroot/lib/`
 
-When running via Aspire, both are started automatically. The Web API proxies requests to the Angular dev server.
+When running via Aspire, all services start automatically.
+
+### SEO files
+
+When adding new public routes, update these files in `src/NuGetTrends.Web/wwwroot/`:
+
+- **`sitemap.xml`** — add new `<url>` entries for crawlers
+- **`robots.txt`** — update if routes need to be blocked from indexing
 
 ## Production Deployment
 

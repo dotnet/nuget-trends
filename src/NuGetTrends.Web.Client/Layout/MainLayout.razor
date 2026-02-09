@@ -32,8 +32,29 @@
             </div>
         </div>
     </section>
-    @Body
+    <ErrorBoundary @ref="_errorBoundary">
+        <ChildContent>
+            @Body
+        </ChildContent>
+        <ErrorContent>
+            <section class="hero is-white hero-space">
+                <div class="hero-body">
+                    <div class="container has-text-centered">
+                        <h1 class="title is-2">Something went wrong</h1>
+                        <p class="subtitle">An unexpected error occurred. Please try again.</p>
+                        <button class="button is-primary is-medium" @onclick="ResetError">Try Again</button>
+                    </div>
+                </div>
+            </section>
+        </ErrorContent>
+    </ErrorBoundary>
 </div>
 
 <Footer />
 <LoadingIndicator />
+
+@code {
+    private ErrorBoundary? _errorBoundary;
+
+    private void ResetError() => _errorBoundary?.Recover();
+}

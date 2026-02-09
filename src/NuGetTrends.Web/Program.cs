@@ -1,5 +1,6 @@
 using System.Reflection;
 using Blazored.Toast;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.OpenApi.Models;
 using NuGetTrends.Data;
 using NuGetTrends.Data.ClickHouse;
@@ -91,6 +92,18 @@ try
     {
         var navigationManager = sp.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>();
         return new HttpClient { BaseAddress = new Uri(navigationManager.BaseUri) };
+    });
+
+    builder.Services.AddResponseCompression(options =>
+    {
+        options.EnableForHttps = true;
+        options.Providers.Add<BrotliCompressionProvider>();
+        options.Providers.Add<GzipCompressionProvider>();
+        options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
+        [
+            "application/wasm",
+            "application/octet-stream",
+        ]);
     });
 
     builder.Services.AddControllers();
@@ -188,6 +201,7 @@ try
         await next();
     });
 
+    app.UseResponseCompression();
     app.UseStaticFiles();
     app.MapStaticAssets();
 
