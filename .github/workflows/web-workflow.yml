@@ -70,5 +70,5 @@ jobs:
           dotnet publish --no-build -c Release
           /t:PublishContainer
           -p:ContainerRegistry=docker.io
-          -p:ContainerImageTags='${{ steps.tags.outputs.tags }}'
+          "-p:ContainerImageTags=${{ steps.tags.outputs.tags }}"
         working-directory: src/NuGetTrends.Web/
