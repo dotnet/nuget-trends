@@ -71,3 +71,21 @@ jobs:
         env:
           ContainerImageTags: ${{ steps.tags.outputs.tags }}
         working-directory: src/NuGetTrends.Web/
+
+      - name: Smoke test container
+        if: github.event_name == 'pull_request'
+        working-directory: src/NuGetTrends.Web/
+        run: |
+          docker load -i container.tar.gz
+          image="nugettrends/nugettrends.web:sha-${GITHUB_SHA::8}"
+          docker image inspect "$image" > /dev/null
+
+          entrypoint=$(docker inspect --format='{{json .Config.Entrypoint}}' "$image")
+          echo "Container entrypoint: $entrypoint"
+          if ! echo "$entrypoint" | grep -q '/App/NuGetTrends.Web.dll'; then
+            echo "::error::Container entrypoint does not point to /App/NuGetTrends.Web.dll"
+            exit 1
+          fi
+
+          output=$(timeout 10s docker run --rm --pull=never "$image" 2>&1 || true)
+          echo "$output"
