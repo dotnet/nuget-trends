@@ -1,0 +1,202 @@
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject PersistentComponentState PersistentState
+@inject ILogger<TrendingPackages> Logger
+@implements IDisposable
+
+<section class="section trending-section">
+    <div class="container">
+        <h2 class="title is-4 has-text-centered">Trending This Week</h2>
+        <p class="subtitle is-6 has-text-centered">Rising NuGet packages based on week-over-week download growth</p>
+
+        @if (_isLoading)
+        {
+            <div class="has-text-centered">
+                <p class="is-size-6 has-text-grey">Loading trending packages...</p>
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <div class="notification is-warning is-light">
+                <p>@_errorMessage</p>
+            </div>
+        }
+        else if (_trendingPackages.Count == 0)
+        {
+            <div class="has-text-centered">
+                <p class="is-size-6 has-text-grey">No trending packages found.</p>
+            </div>
+        }
+        else
+        {
+            <div class="trending-list">
+                @foreach (var (package, index) in _trendingPackages.Select((p, i) => (p, i)))
+                {
+                    <div class="trending-item"
+                         @onclick="() => NavigateToPackage(package.PackageId)"
+                         tabindex="0"
+                         role="button"
+                         aria-label="View details for @package.PackageId"
+                         @onkeydown="e => OnKeyDown(e, package.PackageId)"
+                         @onkeydown:preventDefault>
+
+                        <div class="trending-item-content">
+                            <div class="trending-rank">@(index + 1)</div>
+
+                            <figure class="trending-icon">
+                                <img src="@package.IconUrl"
+                                     alt="@package.PackageId icon"
+                                     loading="lazy"
+                                     onerror="this.onerror=null;this.src='https://nuget.org/Content/Images/packageDefaultIcon-50x50.png';" />
+                            </figure>
+
+                            <div class="trending-info">
+                                <p class="trending-name">@package.PackageId</p>
+                                <p class="trending-downloads">
+                                    <span class="has-text-weight-semibold">@FormatDownloadCount(package.DownloadCount)</span>
+                                    <span class="downloads-label"> downloads/week</span>
+                                </p>
+                            </div>
+
+                            <div class="trending-growth @GetGrowthClass(package.GrowthRate)">
+                                @FormatGrowthRate(package.GrowthRate)
+                            </div>
+
+                            <div class="trending-actions">
+                                <button class="button"
+                                        title="View on NuGet.org"
+                                        @onclick="() => OpenNuGetPage(package.PackageId)"
+                                        @onclick:stopPropagation="true">
+                                    <span class="icon">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 512 512" fill="currentColor">
+                                            <path d="M378.5 150.5c-31.9 0-57.8 25.9-57.8 57.8s25.9 57.8 57.8 57.8 57.8-25.9 57.8-57.8-25.9-57.8-57.8-57.8zM300.2 350.2c-43.2 0-78.3 35-78.3 78.3s35 78.3 78.3 78.3 78.3-35 78.3-78.3-35-78.3-78.3-78.3zM132.8 5c-70.3 0-127.4 57-127.4 127.4s57 127.4 127.4 127.4 127.3-57.1 127.3-127.4S203.1 5 132.8 5z" />
+                                        </svg>
+                                    </span>
+                                </button>
+                                @if (!string.IsNullOrEmpty(package.GitHubUrl))
+                                {
+                                    <a href="@package.GitHubUrl"
+                                       target="_blank"
+                                       rel="noopener noreferrer"
+                                       class="button"
+                                       title="View on GitHub"
+                                       @onclick:stopPropagation="true">
+                                        <span class="icon">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+                                            </svg>
+                                        </span>
+                                    </a>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</section>
+
+@code {
+    private const string PersistenceKey = "trending-packages";
+    private List<TrendingPackage> _trendingPackages = [];
+    private bool _isLoading = true;
+    private string? _errorMessage;
+    private PersistingComponentStateSubscription _persistingSubscription;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _persistingSubscription = PersistentState.RegisterOnPersisting(PersistData);
+
+        if (PersistentState.TryTakeFromJson<List<TrendingPackage>>(PersistenceKey, out var restored) && restored is not null)
+        {
+            _trendingPackages = restored;
+            _isLoading = false;
+        }
+        else
+        {
+            await LoadTrendingPackages();
+        }
+    }
+
+    private Task PersistData()
+    {
+        PersistentState.PersistAsJson(PersistenceKey, _trendingPackages);
+        return Task.CompletedTask;
+    }
+
+    private async Task LoadTrendingPackages()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            var packages = await Http.GetFromJsonAsync<List<TrendingPackage>>("/api/package/trending?limit=10");
+            _trendingPackages = packages ?? [];
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load trending packages");
+            _errorMessage = "Unable to load trending packages. Please try again later.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void NavigateToPackage(string packageId)
+    {
+        Navigation.NavigateTo($"/packages/{Uri.EscapeDataString(packageId)}");
+    }
+
+    private void OnKeyDown(KeyboardEventArgs e, string packageId)
+    {
+        if (e.Key is "Enter" or " ")
+        {
+            NavigateToPackage(packageId);
+        }
+    }
+
+    private void OpenNuGetPage(string packageId)
+    {
+        Navigation.NavigateTo($"https://www.nuget.org/packages/{packageId}", forceLoad: true);
+    }
+
+    private static string FormatGrowthRate(double? growthRate)
+    {
+        if (growthRate is null)
+        {
+            return "N/A";
+        }
+
+        var percentage = (int)Math.Round(growthRate.Value * 100);
+        return percentage > 0 ? $"+{percentage}%" : $"{percentage}%";
+    }
+
+    private static string GetGrowthClass(double? growthRate)
+    {
+        if (growthRate is null or 0)
+        {
+            return "growth-neutral";
+        }
+
+        return growthRate > 0 ? "growth-positive" : "growth-negative";
+    }
+
+    private static string FormatDownloadCount(long count)
+    {
+        return count switch
+        {
+            >= 1_000_000 => $"{count / 1_000_000.0:F1}M",
+            >= 1_000 => $"{count / 1_000.0:F1}K",
+            _ => count.ToString()
+        };
+    }
+
+    public void Dispose()
+    {
+        _persistingSubscription.Dispose();
+    }
+}

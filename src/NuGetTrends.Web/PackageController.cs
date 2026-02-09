@@ -26,7 +26,7 @@ public class PackageController(
             .Select(p => new
             {
                 p.PackageId,
-                p.LatestDownloadCount,
+                DownloadCount = p.LatestDownloadCount,
                 IconUrl = p.IconUrl ?? "https://www.nuget.org/Content/gallery/img/default-package-icon.svg"
             })
             .ToListAsync(cancellationToken);

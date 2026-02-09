@@ -632,7 +632,7 @@ public class EndToEndPipelineTests : IAsyncLifetime
 public class SearchResult
 {
     public string PackageId { get; set; } = "";
-    public long? LatestDownloadCount { get; set; }
+    public long? DownloadCount { get; set; }
     public string? IconUrl { get; set; }
 }
 

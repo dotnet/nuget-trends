@@ -19,6 +19,7 @@
     <PackageVersion Include="RabbitMQ.Client" Version="6.8.1" />
     <PackageVersion Include="Sentry" Version="$(SentryVersion)" />
     <PackageVersion Include="Sentry.AspNetCore" Version="$(SentryVersion)" />
+    <PackageVersion Include="Sentry.AspNetCore.Blazor.WebAssembly" Version="$(SentryVersion)" />
     <PackageVersion Include="Sentry.Hangfire" Version="$(SentryVersion)" />
     <PackageVersion Include="Sentry.Serilog" Version="$(SentryVersion)" />
     <PackageVersion Include="Serilog.AspNetCore" Version="8.0.0" />
@@ -27,6 +28,11 @@
     <PackageVersion Include="Serilog.Sinks.Console" Version="5.0.1" />
     <PackageVersion Include="Swashbuckle.AspNetCore" Version="6.5.0" />
     <PackageVersion Include="UnoptimizedAssemblyDetector" Version="0.1.1" />
+    <!-- Blazor packages -->
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.0" />
+    <PackageVersion Include="Blazored.Toast" Version="4.2.1" />
+    <PackageVersion Include="bunit" Version="1.37.7" />
     <!-- Aspire packages -->
     <PackageVersion Include="Aspire.Hosting.AppHost" Version="9.2.1" />
     <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="9.2.1" />
@@ -48,6 +54,7 @@
     <PackageVersion Include="Testcontainers.ClickHouse" Version="4.9.0" />
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.9.0" />
     <PackageVersion Include="Testcontainers.RabbitMq" Version="4.9.0" />
+    <PackageVersion Include="Microsoft.Playwright" Version="1.51.0" />
     <PackageVersion Include="xunit" Version="2.9.2" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
   </ItemGroup>

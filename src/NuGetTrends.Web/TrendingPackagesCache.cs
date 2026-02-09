@@ -56,8 +56,8 @@ public class TrendingPackageDto
 
 /// <summary>
 /// Caches trending packages to avoid ClickHouse queries on every request.
-/// The snapshot read is fast (~14ms) so we only cache for 5 minutes to reduce
-/// ClickHouse load while ensuring fast recovery after deploys.
+/// In production the snapshot only changes weekly, so we cache for 7 days.
+/// In development we use a 30-second TTL for faster iteration.
 /// Instrumented with Sentry's Caches module conventions.
 /// </summary>
 public interface ITrendingPackagesCache
@@ -75,20 +75,24 @@ public class TrendingPackagesCache : ITrendingPackagesCache
     private readonly IClickHouseService _clickHouseService;
     private readonly IMemoryCache _cache;
     private readonly ILogger<TrendingPackagesCache> _logger;
+    private readonly TimeSpan _cacheDuration;
 
     private const string CacheKey = "trending_packages";
-    private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(5);
 
     private const int MaxCachedResults = 100; // Cache more than we serve to support different limit values
 
     public TrendingPackagesCache(
         IClickHouseService clickHouseService,
         IMemoryCache cache,
-        ILogger<TrendingPackagesCache> logger)
+        ILogger<TrendingPackagesCache> logger,
+        IHostEnvironment hostEnvironment)
     {
         _clickHouseService = clickHouseService;
         _cache = cache;
         _logger = logger;
+        _cacheDuration = hostEnvironment.IsProduction()
+            ? TimeSpan.FromDays(7)
+            : TimeSpan.FromSeconds(30);
     }
 
     public async Task<TrendingPackagesResponse> GetTrendingPackagesAsync(
@@ -128,12 +132,12 @@ public class TrendingPackagesCache : ITrendingPackagesCache
             try
             {
                 var cacheOptions = new MemoryCacheEntryOptions()
-                    .SetAbsoluteExpiration(CacheDuration);
+                    .SetAbsoluteExpiration(_cacheDuration);
 
                 _cache.Set(CacheKey, freshData, cacheOptions);
 
                 putSpan?.SetData("cache.item_size", freshData.Packages.Count);
-                putSpan?.SetData("cache.ttl", (int)CacheDuration.TotalSeconds);
+                putSpan?.SetData("cache.ttl", (int)_cacheDuration.TotalSeconds);
                 putSpan?.Finish(SpanStatus.Ok);
             }
             catch (Exception ex)

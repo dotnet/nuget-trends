@@ -1,0 +1,79 @@
+@inject ThemeState ThemeState
+@inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
+
+<button class="theme-toggle-btn"
+        @onclick="Toggle"
+        title="@ThemeState.Tooltip"
+        aria-label="Toggle theme">
+    <i class="fa @ThemeState.CurrentIcon"></i>
+</button>
+
+@code {
+    private DotNetObjectReference<ThemeToggle>? _dotNetRef;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Load saved preference from localStorage
+            var savedPreference = await JSRuntime.InvokeAsync<string?>("themeInterop.getPreference");
+            ThemeState.LoadPreference(savedPreference);
+
+            // Get system preference
+            var systemPrefersDark = await JSRuntime.InvokeAsync<bool>("themeInterop.getSystemPreference");
+            ThemeState.SetSystemPreference(systemPrefersDark);
+
+            // Apply theme
+            await ApplyTheme();
+
+            // Subscribe to theme changes
+            ThemeState.ThemeChanged += OnThemeChanged;
+
+            // Listen for system preference changes
+            _dotNetRef = DotNetObjectReference.Create(this);
+            await JSRuntime.InvokeVoidAsync("themeInterop.watchSystemPreference", _dotNetRef);
+
+            StateHasChanged();
+        }
+    }
+
+    private async void OnThemeChanged(object? sender, string theme)
+    {
+        await ApplyTheme();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public void OnSystemPreferenceChanged(bool prefersDark)
+    {
+        ThemeState.SetSystemPreference(prefersDark);
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task Toggle()
+    {
+        ThemeState.CycleTheme();
+        await JSRuntime.InvokeVoidAsync("themeInterop.setPreference", ThemeState.GetPreferenceString());
+        await ApplyTheme();
+    }
+
+    private async Task ApplyTheme()
+    {
+        await JSRuntime.InvokeVoidAsync("themeInterop.applyTheme", ThemeState.ResolvedTheme);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        ThemeState.ThemeChanged -= OnThemeChanged;
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("themeInterop.unwatchSystemPreference");
+        }
+        catch (JSDisconnectedException)
+        {
+            // Circuit disconnected, JS cleanup already happened
+        }
+        _dotNetRef?.Dispose();
+    }
+}

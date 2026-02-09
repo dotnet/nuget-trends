@@ -1,0 +1,67 @@
+@inject IJSRuntime JSRuntime
+
+<footer>
+    <div class="container">
+        <div class="columns">
+            <div class="column has-text-centered">
+                <a href="/">
+                    <img src="images/logo-inverted-350.png" alt="NuGet Trends brand logo" />
+                </a>
+            </div>
+            <div class="column has-text-centered">
+                <div class="footer-item-header">Connect</div>
+                <ul>
+                    <li>
+                        <a href="https://twitter.com/NuGetTrends" class="footer-item" target="_blank" rel="noopener noreferrer">
+                            <span class="icon is-large">
+                                <i class="fab fa fa-2x fa-twitter"></i>
+                            </span>Twitter
+                        </a>
+                    </li>
+                    <li>
+                        <a href="https://github.com/dotnet/nuget-trends" class="footer-item" target="_blank" rel="noopener noreferrer">
+                            <span class="icon is-large">
+                                <i class="fab fa fa-2x fa-github"></i>
+                            </span>GitHub
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        <p class="has-text-centered has-text-white-bis">
+            Brought to you by <a href="https://github.com/bruno-garcia">Bruno Garcia</a> &amp; <a href="https://github.com/joaopgrassi">João Grassi</a>
+        </p>
+        <p class="has-text-centered has-text-grey-light sentry-sponsor">
+            <a href="https://sentry.io/welcome/" target="_blank" rel="noopener" title="Application Monitoring by Sentry">
+                Hosted by <img src="images/sentry-logo.svg" alt="Sentry" class="sentry-logo" />
+            </a>
+        </p>
+        <p class="version-info">
+            <span class="version-badge" @onclick="CopyVersion" title="Copy to clipboard">
+                @_shortSha
+            </span>
+        </p>
+    </div>
+</footer>
+
+@code {
+    private string _appVersion = "unknown";
+    private string _shortSha = "unknown";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _appVersion = await JSRuntime.InvokeAsync<string>("uiInterop.getAppVersion");
+            var parts = _appVersion.Split('+');
+            var sha = parts.Length > 1 ? parts[^1] : _appVersion;
+            _shortSha = sha.Length > 8 ? sha[..8] : sha;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CopyVersion()
+    {
+        await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", _appVersion);
+    }
+}

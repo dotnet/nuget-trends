@@ -1,0 +1,50 @@
+@inject PackageState PackageState
+@inject NavigationManager Navigation
+
+<div class="field">
+    <div class="control control-center">
+        <div class="select is-medium">
+            <select id="period" @bind="_selectedPeriod" @bind:after="OnPeriodChanged">
+                @foreach (var period in SearchPeriods.Default)
+                {
+                    <option value="@period.Value">@period.Text</option>
+                }
+            </select>
+        </div>
+    </div>
+</div>
+
+@code {
+    private int _selectedPeriod;
+
+    protected override void OnInitialized()
+    {
+        // Check URL for months parameter
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        var monthsParam = query["months"];
+
+        if (int.TryParse(monthsParam, out var months) && months > 0)
+        {
+            _selectedPeriod = months;
+            PackageState.SearchPeriod = months;
+        }
+        else
+        {
+            _selectedPeriod = SearchPeriods.Initial.Value;
+        }
+    }
+
+    private void OnPeriodChanged()
+    {
+        PackageState.SearchPeriod = _selectedPeriod;
+
+        // Update URL
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        query["months"] = _selectedPeriod.ToString();
+
+        var newUri = uri.GetLeftPart(UriPartial.Path) + "?" + query;
+        Navigation.NavigateTo(newUri, replace: true);
+    }
+}

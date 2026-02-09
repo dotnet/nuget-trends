@@ -1,0 +1,37 @@
+@inject PackageState PackageState
+@implements IDisposable
+
+<div class="tags">
+    @foreach (var package in PackageState.Packages)
+    {
+        <span class="tag is-large has-text-white"
+              style="background-color: @package.Color">
+            @package.Id
+            <button class="delete" @onclick="() => RemovePackage(package)"></button>
+        </span>
+    }
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        PackageState.PackagePlotted += OnPackageChanged;
+        PackageState.PackageRemoved += OnPackageChanged;
+    }
+
+    private void OnPackageChanged(object? sender, object args)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void RemovePackage(PackageColor package)
+    {
+        PackageState.RemovePackage(package.Id);
+    }
+
+    public void Dispose()
+    {
+        PackageState.PackagePlotted -= OnPackageChanged;
+        PackageState.PackageRemoved -= OnPackageChanged;
+    }
+}

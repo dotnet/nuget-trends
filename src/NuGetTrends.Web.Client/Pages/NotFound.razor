@@ -1,0 +1,18 @@
+@page "/{*catchAll}"
+
+<PageTitle>Not found</PageTitle>
+
+<section class="hero is-white hero-space">
+    <div class="hero-body">
+        <div class="container has-text-centered">
+            <h1 class="title is-2">Page not found</h1>
+            <p class="subtitle">Sorry, the page you're looking for doesn't exist.</p>
+            <a href="/" class="button is-primary is-medium">Go Home</a>
+        </div>
+    </div>
+</section>
+
+@code {
+    [Parameter]
+    public string? CatchAll { get; set; }
+}
