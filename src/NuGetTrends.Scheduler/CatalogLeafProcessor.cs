@@ -222,7 +222,7 @@ public class CatalogLeafProcessor : ICatalogLeafProcessor
                 else if (IsNotNullViolationException(ex))
                 {
                     _logger.LogError(ex,
-                        "NOT NULL constraint violation for package {PackageId} v{PackageVersion}. " +
+                        "NOT NULL constraint violation for package {PackageIdValue} v{PackageVersionValue}. " +
                         "PackageId={PackageId}, PackageIdLowered={PackageIdLowered}",
                         leaf.PackageId,
                         leaf.PackageVersion,
