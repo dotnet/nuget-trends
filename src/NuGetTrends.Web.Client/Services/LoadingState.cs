@@ -58,6 +58,7 @@ public class LoadingState
         }
 
         _delayCts?.Cancel();
+        _delayCts?.Dispose();
         _delayCts = new CancellationTokenSource();
 
         try

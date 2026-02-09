@@ -28,7 +28,7 @@ Blazor serves static files from `wwwroot/` by default. **Remove this variable en
 |--------|-----------------|----------------|
 | Static files | `/App/Portal/dist/` | `/App/wwwroot/` (default) |
 | JS bundles | `main.js`, `runtime.js`, `polyfills.js` | `_framework/blazor.web.js` + WASM assemblies |
-| CSS | `styles.css` (built by Angular CLI) | `css/app.css` + Bulma CDN |
+| CSS | `styles.css` (built by Angular CLI) | `css/app.css` + `lib/bulma/...` (vendored, no CDN) |
 | Rendering | Client-side SPA | SSR + WebAssembly hybrid |
 | Interop | None (pure Angular) | `js/chartInterop.js`, `js/themeInterop.js` |
 

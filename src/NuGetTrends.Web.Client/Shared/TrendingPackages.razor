@@ -37,7 +37,8 @@
                          tabindex="0"
                          role="button"
                          aria-label="View details for @package.PackageId"
-                         @onkeydown="e => OnKeyDown(e, package.PackageId)">
+                         @onkeydown="e => OnKeyDown(e, package.PackageId)"
+                         @onkeydown:preventDefault>
 
                         <div class="trending-item-content">
                             <div class="trending-rank">@(index + 1)</div>

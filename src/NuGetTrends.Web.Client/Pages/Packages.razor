@@ -279,7 +279,7 @@
     {
         var data = history.Downloads
             .Where(d => d.Count.HasValue)
-            .Select(d => new { x = d.Week.ToString("yyyy-MM-ddTHH:mm:ss"), y = d.Count!.Value })
+            .Select(d => new { x = d.Week.ToString("O"), y = d.Count!.Value })
             .ToArray();
 
         return new

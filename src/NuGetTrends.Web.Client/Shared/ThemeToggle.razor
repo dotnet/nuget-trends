@@ -1,6 +1,6 @@
 @inject ThemeState ThemeState
 @inject IJSRuntime JSRuntime
-@implements IDisposable
+@implements IAsyncDisposable
 
 <button class="theme-toggle-btn"
         @onclick="Toggle"
@@ -10,6 +10,8 @@
 </button>
 
 @code {
+    private DotNetObjectReference<ThemeToggle>? _dotNetRef;
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
@@ -29,8 +31,8 @@
             ThemeState.ThemeChanged += OnThemeChanged;
 
             // Listen for system preference changes
-            await JSRuntime.InvokeVoidAsync("themeInterop.watchSystemPreference",
-                DotNetObjectReference.Create(this));
+            _dotNetRef = DotNetObjectReference.Create(this);
+            await JSRuntime.InvokeVoidAsync("themeInterop.watchSystemPreference", _dotNetRef);
 
             StateHasChanged();
         }
@@ -61,8 +63,17 @@
         await JSRuntime.InvokeVoidAsync("themeInterop.applyTheme", ThemeState.ResolvedTheme);
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         ThemeState.ThemeChanged -= OnThemeChanged;
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("themeInterop.unwatchSystemPreference");
+        }
+        catch (JSDisconnectedException)
+        {
+            // Circuit disconnected, JS cleanup already happened
+        }
+        _dotNetRef?.Dispose();
     }
 }

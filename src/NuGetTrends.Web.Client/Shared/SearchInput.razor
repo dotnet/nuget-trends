@@ -4,6 +4,7 @@
 @inject IToastService ToastService
 @inject IJSRuntime JSRuntime
 @inject ILogger<SearchInput> Logger
+@implements IDisposable
 
 <section>
     <div class="control @(_isSearching ? "is-large is-loading" : "")">
@@ -55,7 +56,7 @@
         if (firstRender)
         {
             // Auto-focus the search input
-            await JSRuntime.InvokeVoidAsync("eval", "document.querySelector('.input.is-large')?.focus()");
+            await JSRuntime.InvokeVoidAsync("uiInterop.focusElement", ".input.is-large");
         }
     }
 
@@ -63,6 +64,7 @@
     {
         // Cancel any pending search
         _debounceTokenSource?.Cancel();
+        _debounceTokenSource?.Dispose();
         _debounceTokenSource = new CancellationTokenSource();
 
         if (string.IsNullOrWhiteSpace(_searchTerm))

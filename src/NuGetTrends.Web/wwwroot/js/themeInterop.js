@@ -2,6 +2,8 @@
 window.themeInterop = {
     storageKey: 'nuget-trends-theme',
     dotNetRef: null,
+    _mediaQuery: null,
+    _listener: null,
 
     getPreference: function () {
         return localStorage.getItem(this.storageKey);
@@ -27,13 +29,28 @@ window.themeInterop = {
     },
 
     watchSystemPreference: function (dotNetRef) {
+        this.unwatchSystemPreference();
         this.dotNetRef = dotNetRef;
-        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        this._mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
-        mediaQuery.addEventListener('change', (e) => {
+        this._listener = (e) => {
             if (this.dotNetRef) {
                 this.dotNetRef.invokeMethodAsync('OnSystemPreferenceChanged', e.matches);
             }
-        });
+        };
+
+        this._mediaQuery.addEventListener('change', this._listener);
+    },
+
+    unwatchSystemPreference: function () {
+        if (this._mediaQuery && this._listener) {
+            this._mediaQuery.removeEventListener('change', this._listener);
+        }
+        this._mediaQuery = null;
+        this._listener = null;
+        if (this.dotNetRef) {
+            this.dotNetRef.dispose();
+            this.dotNetRef = null;
+        }
     }
 };

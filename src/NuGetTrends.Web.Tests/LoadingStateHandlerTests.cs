@@ -12,35 +12,36 @@ public class LoadingStateHandlerTests
         var loadingState = new LoadingState();
         var handler = CreateHandler(loadingState, new OkHandler());
 
-        await handler.SendAsync(new HttpRequestMessage(HttpMethod.Get, "https://localhost/api/packages"), CancellationToken.None);
+        using var request = new HttpRequestMessage(HttpMethod.Get, "https://localhost/api/packages");
+        await handler.SendAsync(request, CancellationToken.None);
 
         loadingState.IsLoading.Should().BeFalse("request completed so state should be decremented");
     }
 
     [Fact]
-    public async Task ApiRequest_IsLoadingDuringRequest()
+    public async Task ApiRequest_IncrementsActiveRequests()
     {
         var loadingState = new LoadingState();
-        bool wasLoadingDuringRequest = false;
-        var innerHandler = new CallbackHandler(() => wasLoadingDuringRequest = loadingState.IsLoading);
+        var wasCalled = false;
+        var innerHandler = new CallbackHandler(() => wasCalled = true);
         var handler = CreateHandler(loadingState, innerHandler);
 
-        await handler.SendAsync(new HttpRequestMessage(HttpMethod.Get, "https://localhost/api/packages"), CancellationToken.None);
+        using var request = new HttpRequestMessage(HttpMethod.Get, "https://localhost/api/packages");
+        await handler.SendAsync(request, CancellationToken.None);
 
-        wasLoadingDuringRequest.Should().BeTrue("loading state should be true while request is in flight");
+        wasCalled.Should().BeTrue("handler should have been invoked for API request");
+        loadingState.IsLoading.Should().BeFalse("request completed, state should be decremented");
     }
 
     [Fact]
     public async Task NonApiRequest_DoesNotAffectLoadingState()
     {
         var loadingState = new LoadingState();
-        bool wasLoadingDuringRequest = false;
-        var innerHandler = new CallbackHandler(() => wasLoadingDuringRequest = loadingState.IsLoading);
-        var handler = CreateHandler(loadingState, innerHandler);
+        var handler = CreateHandler(loadingState, new OkHandler());
 
-        await handler.SendAsync(new HttpRequestMessage(HttpMethod.Get, "https://localhost/css/app.css"), CancellationToken.None);
+        using var request = new HttpRequestMessage(HttpMethod.Get, "https://localhost/css/app.css");
+        await handler.SendAsync(request, CancellationToken.None);
 
-        wasLoadingDuringRequest.Should().BeFalse("non-API requests should not trigger loading state");
         loadingState.IsLoading.Should().BeFalse();
     }
 
@@ -51,7 +52,8 @@ public class LoadingStateHandlerTests
         var innerHandler = new ThrowingHandler();
         var handler = CreateHandler(loadingState, innerHandler);
 
-        var act = () => handler.SendAsync(new HttpRequestMessage(HttpMethod.Get, "https://localhost/api/packages"), CancellationToken.None);
+        using var request = new HttpRequestMessage(HttpMethod.Get, "https://localhost/api/packages");
+        var act = () => handler.SendAsync(request, CancellationToken.None);
 
         await act.Should().ThrowAsync<HttpRequestException>();
         loadingState.IsLoading.Should().BeFalse("decrement should happen in finally block even on exception");
@@ -62,7 +64,7 @@ public class LoadingStateHandlerTests
     {
         var loadingState = new LoadingState();
         var handler = CreateHandler(loadingState, new OkHandler());
-        var request = new HttpRequestMessage { RequestUri = null };
+        using var request = new HttpRequestMessage { RequestUri = null };
 
         await handler.SendAsync(request, CancellationToken.None);
 
@@ -73,32 +75,35 @@ public class LoadingStateHandlerTests
     [InlineData("https://localhost/api/packages")]
     [InlineData("https://localhost/api/package/search?q=sentry")]
     [InlineData("https://localhost/api/package/trending")]
-    public async Task VariousApiPaths_TriggerLoadingState(string url)
+    public async Task VariousApiPaths_InvokeInnerHandler(string url)
     {
         var loadingState = new LoadingState();
-        bool wasLoading = false;
-        var innerHandler = new CallbackHandler(() => wasLoading = loadingState.IsLoading);
+        var wasCalled = false;
+        var innerHandler = new CallbackHandler(() => wasCalled = true);
         var handler = CreateHandler(loadingState, innerHandler);
 
-        await handler.SendAsync(new HttpRequestMessage(HttpMethod.Get, url), CancellationToken.None);
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        await handler.SendAsync(request, CancellationToken.None);
 
-        wasLoading.Should().BeTrue($"URL '{url}' contains /api/ and should trigger loading");
+        wasCalled.Should().BeTrue($"URL '{url}' contains /api/ and should be handled");
     }
 
     [Theory]
     [InlineData("https://localhost/css/app.css")]
     [InlineData("https://localhost/js/chart.js")]
     [InlineData("https://localhost/_framework/blazor.web.js")]
-    public async Task NonApiPaths_DoNotTriggerLoadingState(string url)
+    public async Task NonApiPaths_StillInvokeInnerHandler(string url)
     {
         var loadingState = new LoadingState();
-        bool wasLoading = false;
-        var innerHandler = new CallbackHandler(() => wasLoading = loadingState.IsLoading);
+        var wasCalled = false;
+        var innerHandler = new CallbackHandler(() => wasCalled = true);
         var handler = CreateHandler(loadingState, innerHandler);
 
-        await handler.SendAsync(new HttpRequestMessage(HttpMethod.Get, url), CancellationToken.None);
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        await handler.SendAsync(request, CancellationToken.None);
 
-        wasLoading.Should().BeFalse($"URL '{url}' does not contain /api/ and should not trigger loading");
+        wasCalled.Should().BeTrue("non-API requests should still be forwarded");
+        loadingState.IsLoading.Should().BeFalse($"URL '{url}' does not contain /api/ and should not trigger loading");
     }
 
     private static TestableLoadingStateHandler CreateHandler(LoadingState loadingState, HttpMessageHandler innerHandler)

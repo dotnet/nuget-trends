@@ -56,8 +56,8 @@ public class TrendingPackageDto
 
 /// <summary>
 /// Caches trending packages to avoid ClickHouse queries on every request.
-/// The snapshot read is fast (~14ms) so we only cache for 5 minutes to reduce
-/// ClickHouse load while ensuring fast recovery after deploys.
+/// In production the snapshot only changes weekly, so we cache for 7 days.
+/// In development we use a 30-second TTL for faster iteration.
 /// Instrumented with Sentry's Caches module conventions.
 /// </summary>
 public interface ITrendingPackagesCache

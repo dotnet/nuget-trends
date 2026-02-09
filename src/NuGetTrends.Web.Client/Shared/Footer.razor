@@ -52,7 +52,7 @@
     {
         if (firstRender)
         {
-            _appVersion = await JSRuntime.InvokeAsync<string>("eval", "window.__appVersion || 'unknown'");
+            _appVersion = await JSRuntime.InvokeAsync<string>("uiInterop.getAppVersion");
             var parts = _appVersion.Split('+');
             var sha = parts.Length > 1 ? parts[^1] : _appVersion;
             _shortSha = sha.Length > 8 ? sha[..8] : sha;
