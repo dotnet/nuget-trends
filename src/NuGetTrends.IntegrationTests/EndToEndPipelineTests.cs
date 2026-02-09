@@ -345,6 +345,11 @@ public class EndToEndPipelineTests : IAsyncLifetime
         // Wait for queue to drain
         await WaitForQueueDrain(connectionFactory, TimeSpan.FromMinutes(3));
 
+        // The queue reports 0 ready messages, but the consumer may still be
+        // processing a delivered (unacked) message. Poll the database until
+        // all packages have been processed before stopping the worker.
+        await WaitForAllPackagesProcessed(TimeSpan.FromSeconds(30));
+
         // Stop the worker
         await worker.StopAsync(CancellationToken.None);
 
@@ -370,9 +375,7 @@ public class EndToEndPipelineTests : IAsyncLifetime
 
                 if (messageCount == 0)
                 {
-                    _output.WriteLine("Queue is empty, waiting for processing to complete...");
-                    // Give extra time for in-flight messages to be processed
-                    await Task.Delay(TimeSpan.FromSeconds(5));
+                    _output.WriteLine("Queue is empty.");
                     return;
                 }
 
@@ -392,6 +395,33 @@ public class EndToEndPipelineTests : IAsyncLifetime
         }
 
         throw new TimeoutException($"Queue did not drain within {timeout.TotalMinutes} minutes");
+    }
+
+    /// <summary>
+    /// After the queue is empty, the consumer may still be processing the last
+    /// delivered message (NuGet API call + DB writes). Poll the database until
+    /// all packages have been marked as processed today.
+    /// </summary>
+    private async Task WaitForAllPackagesProcessed(TimeSpan timeout)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        while (DateTime.UtcNow < deadline)
+        {
+            await using var context = _fixture.CreateDbContext();
+            var todayUtc = DateTime.UtcNow.Date;
+            var unprocessedCount = await context.GetUnprocessedPackageIds(todayUtc).CountAsync();
+
+            if (unprocessedCount == 0)
+            {
+                _output.WriteLine("All packages processed.");
+                return;
+            }
+
+            _output.WriteLine($"Waiting for {unprocessedCount} in-flight packages to complete...");
+            await Task.Delay(TimeSpan.FromSeconds(2));
+        }
+
+        _output.WriteLine("Warning: timed out waiting for all packages to be processed.");
     }
 
     private async Task VerifyNoUnprocessedPackages()
