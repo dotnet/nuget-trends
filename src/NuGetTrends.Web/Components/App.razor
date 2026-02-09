@@ -49,6 +49,14 @@
 </head>
 
 <body class="site">
+    <!-- Apply theme before first paint to prevent flash -->
+    <script>
+        (function() {
+            var pref = localStorage.getItem('nuget-trends-theme');
+            var dark = pref === 'dark' || (pref !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            document.body.classList.add(dark ? 'dark-theme' : 'light-theme');
+        })();
+    </script>
     <Routes @rendermode="new InteractiveWebAssemblyRenderMode(prerender: true)" />
 
     <!-- Chart.js -->
