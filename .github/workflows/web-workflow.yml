@@ -34,38 +34,6 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
 
-      - name: Prepare Docker
-        id: docker-prep
-        run: |
-          DOCKER_IMAGE=nugettrends/nugettrends.web
-          VERSION=noop
-          ENVIRONMENT=test
-          if [[ $GITHUB_REF == refs/tags/* ]]; then
-            VERSION=${GITHUB_REF#refs/tags/}
-            ENVIRONMENT=prod
-          elif [[ $GITHUB_REF == refs/heads/main ]]; then
-            VERSION=$(echo ${GITHUB_REF#refs/heads/} | sed -r 's#/+#-#g')
-          fi
-          TAGS="${DOCKER_IMAGE}:${VERSION}"
-          if [[ $VERSION =~ ^v[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
-            MINOR=${VERSION%.*}
-            MAJOR=${MINOR%.*}
-            TAGS="$TAGS,${DOCKER_IMAGE}:${MINOR},${DOCKER_IMAGE}:${MAJOR},${DOCKER_IMAGE}:latest"
-          elif [ "${{ github.event_name }}" = "push" ]; then
-            TAGS="$TAGS,${DOCKER_IMAGE}:sha-${GITHUB_SHA::8}"
-          fi
-          echo ::set-output name=environment::${ENVIRONMENT}
-          echo ::set-output name=version::${VERSION}
-          echo ::set-output name=tags::${TAGS}
-          echo ::set-output name=created::$(date -u +'%Y-%m-%dT%H:%M:%SZ')
-
-      - name: Docker values debug
-        run: |
-          echo ${{ steps.docker-prep.outputs.environment }}
-          echo ${{ steps.docker-prep.outputs.version }}
-          echo ${{ steps.docker-prep.outputs.tags }}
-          echo ${{ steps.docker-prep.outputs.created }}
-
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
@@ -118,40 +86,37 @@ jobs:
       - name: Upload SPA coverage report to Codecov
         uses: codecov/codecov-action@v3
 
-      - name: Web Build
+      - name: Build
         run: dotnet build -c Release -p:SourceRevisionId=${GITHUB_SHA::8}
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         working-directory: src/NuGetTrends.Web/
 
-      - name: Web Publish
-        run: dotnet publish -c Release -o publish --no-build
-        working-directory: src/NuGetTrends.Web/
+      - name: Compute image tags
+        if: github.event_name != 'pull_request'
+        id: tags
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+            MINOR="${VERSION%.*}"
+            MAJOR="${MINOR%.*}"
+            echo "tags=${VERSION};${MINOR};${MAJOR};latest" >> "$GITHUB_OUTPUT"
+          else
+            echo "tags=main;sha-${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
+          fi
 
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
       - name: Login to DockerHub
-        if: ${{ github.event_name != 'pull_request' }}
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        id: docker_build
-        with:
-          context: ./src/NuGetTrends.Web
-          file: ./src/NuGetTrends.Web/Dockerfile
-          build-args: |
-            ENVIRONMENT=${{ steps.docker-prep.outputs.environment }}
-            VERSION=${{ steps.docker-prep.outputs.version }}
-          platforms: linux/amd64
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.docker-prep.outputs.tags }}
-          labels: |
-            org.opencontainers.image.created=${{ steps.docker-prep.outputs.created }}
-            org.opencontainers.image.source=${{ github.repositoryUrl }}
-            org.opencontainers.image.version=${{ steps.docker-prep.outputs.version }}
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.licenses=${{ github.event.repository.license.name }}
+      - name: Push container image
+        if: github.event_name != 'pull_request'
+        run: >
+          dotnet publish --no-build -c Release
+          /t:PublishContainer
+          -p:ContainerRegistry=docker.io
+          -p:ContainerImageTags='"${{ steps.tags.outputs.tags }}"'
+        working-directory: src/NuGetTrends.Web/
