@@ -13,6 +13,12 @@ public class CatalogLeafProcessor : ICatalogLeafProcessor
     /// See: https://www.postgresql.org/docs/current/errcodes-appendix.html
     /// </summary>
     private const string PostgresUniqueViolationCode = "23505";
+    
+    /// <summary>
+    /// PostgreSQL error code for not_null_violation.
+    /// See: https://www.postgresql.org/docs/current/errcodes-appendix.html
+    /// </summary>
+    private const string PostgresNotNullViolationCode = "23502";
 
     private readonly IServiceProvider _provider;
     private readonly ILogger<CatalogLeafProcessor> _logger;
@@ -114,14 +120,21 @@ public class CatalogLeafProcessor : ICatalogLeafProcessor
 
         foreach (var leaf in newLeaves)
         {
-            if (string.IsNullOrEmpty(leaf.PackageId))
+            if (string.IsNullOrWhiteSpace(leaf.PackageId))
             {
                 throw new InvalidOperationException(
-                    "PackageId must be set before inserting a PackageDetailsCatalogLeaf. " +
-                    "The NuGet catalog leaf should always provide a PackageId.");
+                    "PackageId must be set and non-empty before inserting a PackageDetailsCatalogLeaf. " +
+                    "The NuGet catalog leaf should always provide a valid PackageId.");
             }
 
             leaf.PackageIdLowered = leaf.PackageId.ToLowerInvariant();
+            
+            // Defensive check: ensure PackageIdLowered is not null or empty after setting
+            if (string.IsNullOrWhiteSpace(leaf.PackageIdLowered))
+            {
+                throw new InvalidOperationException(
+                    $"PackageIdLowered must not be null or empty. PackageId='{leaf.PackageId}'");
+            }
         }
 
         Context.PackageDetailsCatalogLeafs.AddRange(newLeaves);
@@ -130,13 +143,27 @@ public class CatalogLeafProcessor : ICatalogLeafProcessor
         {
             await Save(token);
         }
-        catch (DbUpdateException ex) when (IsDuplicateKeyException(ex))
+        catch (DbUpdateException ex)
         {
-            // Race condition: another process inserted one or more packages between our query and save.
+            // Database constraint violation (could be duplicate key, NOT NULL, or other constraint).
             // Fall back to individual processing for this batch to handle partial success.
-            _logger.LogDebug("Concurrent insert detected in batch, falling back to individual processing.");
+            var isDuplicateKey = IsDuplicateKeyException(ex);
+            var isNotNull = IsNotNullViolationException(ex);
+            
+            if (isDuplicateKey)
+            {
+                _logger.LogDebug("Concurrent insert detected in batch, falling back to individual processing.");
+            }
+            else if (isNotNull)
+            {
+                _logger.LogWarning(ex, "NOT NULL constraint violation in batch, falling back to individual processing.");
+            }
+            else
+            {
+                _logger.LogWarning(ex, "Database constraint violation in batch, falling back to individual processing.");
+            }
 
-            // Detach all entities we tried to add
+            // Detach all entities we tried to add to prevent cascading failures
             foreach (var leaf in newLeaves)
             {
                 Context.Entry(leaf).State = EntityState.Detached;
@@ -157,31 +184,58 @@ public class CatalogLeafProcessor : ICatalogLeafProcessor
 
         if (!exists)
         {
-            if (string.IsNullOrEmpty(leaf.PackageId))
+            if (string.IsNullOrWhiteSpace(leaf.PackageId))
             {
                 throw new InvalidOperationException(
-                    "PackageId must be set before inserting a PackageDetailsCatalogLeaf. " +
-                    "The NuGet catalog leaf should always provide a PackageId.");
+                    "PackageId must be set and non-empty before inserting a PackageDetailsCatalogLeaf. " +
+                    "The NuGet catalog leaf should always provide a valid PackageId.");
             }
 
             leaf.PackageIdLowered = leaf.PackageId.ToLowerInvariant();
+            
+            // Defensive check: ensure PackageIdLowered is not null or empty after setting
+            if (string.IsNullOrWhiteSpace(leaf.PackageIdLowered))
+            {
+                throw new InvalidOperationException(
+                    $"PackageIdLowered must not be null or empty. PackageId='{leaf.PackageId}'");
+            }
             
             Context.PackageDetailsCatalogLeafs.Add(leaf);
             try
             {
                 await Save(token);
             }
-            catch (DbUpdateException ex) when (IsDuplicateKeyException(ex))
+            catch (DbUpdateException ex)
             {
-                // Race condition: another process inserted the same package between our AnyAsync check
-                // and SaveChangesAsync. This is harmless - the package exists, which is what we wanted.
-                // Detach the entity to prevent cascading failures on subsequent saves.
+                // Database constraint violation - detach entity to prevent cascading failures
                 Context.Entry(leaf).State = EntityState.Detached;
 
-                _logger.LogDebug(
-                    "Package {PackageId} v{PackageVersion} already exists (concurrent insert), skipping.",
-                    leaf.PackageId,
-                    leaf.PackageVersion);
+                if (IsDuplicateKeyException(ex))
+                {
+                    // Race condition: another process inserted the same package between our AnyAsync check
+                    // and SaveChangesAsync. This is harmless - the package exists, which is what we wanted.
+                    _logger.LogDebug(
+                        "Package {PackageId} v{PackageVersion} already exists (concurrent insert), skipping.",
+                        leaf.PackageId,
+                        leaf.PackageVersion);
+                }
+                else if (IsNotNullViolationException(ex))
+                {
+                    _logger.LogError(ex,
+                        "NOT NULL constraint violation for package {PackageId} v{PackageVersion}. " +
+                        "PackageId={PackageId}, PackageIdLowered={PackageIdLowered}",
+                        leaf.PackageId,
+                        leaf.PackageVersion,
+                        leaf.PackageId,
+                        leaf.PackageIdLowered);
+                }
+                else
+                {
+                    _logger.LogError(ex,
+                        "Database constraint violation for package {PackageId} v{PackageVersion}",
+                        leaf.PackageId,
+                        leaf.PackageVersion);
+                }
             }
         }
     }
@@ -189,6 +243,11 @@ public class CatalogLeafProcessor : ICatalogLeafProcessor
     private static bool IsDuplicateKeyException(DbUpdateException ex)
     {
         return ex.InnerException is PostgresException { SqlState: PostgresUniqueViolationCode };
+    }
+
+    private static bool IsNotNullViolationException(DbUpdateException ex)
+    {
+        return ex.InnerException is PostgresException { SqlState: PostgresNotNullViolationCode };
     }
 
     /// <summary>
