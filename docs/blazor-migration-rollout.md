@@ -45,6 +45,6 @@ Blazor serves static files from `wwwroot/` by default. **Remove this variable en
 - [ ] Verify Swagger: `/swagger/index.html`
 - [ ] Monitor Sentry for new errors post-deploy
 
-## Post-Migration Cleanup (Optional)
+## Post-Migration Cleanup
 
-The `Portal/dist` directory from the Angular build is no longer used. It can be excluded from the Docker image to save ~10MB. This is safe to do after confirming the Blazor deployment works.
+Done — the `Portal/` directory, Angular CI steps, and Playwright Angular e2e workflow have been removed.
