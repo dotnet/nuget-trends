@@ -78,9 +78,15 @@ jobs:
         working-directory: src/NuGetTrends.Scheduler/
         run: |
           docker load -i container.tar.gz
-          output=$(docker run --rm nugettrends/nugettrends.scheduler:sha-${GITHUB_SHA::8} 2>&1 || true)
-          echo "$output"
-          if echo "$output" | grep -q "does not exist"; then
-            echo "::error::Container entrypoint is broken"
+          image="nugettrends/nugettrends.scheduler:sha-${GITHUB_SHA::8}"
+          docker image inspect "$image" > /dev/null
+
+          entrypoint=$(docker inspect --format='{{json .Config.Entrypoint}}' "$image")
+          echo "Container entrypoint: $entrypoint"
+          if ! echo "$entrypoint" | grep -q '/App/NuGetTrends.Scheduler.dll'; then
+            echo "::error::Container entrypoint does not point to /App/NuGetTrends.Scheduler.dll"
             exit 1
           fi
+
+          output=$(timeout 10s docker run --rm --pull=never "$image" 2>&1 || true)
+          echo "$output"
