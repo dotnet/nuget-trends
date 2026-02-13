@@ -30,6 +30,15 @@ public record DownloadStats
 }
 
 /// <summary>
+/// Single data point for the ApexCharts trend line.
+/// </summary>
+public record DownloadDataPoint
+{
+    public DateTime Timestamp { get; init; }
+    public decimal Count { get; init; }
+}
+
+/// <summary>
 /// Trending package from the API.
 /// </summary>
 public record TrendingPackage

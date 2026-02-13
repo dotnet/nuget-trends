@@ -160,6 +160,22 @@ body {
     padding-top: 0;
 }
 
+.chart-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 380px;
+}
+
+.chart-fade-in {
+    opacity: 0;
+    animation: chartFadeIn 0.35s ease-in 0.15s forwards;
+}
+
+@keyframes chartFadeIn {
+    to { opacity: 1; }
+}
+
 /* Hero styles */
 .hero-title {
     margin-top: 2em;

@@ -1,3 +1,4 @@
+using ApexCharts;
 using Blazored.Toast;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.Extensions.DependencyInjection;
@@ -34,5 +35,8 @@ builder.Services.AddScoped<ThemeState>();
 
 // Blazored Toast
 builder.Services.AddBlazoredToast();
+
+// ApexCharts
+builder.Services.AddApexCharts();
 
 await builder.Build().RunAsync();

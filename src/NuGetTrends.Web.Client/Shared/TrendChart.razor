@@ -1,0 +1,163 @@
+@inject ILogger<TrendChart> Logger
+
+<ApexChart @ref="_chart"
+           TItem="DownloadDataPoint"
+           Options="_options"
+           Height="380"
+           XAxisType="XAxisType.Datetime">
+
+    @foreach (var package in Datasets)
+    {
+        <ApexPointSeries TItem="DownloadDataPoint"
+                         Items="GetDataPoints(package)"
+                         Name="@package.Id"
+                         SeriesType="SeriesType.Line"
+                         XValue="e => e.Timestamp"
+                         YValue="e => e.Count"
+                         Color="@package.Color" />
+    }
+</ApexChart>
+
+@code {
+    [Parameter, EditorRequired]
+    public List<PackageDownloadHistory> Datasets { get; set; } = [];
+
+    [Parameter]
+    public int SearchPeriod { get; set; }
+
+    [Parameter]
+    public bool IsDark { get; set; }
+
+    private ApexChart<DownloadDataPoint>? _chart;
+    private ApexChartOptions<DownloadDataPoint> _options = null!;
+    private bool _previousIsDark;
+    private int _previousSearchPeriod;
+
+    protected override void OnInitialized()
+    {
+        _previousIsDark = IsDark;
+        _previousSearchPeriod = SearchPeriod;
+        _options = BuildOptions();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var themeChanged = _previousIsDark != IsDark;
+        var periodChanged = _previousSearchPeriod != SearchPeriod;
+
+        if (_chart is not null && (themeChanged || periodChanged))
+        {
+            _previousIsDark = IsDark;
+            _previousSearchPeriod = SearchPeriod;
+            _options = BuildOptions();
+
+            try
+            {
+                await _chart.UpdateOptionsAsync(true, true, false);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Failed to update chart options");
+            }
+        }
+    }
+
+    private static List<DownloadDataPoint> GetDataPoints(PackageDownloadHistory package)
+    {
+        return package.Downloads
+            .Where(d => d.Count.HasValue)
+            .Select(d => new DownloadDataPoint { Timestamp = d.Week, Count = (decimal)d.Count!.Value })
+            .ToList();
+    }
+
+    private ApexChartOptions<DownloadDataPoint> BuildOptions()
+    {
+        var gridColor = IsDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)";
+        var textColor = IsDark ? "#a0a0a0" : "#666666";
+
+        // Adapt marker size and date format to the data density
+        var showMarkers = SearchPeriod <= 12;
+
+        var dateFormat = SearchPeriod switch
+        {
+            <= 6 => "dd MMM yyyy",
+            <= 24 => "MMM yyyy",
+            _ => "yyyy"
+        };
+
+        return new ApexChartOptions<DownloadDataPoint>
+        {
+            Chart = new Chart
+            {
+                Toolbar = new Toolbar { Show = false },
+                Animations = new Animations
+                {
+                    Enabled = true,
+                    Easing = Easing.Easeinout,
+                    Speed = 400,
+                    AnimateGradually = new AnimateGradually { Enabled = false },
+                },
+                Background = "transparent",
+                FontFamily = "inherit",
+                ForeColor = textColor,
+            },
+            Legend = new Legend { Show = false },
+            Markers = new Markers
+            {
+                Size = showMarkers ? 4 : 0,
+                Hover = new MarkersHover { SizeOffset = showMarkers ? 3 : 5 },
+                StrokeWidth = new Size(showMarkers ? 1 : 0),
+                StrokeColors = new Color("#fff"),
+                Shape = MarkerShape.Circle,
+            },
+            Stroke = new Stroke
+            {
+                Curve = Curve.Smooth,
+                Width = 2,
+            },
+            Grid = new Grid
+            {
+                BorderColor = gridColor,
+            },
+            Xaxis = new XAxis
+            {
+                Type = XAxisType.Datetime,
+                Labels = new XAxisLabels
+                {
+                    DatetimeFormatter = new DatetimeFormatter
+                    {
+                        Day = dateFormat,
+                        Month = "MMM yyyy",
+                        Year = "yyyy",
+                    },
+                    Style = new AxisLabelStyle { Colors = new Color(textColor) },
+                },
+                AxisBorder = new AxisBorder { Color = gridColor },
+                AxisTicks = new AxisTicks { Color = gridColor },
+            },
+            Yaxis = new List<YAxis>
+            {
+                new()
+                {
+                    Labels = new YAxisLabels
+                    {
+                        Style = new AxisLabelStyle { Colors = new Color(textColor) },
+                        Formatter = "function(val) { return val.toLocaleString(); }",
+                    },
+                },
+            },
+            Tooltip = new Tooltip
+            {
+                Theme = IsDark ? Mode.Dark : Mode.Light,
+                X = new TooltipX
+                {
+                    Format = dateFormat,
+                },
+                Y = new TooltipY
+                {
+                    Formatter = @"function(value) { return value.toLocaleString(); }",
+                },
+            },
+        };
+    }
+}

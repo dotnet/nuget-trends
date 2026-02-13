@@ -57,9 +57,9 @@ public class DateRangeDuplicateTests
             });
             await page.WaitForTimeoutAsync(3_000);
 
-            // Count datasets before changing the date range
-            var datasetCountBefore = await page.EvaluateAsync<int>(
-                "window.chartInterop.chart?.data.datasets.length ?? 0");
+            // Count datasets before changing the date range (ApexCharts renders SVG series)
+            var seriesSelector = ".apexcharts-line-series .apexcharts-series";
+            var datasetCountBefore = await page.Locator(seriesSelector).CountAsync();
             _output.WriteLine($"Datasets before period change: {datasetCountBefore}");
             datasetCountBefore.Should().Be(1, "should have exactly 1 dataset (Sentry)");
 
@@ -72,8 +72,7 @@ public class DateRangeDuplicateTests
             await page.WaitForTimeoutAsync(3_000);
 
             // Count datasets after changing the date range
-            var datasetCountAfter = await page.EvaluateAsync<int>(
-                "window.chartInterop.chart?.data.datasets.length ?? 0");
+            var datasetCountAfter = await page.Locator(seriesSelector).CountAsync();
             _output.WriteLine($"Datasets after period change: {datasetCountAfter}");
 
             datasetCountAfter.Should().Be(1,
@@ -84,8 +83,7 @@ public class DateRangeDuplicateTests
             _output.WriteLine("Changed period to 12 months");
             await page.WaitForTimeoutAsync(3_000);
 
-            var datasetCountFinal = await page.EvaluateAsync<int>(
-                "window.chartInterop.chart?.data.datasets.length ?? 0");
+            var datasetCountFinal = await page.Locator(seriesSelector).CountAsync();
             _output.WriteLine($"Datasets after second period change: {datasetCountFinal}");
 
             datasetCountFinal.Should().Be(1,
