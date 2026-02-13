@@ -58,23 +58,22 @@
     [SupplyParameterFromQuery(Name = "months")]
     public int? Months { get; set; }
 
-    private List<PackageDownloadHistory> _chartDatasets = [];
+    private readonly List<PackageDownloadHistory> _chartDatasets = [];
     private bool _isLoading = true;
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
-        PackageState.PackagePlotted += OnPackagePlotted;
-        PackageState.PackageRemoved += OnPackageRemoved;
-        PackageState.SearchPeriodChanged += OnSearchPeriodChanged;
-        ThemeState.ThemeChanged += OnThemeChanged;
-
-        // Set search period from URL
+        // Set search period from URL before subscribing to events,
+        // otherwise the setter triggers OnSearchPeriodChanged with no packages loaded.
         if (Months.HasValue && Months.Value > 0)
         {
             PackageState.SearchPeriod = Months.Value;
         }
 
-        await Task.CompletedTask;
+        PackageState.PackagePlotted += OnPackagePlotted;
+        PackageState.PackageRemoved += OnPackageRemoved;
+        PackageState.SearchPeriodChanged += OnSearchPeriodChanged;
+        ThemeState.ThemeChanged += OnThemeChanged;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -247,6 +246,7 @@
                 }
 
                 _isLoading = false;
+                UpdateUrl();
                 StateHasChanged();
             });
         }

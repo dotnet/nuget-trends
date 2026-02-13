@@ -8,7 +8,7 @@
 
     @foreach (var package in Datasets)
     {
-        <ApexPointSeries TItem="DownloadDataPoint"
+        <ApexPointSeries @key="package.Id" TItem="DownloadDataPoint"
                          Items="GetDataPoints(package)"
                          Name="@package.Id"
                          SeriesType="SeriesType.Line"
