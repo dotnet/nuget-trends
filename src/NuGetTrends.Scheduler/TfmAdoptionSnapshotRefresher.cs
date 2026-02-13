@@ -88,7 +88,7 @@ public class TfmAdoptionSnapshotRefresher(
             Dictionary<(string Tfm, string Family, DateOnly Month), HashSet<string>> tfmPackages;
             try
             {
-                tfmPackages = await QueryPostgresAsync(maxMonth, isBackfill, token.ShutdownToken);
+                tfmPackages = await QueryPostgresAsync(token.ShutdownToken);
                 querySpan.SetData("distinct_tfm_month_combos", tfmPackages.Count);
                 querySpan.Finish(SpanStatus.Ok);
             }
@@ -193,7 +193,7 @@ public class TfmAdoptionSnapshotRefresher(
     }
 
     private async Task<Dictionary<(string Tfm, string Family, DateOnly Month), HashSet<string>>> QueryPostgresAsync(
-        DateOnly? maxMonth, bool isBackfill, CancellationToken ct)
+        CancellationToken ct)
     {
         var connection = dbContext.Database.GetDbConnection();
         if (connection.State != ConnectionState.Open)
@@ -203,26 +203,14 @@ public class TfmAdoptionSnapshotRefresher(
 
         await using var cmd = connection.CreateCommand();
 
-        var sql = """
+        // Always query all data to ensure correct cumulative counts.
+        cmd.CommandText = """
             SELECT pdcl.package_id_lowered, pdg.target_framework, MIN(pdcl.created) AS first_created
             FROM package_dependency_group pdg
             INNER JOIN package_details_catalog_leafs pdcl ON pdg.package_details_catalog_leaf_id = pdcl.id
             WHERE pdg.target_framework IS NOT NULL AND pdg.target_framework != ''
+            GROUP BY pdcl.package_id_lowered, pdg.target_framework
             """;
-
-        if (!isBackfill && maxMonth.HasValue)
-        {
-            var recomputeStart = maxMonth.Value.AddMonths(-IncrementalRecomputeMonths);
-            sql += " AND pdcl.created >= @recomputeStart";
-            var param = cmd.CreateParameter();
-            param.ParameterName = "recomputeStart";
-            param.Value = recomputeStart.ToDateTime(TimeOnly.MinValue);
-            param.DbType = DbType.DateTime;
-            cmd.Parameters.Add(param);
-        }
-
-        sql += " GROUP BY pdcl.package_id_lowered, pdg.target_framework";
-        cmd.CommandText = sql;
 
         var result = new Dictionary<(string Tfm, string Family, DateOnly Month), HashSet<string>>();
 

@@ -1,8 +1,13 @@
 @using NuGetTrends.Web.Client.Models
 
+@if (_isOpen)
+{
+    <div class="tfm-filter-backdrop" @onclick="CloseDropdown"></div>
+}
 <div class="tfm-filter-dropdown @(_isOpen ? "is-active" : "")">
     <div class="dropdown-trigger">
-        <button class="button is-normal" @onclick="ToggleDropdown" @onclick:stopPropagation="true">
+        <button class="button is-normal" @onclick="ToggleDropdown" @onclick:stopPropagation="true"
+                @onkeydown="OnButtonKeyDown" @onkeydown:stopPropagation="_isOpen">
             <span>@SelectedCount TFMs selected</span>
             <span class="icon is-small">
                 <i class="fa fa-angle-down" aria-hidden="true"></i>
@@ -11,7 +16,7 @@
     </div>
     @if (_isOpen)
     {
-        <div class="dropdown-content" @onclick:stopPropagation="true">
+        <div class="dropdown-content" @onclick:stopPropagation="true" @onkeydown="OnDropdownKeyDown">
             @foreach (var group in Groups)
             {
                 <div class="tfm-filter-group">
@@ -54,6 +59,28 @@
     private bool IsSelected(string tfm) => SelectedTfms.Contains(tfm);
 
     private void ToggleDropdown() => _isOpen = !_isOpen;
+
+    private void CloseDropdown() => _isOpen = false;
+
+    private void OnButtonKeyDown(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
+    {
+        if (e.Key is "Enter" or " ")
+        {
+            ToggleDropdown();
+        }
+        else if (e.Key == "Escape" && _isOpen)
+        {
+            _isOpen = false;
+        }
+    }
+
+    private void OnDropdownKeyDown(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            _isOpen = false;
+        }
+    }
 
     private async Task ToggleTfm(string tfm, bool isChecked)
     {

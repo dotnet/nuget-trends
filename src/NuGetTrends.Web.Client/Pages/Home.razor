@@ -4,6 +4,16 @@
 
 <PageTitle>NuGet Trends - Package Download Statistics</PageTitle>
 
+@code {
+    private void NavigateOnKey(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e, string url)
+    {
+        if (e.Key is "Enter" or " ")
+        {
+            Navigation.NavigateTo(url);
+        }
+    }
+}
+
 <section class="section feature-cards-section">
     <div class="container">
         <div class="columns is-centered">
@@ -15,7 +25,7 @@
 
                 <div class="columns is-multiline is-variable is-6">
                     <div class="column is-4">
-                        <div class="feature-card" @onclick='() => Navigation.NavigateTo("/packages")' tabindex="0" role="button">
+                        <div class="feature-card" @onclick='() => Navigation.NavigateTo("/packages")' @onkeydown='e => NavigateOnKey(e, "/packages")' tabindex="0" role="button">
                             <div class="feature-icon">
                                 <span class="icon is-large">
                                     <i class="fa fa-line-chart fa-3x"></i>
@@ -27,7 +37,7 @@
                                 Visualize growth patterns and make data-driven decisions.
                             </p>
                             <div class="feature-cta">
-                                <span class="button is-primary is-outlined">
+                                <span class="button is-primary is-outlined" aria-hidden="true">
                                     Compare Packages <i class="fa fa-arrow-right" style="margin-left: 0.5em"></i>
                                 </span>
                             </div>
@@ -35,7 +45,7 @@
                     </div>
 
                     <div class="column is-4">
-                        <div class="feature-card" @onclick='() => Navigation.NavigateTo("/trending")' tabindex="0" role="button">
+                        <div class="feature-card" @onclick='() => Navigation.NavigateTo("/trending")' @onkeydown='e => NavigateOnKey(e, "/trending")' tabindex="0" role="button">
                             <div class="feature-icon">
                                 <span class="icon is-large">
                                     <i class="fa fa-fire fa-3x"></i>
@@ -47,7 +57,7 @@
                                 Stay ahead with rising libraries and frameworks.
                             </p>
                             <div class="feature-cta">
-                                <span class="button is-primary is-outlined">
+                                <span class="button is-primary is-outlined" aria-hidden="true">
                                     View Trending <i class="fa fa-arrow-right" style="margin-left: 0.5em"></i>
                                 </span>
                             </div>
@@ -55,7 +65,7 @@
                     </div>
 
                     <div class="column is-4">
-                        <div class="feature-card" @onclick='() => Navigation.NavigateTo("/frameworks")' tabindex="0" role="button">
+                        <div class="feature-card" @onclick='() => Navigation.NavigateTo("/frameworks")' @onkeydown='e => NavigateOnKey(e, "/frameworks")' tabindex="0" role="button">
                             <div class="feature-icon">
                                 <span class="icon is-large">
                                     <i class="fa fa-bar-chart fa-3x"></i>
@@ -67,7 +77,7 @@
                                 Understand migration patterns across the community.
                             </p>
                             <div class="feature-cta">
-                                <span class="button is-primary is-outlined">
+                                <span class="button is-primary is-outlined" aria-hidden="true">
                                     View Trends <i class="fa fa-arrow-right" style="margin-left: 0.5em"></i>
                                 </span>
                             </div>

@@ -751,16 +751,12 @@ public class ClickHouseService : IClickHouseService
 
             // Delete existing rows for target months to avoid duplicates on retries
             var months = dataPoints.Select(d => d.Month).Distinct().ToList();
-            foreach (var month in months)
-            {
-                await using var deleteCmd = connection.CreateCommand();
-                deleteCmd.CommandText = "ALTER TABLE tfm_adoption_snapshot DELETE WHERE month = {month:Date}";
-                var monthParam = deleteCmd.CreateParameter();
-                monthParam.ParameterName = "month";
-                monthParam.Value = month.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-                deleteCmd.Parameters.Add(monthParam);
-                await deleteCmd.ExecuteNonQueryAsync(ct);
-            }
+            var monthListSql = string.Join(
+                ",",
+                months.Select(m => $"'{m:yyyy-MM-dd}'"));
+            await using var deleteCmd = connection.CreateCommand();
+            deleteCmd.CommandText = $"ALTER TABLE tfm_adoption_snapshot DELETE WHERE month IN ({monthListSql})";
+            await deleteCmd.ExecuteNonQueryAsync(ct);
 
             _logger.LogInformation("Deleted existing TFM adoption rows for {Count} months before re-insert", months.Count);
 

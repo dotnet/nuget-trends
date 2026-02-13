@@ -672,9 +672,19 @@ section:has(.autocomplete-dropdown) {
 }
 
 /* Framework Adoption page - filter dropdown */
+.tfm-filter-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 99;
+}
+
 .tfm-filter-dropdown {
     position: relative;
     display: inline-block;
+    z-index: 100;
 }
 
 .tfm-filter-dropdown .dropdown-content {
