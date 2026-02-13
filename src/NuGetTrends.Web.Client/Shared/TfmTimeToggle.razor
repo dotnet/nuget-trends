@@ -1,0 +1,29 @@
+@using NuGetTrends.Web.Client.Models
+
+<div class="buttons has-addons tfm-toggle">
+    <button class="button is-normal @(TimeMode == TfmTimeMode.Absolute ? "is-primary is-selected" : "")"
+            @onclick="() => SetMode(TfmTimeMode.Absolute)">
+        Calendar Dates
+    </button>
+    <button class="button is-normal @(TimeMode == TfmTimeMode.Relative ? "is-primary is-selected" : "")"
+            @onclick="() => SetMode(TfmTimeMode.Relative)">
+        Relative
+    </button>
+</div>
+
+@code {
+    [Parameter]
+    public TfmTimeMode TimeMode { get; set; } = TfmTimeMode.Absolute;
+
+    [Parameter]
+    public EventCallback<TfmTimeMode> TimeModeChanged { get; set; }
+
+    private async Task SetMode(TfmTimeMode mode)
+    {
+        if (TimeMode != mode)
+        {
+            TimeMode = mode;
+            await TimeModeChanged.InvokeAsync(mode);
+        }
+    }
+}

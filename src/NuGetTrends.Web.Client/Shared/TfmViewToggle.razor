@@ -1,0 +1,29 @@
+@using NuGetTrends.Web.Client.Models
+
+<div class="buttons has-addons tfm-toggle">
+    <button class="button is-normal @(ViewMode == TfmViewMode.Family ? "is-primary is-selected" : "")"
+            @onclick="() => SetMode(TfmViewMode.Family)">
+        By Family
+    </button>
+    <button class="button is-normal @(ViewMode == TfmViewMode.Individual ? "is-primary is-selected" : "")"
+            @onclick="() => SetMode(TfmViewMode.Individual)">
+        Individual TFMs
+    </button>
+</div>
+
+@code {
+    [Parameter]
+    public TfmViewMode ViewMode { get; set; } = TfmViewMode.Individual;
+
+    [Parameter]
+    public EventCallback<TfmViewMode> ViewModeChanged { get; set; }
+
+    private async Task SetMode(TfmViewMode mode)
+    {
+        if (ViewMode != mode)
+        {
+            ViewMode = mode;
+            await ViewModeChanged.InvokeAsync(mode);
+        }
+    }
+}

@@ -1,6 +1,90 @@
 @page "/"
 @attribute [StreamRendering]
+@inject NavigationManager Navigation
 
 <PageTitle>NuGet Trends - Package Download Statistics</PageTitle>
 
-<TrendingPackages />
+@code {
+    private void NavigateOnKey(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e, string url)
+    {
+        if (e.Key is "Enter" or " ")
+        {
+            Navigation.NavigateTo(url);
+        }
+    }
+}
+
+<section class="section feature-cards-section">
+    <div class="container">
+        <div class="columns is-centered">
+            <div class="column is-10">
+                <h2 class="title is-3 has-text-centered">Explore NuGet Package Trends</h2>
+                <p class="subtitle is-5 has-text-centered">
+                    Track downloads, discover trending packages, and analyze .NET adoption
+                </p>
+
+                <div class="columns is-multiline is-variable is-6">
+                    <div class="column is-4">
+                        <div class="feature-card" @onclick='() => Navigation.NavigateTo("/packages")' @onkeydown='e => NavigateOnKey(e, "/packages")' tabindex="0" role="button">
+                            <div class="feature-icon">
+                                <span class="icon is-large">
+                                    <i class="fa fa-line-chart fa-3x"></i>
+                                </span>
+                            </div>
+                            <h3 class="title is-4">Package Downloads</h3>
+                            <p class="feature-description">
+                                Search and compare download trends for any NuGet package.
+                                Visualize growth patterns and make data-driven decisions.
+                            </p>
+                            <div class="feature-cta">
+                                <span class="button is-primary is-outlined" aria-hidden="true">
+                                    Compare Packages <i class="fa fa-arrow-right" style="margin-left: 0.5em"></i>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="column is-4">
+                        <div class="feature-card" @onclick='() => Navigation.NavigateTo("/trending")' @onkeydown='e => NavigateOnKey(e, "/trending")' tabindex="0" role="button">
+                            <div class="feature-icon">
+                                <span class="icon is-large">
+                                    <i class="fa fa-fire fa-3x"></i>
+                                </span>
+                            </div>
+                            <h3 class="title is-4">Trending Packages</h3>
+                            <p class="feature-description">
+                                Discover the fastest-growing NuGet packages this week.
+                                Stay ahead with rising libraries and frameworks.
+                            </p>
+                            <div class="feature-cta">
+                                <span class="button is-primary is-outlined" aria-hidden="true">
+                                    View Trending <i class="fa fa-arrow-right" style="margin-left: 0.5em"></i>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="column is-4">
+                        <div class="feature-card" @onclick='() => Navigation.NavigateTo("/frameworks")' @onkeydown='e => NavigateOnKey(e, "/frameworks")' tabindex="0" role="button">
+                            <div class="feature-icon">
+                                <span class="icon is-large">
+                                    <i class="fa fa-bar-chart fa-3x"></i>
+                                </span>
+                            </div>
+                            <h3 class="title is-4">Framework Adoption</h3>
+                            <p class="feature-description">
+                                Track how quickly the .NET ecosystem adopts new target frameworks.
+                                Understand migration patterns across the community.
+                            </p>
+                            <div class="feature-cta">
+                                <span class="button is-primary is-outlined" aria-hidden="true">
+                                    View Trends <i class="fa fa-arrow-right" style="margin-left: 0.5em"></i>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>

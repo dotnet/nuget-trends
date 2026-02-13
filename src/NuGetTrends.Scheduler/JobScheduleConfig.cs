@@ -43,4 +43,18 @@ internal static class JobScheduleConfig
         public const int MaxRuntimeMinutes = 30;
         public const int FailureIssueThreshold = 2; // Allow 1 retry before alerting
     }
+
+    /// <summary>
+    /// TFM Adoption Snapshot Refresher - runs weekly on Tuesday at 3 AM UTC.
+    /// Computes cumulative package counts per TFM per month for the /frameworks page.
+    /// </summary>
+    internal static class TfmAdoptionRefresher
+    {
+        public const string MonitorSlug = "tfm-adoption-snapshot-refresh";
+        public const DayOfWeek RunOnDay = DayOfWeek.Tuesday;
+        public const int RunAtHourUtc = 3;
+        public const int CheckInMarginMinutes = 15;
+        public const int MaxRuntimeMinutes = 120;
+        public const int FailureIssueThreshold = 2;
+    }
 }

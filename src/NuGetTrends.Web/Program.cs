@@ -164,6 +164,7 @@ try
     // Add caching services
     builder.Services.AddMemoryCache();
     builder.Services.AddScoped<ITrendingPackagesCache, TrendingPackagesCache>();
+    builder.Services.AddScoped<ITfmAdoptionCache, TfmAdoptionCache>();
 
     builder.Services.AddSwaggerGen(c =>
     {

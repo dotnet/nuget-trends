@@ -71,6 +71,7 @@ public class ClickHouseFixture : IAsyncLifetime
             "DROP VIEW IF EXISTS weekly_downloads_mv",
             "DROP TABLE IF EXISTS weekly_downloads",
             "DROP TABLE IF EXISTS trending_packages_snapshot",
+            "DROP TABLE IF EXISTS tfm_adoption_snapshot",
             "DROP TABLE IF EXISTS package_first_seen",
             "DROP TABLE IF EXISTS daily_downloads"
         };

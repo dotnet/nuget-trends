@@ -13,39 +13,51 @@
 <div id="chartz">
     <section class="section">
         <div class="columns is-centered">
-            <PackageList />
-        </div>
-    </section>
-    <div class="columns is-vcentered is-centered">
-        <div class="column has-text-right has-text-centered-mobile is-narrow">
-            <label for="period" class="title is-5">Showing results for the last: </label>
-        </div>
-        <div class="column has-text-centered-mobile is-narrow">
-            <SearchPeriod />
-        </div>
-    </div>
-    <section class="section chart-section">
-        <div class="columns is-centered has-text-centered">
             <div class="column is-8">
-                @if (_isLoading)
-                {
-                    <div class="chart-loading">
-                        <span class="icon is-large has-text-grey-light">
-                            <i class="fa fa-line-chart fa-3x fa-pulse"></i>
-                        </span>
-                    </div>
-                }
-                else if (_chartDatasets.Count > 0)
-                {
-                    <div class="box is-shadowless chart-fade-in">
-                        <TrendChart Datasets="_chartDatasets"
-                                    SearchPeriod="PackageState.SearchPeriod"
-                                    IsDark="ThemeState.IsDark" />
-                    </div>
-                }
+                <div class="control has-icons-left has-icons-right">
+                    <SearchInput />
+                </div>
             </div>
         </div>
     </section>
+    @if (_chartDatasets.Count > 0 || _isLoading)
+    {
+        <section class="section" style="padding-top: 0">
+            <div class="columns is-centered">
+                <PackageList />
+            </div>
+        </section>
+        <div class="columns is-vcentered is-centered">
+            <div class="column has-text-right has-text-centered-mobile is-narrow">
+                <label for="period" class="title is-5">Showing results for the last: </label>
+            </div>
+            <div class="column has-text-centered-mobile is-narrow">
+                <SearchPeriod />
+            </div>
+        </div>
+        <section class="section chart-section">
+            <div class="columns is-centered has-text-centered">
+                <div class="column is-8">
+                    @if (_isLoading)
+                    {
+                        <div class="chart-loading">
+                            <span class="icon is-large has-text-grey-light">
+                                <i class="fa fa-line-chart fa-3x fa-pulse"></i>
+                            </span>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="box is-shadowless chart-fade-in">
+                            <TrendChart Datasets="_chartDatasets"
+                                        SearchPeriod="PackageState.SearchPeriod"
+                                        IsDark="ThemeState.IsDark" />
+                        </div>
+                    }
+                </div>
+            </div>
+        </section>
+    }
 </div>
 
 @code {
@@ -111,12 +123,6 @@
         foreach (var id in packageIdsToLoad)
         {
             await LoadPackage(id);
-        }
-
-        // If no packages were loaded, navigate home
-        if (PackageState.Packages.Count == 0)
-        {
-            Navigation.NavigateTo("/");
         }
     }
 
@@ -204,12 +210,6 @@
                 _chartDatasets.RemoveAll(d => d.Id.Equals(packageId, StringComparison.OrdinalIgnoreCase));
                 _chartDatasets = [.. _chartDatasets];
                 RemovePackageFromUrl(packageId);
-
-                if (PackageState.Packages.Count == 0)
-                {
-                    Navigation.NavigateTo("/");
-                }
-
                 StateHasChanged();
             });
         }

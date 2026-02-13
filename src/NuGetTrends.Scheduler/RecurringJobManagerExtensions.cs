@@ -37,5 +37,11 @@ internal static class RecurringJobManagerExtensions
             j => j.Refresh(JobCancellationToken.Null, null),
             Cron.Weekly(JobScheduleConfig.TrendingSnapshotRefresher.RunOnDay,
                 JobScheduleConfig.TrendingSnapshotRefresher.RunAtHourUtc));
+
+        jobManager.AddOrUpdate<TfmAdoptionSnapshotRefresher>(
+            "TfmAdoptionSnapshotRefresher",
+            j => j.Refresh(JobCancellationToken.Null, null),
+            Cron.Weekly(JobScheduleConfig.TfmAdoptionRefresher.RunOnDay,
+                JobScheduleConfig.TfmAdoptionRefresher.RunAtHourUtc));
     }
 }

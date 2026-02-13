@@ -1,0 +1,391 @@
+@page "/frameworks"
+@inject HttpClient Http
+@inject ThemeState ThemeState
+@inject ILogger<Frameworks> Logger
+@implements IDisposable
+
+<PageTitle>NuGet Trends - Framework Adoption</PageTitle>
+
+<div id="chartz">
+    <section class="section">
+        <div class="columns is-centered">
+            <div class="column has-text-centered">
+                <h2 class="title is-4">Target Framework Adoption</h2>
+                <p class="subtitle is-6">
+                    How quickly does the NuGet ecosystem adopt new .NET versions?
+                </p>
+            </div>
+        </div>
+    </section>
+    <div class="columns is-vcentered is-centered">
+        <div class="column has-text-centered-mobile is-narrow">
+            <TfmViewToggle ViewMode="_viewMode" ViewModeChanged="OnViewModeChanged" />
+        </div>
+        <div class="column has-text-centered-mobile is-narrow">
+            <TfmTimeToggle TimeMode="_timeMode" TimeModeChanged="OnTimeModeChanged" />
+        </div>
+        <div class="column has-text-centered-mobile is-narrow">
+            <TfmFilter Groups="_familyGroups" SelectedTfms="_selectedTfms" SelectedTfmsChanged="OnFilterChanged" />
+        </div>
+    </div>
+    <section class="section chart-section">
+        <div class="columns is-centered has-text-centered">
+            <div class="column is-8">
+                @if (_isLoading)
+                {
+                    <div class="chart-loading">
+                        <span class="icon is-large has-text-grey-light">
+                            <i class="fa fa-bar-chart fa-3x fa-pulse"></i>
+                        </span>
+                    </div>
+                }
+                else if (_errorMessage != null)
+                {
+                    <p class="has-text-centered has-text-danger">@_errorMessage</p>
+                }
+                else if (_chartSeries.Count > 0)
+                {
+                    <div class="box is-shadowless chart-fade-in">
+                        <ApexChart @ref="_chart"
+                                   TItem="TfmChartPoint"
+                                   Options="_chartOptions"
+                                   Height="380"
+                                   XAxisType="@(_timeMode == TfmTimeMode.Absolute ? XAxisType.Datetime : XAxisType.Numeric)">
+                            @foreach (var series in _chartSeries)
+                            {
+                                <ApexPointSeries @key="series.Name"
+                                                 TItem="TfmChartPoint"
+                                                 Items="series.Points"
+                                                 Name="@series.Name"
+                                                 SeriesType="SeriesType.Line"
+                                                 XValue="e => e.X"
+                                                 YValue="e => e.Y"
+                                                 Color="@series.Color" />
+                            }
+                        </ApexChart>
+                    </div>
+                }
+                else
+                {
+                    <p class="has-text-centered">No framework adoption data available yet. Data is computed weekly.</p>
+                }
+            </div>
+        </div>
+    </section>
+</div>
+
+@code {
+    private TfmAdoptionResponse? _adoptionData;
+    private List<TfmFamilyGroup> _familyGroups = [];
+    private HashSet<string> _selectedTfms = [];
+    private TfmViewMode _viewMode = TfmViewMode.Individual;
+    private TfmTimeMode _timeMode = TfmTimeMode.Absolute;
+    private bool _isLoading = true;
+    private string? _errorMessage;
+
+    private ApexChart<TfmChartPoint>? _chart;
+    private ApexChartOptions<TfmChartPoint> _chartOptions = null!;
+    private List<ChartSeriesData> _chartSeries = [];
+
+    private static readonly string[] ChartColors =
+    [
+        "#055499", "#ff5a00", "#9bca3c", "#e91365", "#9B5094", "#DB9D47",
+        "#2a7ab5", "#cc4800", "#7da830", "#b30f50", "#7a3f75", "#b07d39"
+    ];
+
+    protected override void OnInitialized()
+    {
+        ThemeState.ThemeChanged += OnThemeChanged;
+        _chartOptions = BuildChartOptions();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadDataAsync();
+        }
+    }
+
+    private async Task LoadDataAsync()
+    {
+        try
+        {
+            _isLoading = true;
+            StateHasChanged();
+
+            var availableTask = Http.GetFromJsonAsync<List<TfmFamilyGroup>>("/api/framework/available");
+            var adoptionTask = Http.GetFromJsonAsync<TfmAdoptionResponse>("/api/framework/adoption");
+
+            await Task.WhenAll(availableTask, adoptionTask);
+
+            _familyGroups = availableTask.Result ?? [];
+            _adoptionData = adoptionTask.Result;
+
+            SelectDefaultTfms();
+            RebuildChartSeries();
+
+            _isLoading = false;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading framework data");
+            _errorMessage = "Failed to load framework data. Please try again later.";
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void SelectDefaultTfms()
+    {
+        if (_adoptionData == null) return;
+
+        _selectedTfms = _adoptionData.Series
+            .OrderByDescending(s => s.DataPoints.LastOrDefault()?.CumulativeCount ?? 0)
+            .Take(10)
+            .Select(s => s.Tfm)
+            .ToHashSet();
+    }
+
+    private void RebuildChartSeries()
+    {
+        if (_adoptionData == null || _selectedTfms.Count == 0)
+        {
+            _chartSeries = [];
+            return;
+        }
+
+        _chartSeries = _viewMode == TfmViewMode.Family
+            ? BuildFamilySeries()
+            : BuildIndividualSeries();
+    }
+
+    private List<ChartSeriesData> BuildIndividualSeries()
+    {
+        var result = new List<ChartSeriesData>();
+        var colorIndex = 0;
+
+        foreach (var series in _adoptionData!.Series.Where(s => _selectedTfms.Contains(s.Tfm)))
+        {
+            var color = ChartColors[colorIndex % ChartColors.Length];
+            colorIndex++;
+
+            var points = _timeMode == TfmTimeMode.Absolute
+                ? series.DataPoints
+                    .Select(dp => new TfmChartPoint(dp.Month.ToDateTime(TimeOnly.MinValue).Ticks, (decimal)dp.CumulativeCount))
+                    .ToList()
+                : series.DataPoints
+                    .Select((dp, i) => new TfmChartPoint(i, (decimal)dp.CumulativeCount))
+                    .ToList();
+
+            result.Add(new ChartSeriesData(series.Tfm, color, points));
+        }
+
+        return result;
+    }
+
+    private List<ChartSeriesData> BuildFamilySeries()
+    {
+        var familyData = new Dictionary<string, SortedDictionary<string, decimal>>();
+
+        foreach (var series in _adoptionData!.Series.Where(s => _selectedTfms.Contains(s.Tfm)))
+        {
+            if (!familyData.TryGetValue(series.Family, out var monthData))
+            {
+                monthData = new SortedDictionary<string, decimal>();
+                familyData[series.Family] = monthData;
+            }
+
+            foreach (var dp in series.DataPoints)
+            {
+                var key = dp.Month.ToString("yyyy-MM-dd");
+                monthData[key] = monthData.TryGetValue(key, out var existing)
+                    ? existing + dp.CumulativeCount
+                    : dp.CumulativeCount;
+            }
+        }
+
+        var result = new List<ChartSeriesData>();
+        var colorIndex = 0;
+
+        foreach (var (family, monthData) in familyData)
+        {
+            var color = ChartColors[colorIndex % ChartColors.Length];
+            colorIndex++;
+
+            var points = _timeMode == TfmTimeMode.Absolute
+                ? monthData
+                    .Select(kv => new TfmChartPoint(DateOnly.Parse(kv.Key).ToDateTime(TimeOnly.MinValue).Ticks, kv.Value))
+                    .ToList()
+                : monthData
+                    .Select((kv, i) => new TfmChartPoint(i, kv.Value))
+                    .ToList();
+
+            result.Add(new ChartSeriesData(family, color, points));
+        }
+
+        return result;
+    }
+
+    private ApexChartOptions<TfmChartPoint> BuildChartOptions()
+    {
+        var gridColor = ThemeState.IsDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)";
+        var textColor = ThemeState.IsDark ? "#a0a0a0" : "#666666";
+
+        return new ApexChartOptions<TfmChartPoint>
+        {
+            Chart = new Chart
+            {
+                Toolbar = new Toolbar { Show = false },
+                Animations = new Animations
+                {
+                    Enabled = true,
+                    Easing = Easing.Easeinout,
+                    Speed = 400,
+                    AnimateGradually = new AnimateGradually { Enabled = false },
+                },
+                Background = "transparent",
+                FontFamily = "inherit",
+                ForeColor = textColor,
+            },
+            Legend = new Legend { Show = true, Position = LegendPosition.Top },
+            Markers = new Markers
+            {
+                Size = 4,
+                Hover = new MarkersHover { SizeOffset = 3 },
+                StrokeWidth = new Size(1),
+                StrokeColors = new Color("#fff"),
+                Shape = MarkerShape.Circle,
+            },
+            Stroke = new Stroke
+            {
+                Curve = Curve.Smooth,
+                Width = 2,
+            },
+            Grid = new Grid
+            {
+                BorderColor = gridColor,
+            },
+            Xaxis = _timeMode == TfmTimeMode.Absolute
+                ? new XAxis
+                {
+                    Type = XAxisType.Datetime,
+                    Labels = new XAxisLabels
+                    {
+                        DatetimeFormatter = new DatetimeFormatter
+                        {
+                            Day = "dd MMM yyyy",
+                            Month = "MMM yyyy",
+                            Year = "yyyy",
+                        },
+                        Style = new AxisLabelStyle { Colors = new Color(textColor) },
+                    },
+                    AxisBorder = new AxisBorder { Color = gridColor },
+                    AxisTicks = new AxisTicks { Color = gridColor },
+                }
+                : new XAxis
+                {
+                    Type = XAxisType.Numeric,
+                    Title = new AxisTitle { Text = "Months since first appearance" },
+                    Labels = new XAxisLabels
+                    {
+                        Style = new AxisLabelStyle { Colors = new Color(textColor) },
+                    },
+                    AxisBorder = new AxisBorder { Color = gridColor },
+                    AxisTicks = new AxisTicks { Color = gridColor },
+                },
+            Yaxis = new List<YAxis>
+            {
+                new()
+                {
+                    Labels = new YAxisLabels
+                    {
+                        Style = new AxisLabelStyle { Colors = new Color(textColor) },
+                        Formatter = "function(val) { return val.toLocaleString(); }",
+                    },
+                },
+            },
+            Tooltip = new Tooltip
+            {
+                Theme = ThemeState.IsDark ? Mode.Dark : Mode.Light,
+                Y = new TooltipY
+                {
+                    Formatter = @"function(value) { return value.toLocaleString(); }",
+                },
+            },
+        };
+    }
+
+    private async Task OnViewModeChanged(TfmViewMode mode)
+    {
+        _viewMode = mode;
+        _chartOptions = BuildChartOptions();
+        RebuildChartSeries();
+        _chartSeries = [.. _chartSeries]; // new reference for Blazor change detection
+        StateHasChanged();
+        await UpdateChartAsync();
+    }
+
+    private async Task OnTimeModeChanged(TfmTimeMode mode)
+    {
+        _timeMode = mode;
+        _chartOptions = BuildChartOptions();
+        RebuildChartSeries();
+        _chartSeries = [.. _chartSeries];
+        StateHasChanged();
+        await UpdateChartAsync();
+    }
+
+    private async Task OnFilterChanged(HashSet<string> selected)
+    {
+        _selectedTfms = selected;
+        RebuildChartSeries();
+        _chartSeries = [.. _chartSeries];
+        StateHasChanged();
+        await UpdateChartAsync();
+    }
+
+    private async Task UpdateChartAsync()
+    {
+        if (_chart is null) return;
+        try
+        {
+            await _chart.UpdateOptionsAsync(true, true, false);
+            await _chart.RenderAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Failed to update TFM chart");
+        }
+    }
+
+    private async void OnThemeChanged(object? sender, string theme)
+    {
+        try
+        {
+            await InvokeAsync(() =>
+            {
+                _chartOptions = BuildChartOptions();
+                StateHasChanged();
+            });
+            if (_chart is not null)
+            {
+                await _chart.UpdateOptionsAsync(true, true, false);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error updating theme for TFM chart");
+        }
+    }
+
+    public void Dispose()
+    {
+        ThemeState.ThemeChanged -= OnThemeChanged;
+    }
+
+    // Chart data types
+    private record TfmChartPoint(decimal X, decimal Y);
+    private record ChartSeriesData(string Name, string Color, List<TfmChartPoint> Points);
+}
