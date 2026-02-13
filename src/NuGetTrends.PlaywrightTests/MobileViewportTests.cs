@@ -82,16 +82,13 @@ public class MobileViewportTests
             (await searchInput.IsVisibleAsync()).Should().BeTrue(
                 "search input should be visible on mobile");
 
-            // Check that nothing is horizontally overflowing (skip for chart pages
-            // where the Canvas element may cause overflow before Chart.js resizes it)
-            if (!path.Contains("/packages/"))
-            {
-                var hasOverflow = await page.EvaluateAsync<bool>(
-                    "document.documentElement.scrollWidth > document.documentElement.clientWidth");
-                _output.WriteLine($"Horizontal overflow: {hasOverflow}");
-                hasOverflow.Should().BeFalse(
-                    $"{label} page should not have horizontal overflow at mobile viewport");
-            }
+            // Check that nothing is horizontally overflowing
+            // (ApexCharts uses responsive SVG, so chart pages are included)
+            var hasOverflow = await page.EvaluateAsync<bool>(
+                "document.documentElement.scrollWidth > document.documentElement.clientWidth");
+            _output.WriteLine($"Horizontal overflow: {hasOverflow}");
+            hasOverflow.Should().BeFalse(
+                $"{label} page should not have horizontal overflow at mobile viewport");
         }
         finally
         {

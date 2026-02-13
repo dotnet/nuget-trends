@@ -40,16 +40,15 @@ public class DeepLinkTests
             // Wait for WASM hydration
             await page.WaitForTimeoutAsync(5_000);
 
-            // Verify the chart rendered with the Sentry dataset
-            var datasetCount = await page.EvaluateAsync<int>(
-                "window.chartInterop.chart?.data.datasets.length ?? 0");
+            // Verify the chart rendered with the Sentry dataset (ApexCharts renders SVG series)
+            var seriesLocator = page.Locator(".apexcharts-line-series .apexcharts-series");
+            var datasetCount = await seriesLocator.CountAsync();
             _output.WriteLine($"Dataset count: {datasetCount}");
             datasetCount.Should().Be(1, "chart should have exactly 1 dataset from the deep link");
 
-            var datasetLabel = await page.EvaluateAsync<string>(
-                "window.chartInterop.chart?.data.datasets[0]?.label ?? ''");
-            _output.WriteLine($"Dataset label: {datasetLabel}");
-            datasetLabel.Should().Be("Sentry", "dataset should be the Sentry package from URL");
+            var seriesTitle = await seriesLocator.First.GetAttributeAsync("seriesName");
+            _output.WriteLine($"Series name: {seriesTitle}");
+            seriesTitle.Should().Be("Sentry", "dataset should be the Sentry package from URL");
 
             // Verify the period selector shows the correct value
             var selectedPeriod = await page.Locator("select#period").InputValueAsync();
@@ -80,8 +79,7 @@ public class DeepLinkTests
 
             await page.WaitForTimeoutAsync(5_000);
 
-            var datasetCount = await page.EvaluateAsync<int>(
-                "window.chartInterop.chart?.data.datasets.length ?? 0");
+            var datasetCount = await page.Locator(".apexcharts-line-series .apexcharts-series").CountAsync();
             _output.WriteLine($"Dataset count: {datasetCount}");
             datasetCount.Should().Be(1, "chart should load the package from the URL path");
         }

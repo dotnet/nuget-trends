@@ -30,7 +30,7 @@ Blazor serves static files from `wwwroot/` by default. **Remove this variable en
 | JS bundles | `main.js`, `runtime.js`, `polyfills.js` | `_framework/blazor.web.js` + WASM assemblies |
 | CSS | `styles.css` (built by Angular CLI) | `css/app.css` + `lib/bulma/...` (vendored, no CDN) |
 | Rendering | Client-side SPA | SSR + WebAssembly hybrid |
-| Interop | None (pure Angular) | `js/chartInterop.js`, `js/themeInterop.js` |
+| Interop | None (pure Angular) | `js/themeInterop.js` (charts use Blazor-ApexCharts) |
 
 ## Deployment Checklist
 
@@ -40,7 +40,7 @@ Blazor serves static files from `wwwroot/` by default. **Remove this variable en
 - [ ] Verify WASM loads: `/_framework/blazor.web.js` returns 200
 - [ ] Verify SSR works: initial page load returns full HTML (not empty `<app-root>`)
 - [ ] Verify interactivity: search dropdown appears when typing (requires WASM hydration)
-- [ ] Verify Chart.js interop: selecting a package renders the download chart
+- [ ] Verify chart rendering: selecting a package renders the download chart (Blazor-ApexCharts)
 - [ ] Verify API endpoints: `/api/package/search?q=sentry`, `/api/package/trending`
 - [ ] Verify Swagger: `/swagger/index.html`
 - [ ] Monitor Sentry for new errors post-deploy

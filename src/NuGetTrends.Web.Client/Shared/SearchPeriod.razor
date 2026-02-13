@@ -19,7 +19,6 @@
 
     protected override void OnInitialized()
     {
-        // Check URL for months parameter
         var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
         var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
         var monthsParam = query["months"];
@@ -37,14 +36,7 @@
 
     private void OnPeriodChanged()
     {
+        // Only update state; Packages.razor handles URL updates after data loads
         PackageState.SearchPeriod = _selectedPeriod;
-
-        // Update URL
-        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
-        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
-        query["months"] = _selectedPeriod.ToString();
-
-        var newUri = uri.GetLeftPart(UriPartial.Path) + "?" + query;
-        Navigation.NavigateTo(newUri, replace: true);
     }
 }
