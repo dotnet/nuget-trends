@@ -19,6 +19,14 @@ public class CatalogLeafProcessor : ICatalogLeafProcessor
     /// See: https://www.postgresql.org/docs/current/errcodes-appendix.html
     /// </summary>
     private const string PostgresNotNullViolationCode = "23502";
+    
+    /// <summary>
+    /// PostgreSQL error code prefix for integrity constraint violations (class 23).
+    /// Includes: unique_violation (23505), not_null_violation (23502), foreign_key_violation (23503),
+    /// check_violation (23514), exclusion_violation (23P01), etc.
+    /// See: https://www.postgresql.org/docs/current/errcodes-appendix.html
+    /// </summary>
+    private const string PostgresConstraintViolationPrefix = "23";
 
     private readonly IServiceProvider _provider;
     private readonly ILogger<CatalogLeafProcessor> _logger;
@@ -128,13 +136,6 @@ public class CatalogLeafProcessor : ICatalogLeafProcessor
             }
 
             leaf.PackageIdLowered = leaf.PackageId.ToLowerInvariant();
-            
-            // Defensive check: ensure PackageIdLowered is not null or empty after setting
-            if (string.IsNullOrWhiteSpace(leaf.PackageIdLowered))
-            {
-                throw new InvalidOperationException(
-                    $"PackageIdLowered must not be null or empty. PackageId='{leaf.PackageId}'");
-            }
         }
 
         Context.PackageDetailsCatalogLeafs.AddRange(newLeaves);
@@ -145,8 +146,19 @@ public class CatalogLeafProcessor : ICatalogLeafProcessor
         }
         catch (DbUpdateException ex)
         {
-            // Database constraint violation (could be duplicate key, NOT NULL, or other constraint).
-            // Fall back to individual processing for this batch to handle partial success.
+            // Only handle constraint violations (23xxx codes).
+            // Non-constraint errors (timeouts, connection errors, deadlocks) should fail the job.
+            if (!IsConstraintViolationException(ex))
+            {
+                // Detach entities to prevent cascading failures, then rethrow
+                foreach (var leaf in newLeaves)
+                {
+                    Context.Entry(leaf).State = EntityState.Detached;
+                }
+                throw;
+            }
+
+            // Constraint violation - fall back to individual processing for partial success
             var isDuplicateKey = IsDuplicateKeyException(ex);
             var isNotNull = IsNotNullViolationException(ex);
             
@@ -193,13 +205,6 @@ public class CatalogLeafProcessor : ICatalogLeafProcessor
 
             leaf.PackageIdLowered = leaf.PackageId.ToLowerInvariant();
             
-            // Defensive check: ensure PackageIdLowered is not null or empty after setting
-            if (string.IsNullOrWhiteSpace(leaf.PackageIdLowered))
-            {
-                throw new InvalidOperationException(
-                    $"PackageIdLowered must not be null or empty. PackageId='{leaf.PackageId}'");
-            }
-            
             Context.PackageDetailsCatalogLeafs.Add(leaf);
             try
             {
@@ -207,7 +212,7 @@ public class CatalogLeafProcessor : ICatalogLeafProcessor
             }
             catch (DbUpdateException ex)
             {
-                // Database constraint violation - detach entity to prevent cascading failures
+                // Detach entity to prevent cascading failures
                 Context.Entry(leaf).State = EntityState.Detached;
 
                 if (IsDuplicateKeyException(ex))
@@ -222,19 +227,24 @@ public class CatalogLeafProcessor : ICatalogLeafProcessor
                 else if (IsNotNullViolationException(ex))
                 {
                     _logger.LogError(ex,
-                        "NOT NULL constraint violation for package {PackageIdValue} v{PackageVersionValue}. " +
-                        "PackageId={PackageId}, PackageIdLowered={PackageIdLowered}",
+                        "NOT NULL constraint violation for package {PackageId} v{PackageVersion}. " +
+                        "PackageIdLowered={PackageIdLowered}",
                         leaf.PackageId,
                         leaf.PackageVersion,
-                        leaf.PackageId,
                         leaf.PackageIdLowered);
                 }
-                else
+                else if (IsConstraintViolationException(ex))
                 {
+                    // Other constraint violations (foreign key, check constraint, etc.)
                     _logger.LogError(ex,
                         "Database constraint violation for package {PackageId} v{PackageVersion}",
                         leaf.PackageId,
                         leaf.PackageVersion);
+                }
+                else
+                {
+                    // Non-constraint errors (timeouts, connection errors, deadlocks) should fail the job
+                    throw;
                 }
             }
         }
@@ -248,6 +258,12 @@ public class CatalogLeafProcessor : ICatalogLeafProcessor
     private static bool IsNotNullViolationException(DbUpdateException ex)
     {
         return ex.InnerException is PostgresException { SqlState: PostgresNotNullViolationCode };
+    }
+
+    private static bool IsConstraintViolationException(DbUpdateException ex)
+    {
+        return ex.InnerException is PostgresException pgEx && 
+               pgEx.SqlState?.StartsWith(PostgresConstraintViolationPrefix, StringComparison.Ordinal) == true;
     }
 
     /// <summary>
