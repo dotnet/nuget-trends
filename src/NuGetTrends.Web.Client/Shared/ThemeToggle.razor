@@ -74,9 +74,9 @@
         {
             // Circuit disconnected, JS cleanup already happened
         }
-        catch (InvalidOperationException)
+        catch (InvalidOperationException ex) when (ex.Message.Contains("JavaScript interop calls cannot be issued"))
         {
-            // JS interop not available (e.g., during server-side prerendering)
+            // JS interop not available during server-side prerendering
         }
         _dotNetRef?.Dispose();
     }
