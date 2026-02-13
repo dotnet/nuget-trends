@@ -21,7 +21,7 @@
             </div>
         </div>
     </section>
-    @if (_chartInitialized || PackageState.Packages.Count > 0)
+    @if (PackageState.Packages.Count > 0)
     {
         <section class="section" style="padding-top: 0">
             <div class="columns is-centered">
@@ -59,6 +59,7 @@
     public int? Months { get; set; }
 
     private bool _chartInitialized;
+    private PackageDownloadHistory? _pendingFirstPlot;
 
     protected override async Task OnInitializedAsync()
     {
@@ -81,6 +82,15 @@
         if (firstRender)
         {
             await LoadPackagesFromUrl();
+        }
+
+        // The canvas was just rendered into the DOM — now we can init the chart
+        if (_pendingFirstPlot != null)
+        {
+            var history = _pendingFirstPlot;
+            _pendingFirstPlot = null;
+            await InitializeChart(history);
+            _chartInitialized = true;
         }
     }
 
@@ -167,16 +177,18 @@
             {
                 if (!_chartInitialized)
                 {
-                    await InitializeChart(history);
-                    _chartInitialized = true;
+                    // Canvas isn't in the DOM yet — stash and re-render.
+                    // OnAfterRenderAsync will init the chart once the canvas exists.
+                    _pendingFirstPlot = history;
+                    UpdateUrl();
+                    StateHasChanged();
                 }
                 else
                 {
                     await AddDataset(history);
+                    UpdateUrl();
+                    StateHasChanged();
                 }
-
-                UpdateUrl();
-                StateHasChanged();
             });
         }
         catch (Exception ex)
@@ -193,6 +205,13 @@
             {
                 await JSRuntime.InvokeVoidAsync("chartInterop.removeDataset", packageId);
                 RemovePackageFromUrl(packageId);
+
+                if (PackageState.Packages.Count == 0)
+                {
+                    await JSRuntime.InvokeVoidAsync("chartInterop.destroy");
+                    _chartInitialized = false;
+                }
+
                 StateHasChanged();
             });
         }
