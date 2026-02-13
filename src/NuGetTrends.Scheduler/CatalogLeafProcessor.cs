@@ -263,7 +263,7 @@ public class CatalogLeafProcessor : ICatalogLeafProcessor
     private static bool IsConstraintViolationException(DbUpdateException ex)
     {
         return ex.InnerException is PostgresException pgEx && 
-               pgEx.SqlState?.StartsWith(PostgresConstraintViolationPrefix, StringComparison.Ordinal) == true;
+               (pgEx.SqlState?.StartsWith(PostgresConstraintViolationPrefix, StringComparison.Ordinal) ?? false);
     }
 
     /// <summary>
