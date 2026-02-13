@@ -1,0 +1,31 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path=".gitattributes" />
+    <File Path=".gitignore" />
+    <File Path="Directory.Packages.props" />
+    <File Path="global.json" />
+    <File Path="src/Directory.Build.props" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/NuGetTrends.AppHost/NuGetTrends.AppHost.csproj" />
+    <Project Path="src/NuGetTrends.PlaywrightTests/NuGetTrends.PlaywrightTests.csproj" />
+    <Project Path="src/NuGetTrends.ServiceDefaults/NuGetTrends.ServiceDefaults.csproj" />
+    <Project Path="src/NuGetTrends.Web.Client/NuGetTrends.Web.Client.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="src/NuGetTrends.Data.Tests/NuGetTrends.Data.Tests.csproj" />
+    <Project Path="src/NuGetTrends.IntegrationTests/NuGetTrends.IntegrationTests.csproj" />
+    <Project Path="src/NuGetTrends.Scheduler.Tests/NuGetTrends.Scheduler.Tests.csproj" />
+    <Project Path="src/NuGetTrends.Web.Tests/NuGetTrends.Web.Tests.csproj" />
+  </Folder>
+  <Project Path="src/NuGet.Protocol.Catalog/NuGet.Protocol.Catalog.csproj" />
+  <Project Path="src/NuGetTrends.Data/NuGetTrends.Data.csproj" />
+  <Project Path="src/NuGetTrends.Scheduler/NuGetTrends.Scheduler.csproj" />
+  <Project Path="src/NuGetTrends.Web/NuGetTrends.Web.csproj" />
+</Solution>
