@@ -66,14 +66,19 @@
     public async ValueTask DisposeAsync()
     {
         ThemeState.ThemeChanged -= OnThemeChanged;
-        try
+        
+        // Only attempt JS cleanup if we've initialized (after first render)
+        if (_dotNetRef is not null)
         {
-            await JSRuntime.InvokeVoidAsync("themeInterop.unwatchSystemPreference");
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("themeInterop.unwatchSystemPreference");
+            }
+            catch (JSDisconnectedException)
+            {
+                // Circuit disconnected, JS cleanup already happened
+            }
+            _dotNetRef.Dispose();
         }
-        catch (JSDisconnectedException)
-        {
-            // Circuit disconnected, JS cleanup already happened
-        }
-        _dotNetRef?.Dispose();
     }
 }
