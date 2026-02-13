@@ -75,13 +75,13 @@ PG_CONNECTION_STRING="..." CH_CONNECTION_STRING="..." ./scripts/seed-local-test-
 ### Running Tests
 
 ```bash
-dotnet test NuGetTrends.sln
+dotnet test NuGetTrends.slnx
 ```
 
 ### Building
 
 ```bash
-dotnet build NuGetTrends.sln
+dotnet build NuGetTrends.slnx
 ```
 
 ## Technology Stack
