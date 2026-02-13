@@ -58,7 +58,7 @@
     [SupplyParameterFromQuery(Name = "months")]
     public int? Months { get; set; }
 
-    private readonly List<PackageDownloadHistory> _chartDatasets = [];
+    private List<PackageDownloadHistory> _chartDatasets = [];
     private bool _isLoading = true;
 
     protected override void OnInitialized()
@@ -183,6 +183,8 @@
                     _chartDatasets.Add(history);
                 }
 
+                // New list reference so Blazor detects parameter change on TrendChart
+                _chartDatasets = [.. _chartDatasets];
                 UpdateUrl();
                 StateHasChanged();
             });
@@ -200,6 +202,7 @@
             await InvokeAsync(() =>
             {
                 _chartDatasets.RemoveAll(d => d.Id.Equals(packageId, StringComparison.OrdinalIgnoreCase));
+                _chartDatasets = [.. _chartDatasets];
                 RemovePackageFromUrl(packageId);
 
                 if (PackageState.Packages.Count == 0)

@@ -32,33 +32,47 @@
     private ApexChartOptions<DownloadDataPoint> _options = null!;
     private bool _previousIsDark;
     private int _previousSearchPeriod;
+    private int _previousDatasetCount;
 
     protected override void OnInitialized()
     {
         _previousIsDark = IsDark;
         _previousSearchPeriod = SearchPeriod;
+        _previousDatasetCount = Datasets.Count;
         _options = BuildOptions();
     }
 
     protected override async Task OnParametersSetAsync()
     {
+        if (_chart is null)
+        {
+            return;
+        }
+
         var themeChanged = _previousIsDark != IsDark;
         var periodChanged = _previousSearchPeriod != SearchPeriod;
+        var datasetsChanged = _previousDatasetCount != Datasets.Count;
 
-        if (_chart is not null && (themeChanged || periodChanged))
+        _previousIsDark = IsDark;
+        _previousSearchPeriod = SearchPeriod;
+        _previousDatasetCount = Datasets.Count;
+
+        try
         {
-            _previousIsDark = IsDark;
-            _previousSearchPeriod = SearchPeriod;
-            _options = BuildOptions();
-
-            try
+            if (themeChanged || periodChanged)
             {
+                _options = BuildOptions();
                 await _chart.UpdateOptionsAsync(true, true, false);
             }
-            catch (Exception ex)
+
+            if (datasetsChanged)
             {
-                Logger.LogWarning(ex, "Failed to update chart options");
+                await _chart.RenderAsync();
             }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Failed to update chart");
         }
     }
 
