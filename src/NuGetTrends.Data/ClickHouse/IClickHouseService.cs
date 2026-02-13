@@ -119,4 +119,30 @@ public interface IClickHouseService
     /// <param name="ct">Cancellation token</param>
     /// <returns>A task representing the async operation</returns>
     Task RunMigrationsAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets TFM adoption data from the pre-computed snapshot table.
+    /// Optionally filters by specific TFMs or families.
+    /// </summary>
+    Task<List<TfmAdoptionDataPoint>> GetTfmAdoptionFromSnapshotAsync(
+        IReadOnlyList<string>? tfms = null,
+        IReadOnlyList<string>? families = null,
+        CancellationToken ct = default,
+        ISpan? parentSpan = null);
+
+    /// <summary>
+    /// Batch-inserts TFM adoption data points into the snapshot table.
+    /// Deletes existing rows for the target months before inserting.
+    /// </summary>
+    Task<int> InsertTfmAdoptionSnapshotAsync(
+        List<TfmAdoptionDataPoint> dataPoints,
+        CancellationToken ct = default,
+        ISpan? parentSpan = null);
+
+    /// <summary>
+    /// Gets the distinct TFMs available in the snapshot table, grouped by family.
+    /// </summary>
+    Task<List<TfmFamilyGroup>> GetAvailableTfmsAsync(
+        CancellationToken ct = default,
+        ISpan? parentSpan = null);
 }

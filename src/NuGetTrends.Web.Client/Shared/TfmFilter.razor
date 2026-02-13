@@ -1,0 +1,96 @@
+@using NuGetTrends.Web.Client.Models
+
+<div class="tfm-filter-dropdown @(_isOpen ? "is-active" : "")">
+    <div class="dropdown-trigger">
+        <button class="button is-normal" @onclick="ToggleDropdown" @onclick:stopPropagation="true">
+            <span>@SelectedCount TFMs selected</span>
+            <span class="icon is-small">
+                <i class="fa fa-angle-down" aria-hidden="true"></i>
+            </span>
+        </button>
+    </div>
+    @if (_isOpen)
+    {
+        <div class="dropdown-content" @onclick:stopPropagation="true">
+            @foreach (var group in Groups)
+            {
+                <div class="tfm-filter-group">
+                    <div class="tfm-filter-group-header">
+                        <strong>@group.Family</strong>
+                        <span class="tfm-filter-group-actions">
+                            <a @onclick="() => SelectAllInFamily(group.Family)">All</a>
+                            <a @onclick="() => ClearFamily(group.Family)">Clear</a>
+                        </span>
+                    </div>
+                    @foreach (var tfm in group.Tfms)
+                    {
+                        <label class="tfm-filter-item">
+                            <input type="checkbox"
+                                   checked="@IsSelected(tfm)"
+                                   @onchange="e => ToggleTfm(tfm, (bool)(e.Value ?? false))" />
+                            <span>@tfm</span>
+                        </label>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public List<TfmFamilyGroup> Groups { get; set; } = [];
+
+    [Parameter]
+    public HashSet<string> SelectedTfms { get; set; } = [];
+
+    [Parameter]
+    public EventCallback<HashSet<string>> SelectedTfmsChanged { get; set; }
+
+    private bool _isOpen;
+
+    private int SelectedCount => SelectedTfms.Count;
+
+    private bool IsSelected(string tfm) => SelectedTfms.Contains(tfm);
+
+    private void ToggleDropdown() => _isOpen = !_isOpen;
+
+    private async Task ToggleTfm(string tfm, bool isChecked)
+    {
+        if (isChecked)
+        {
+            SelectedTfms.Add(tfm);
+        }
+        else
+        {
+            SelectedTfms.Remove(tfm);
+        }
+        await SelectedTfmsChanged.InvokeAsync(SelectedTfms);
+    }
+
+    private async Task SelectAllInFamily(string family)
+    {
+        var group = Groups.FirstOrDefault(g => g.Family == family);
+        if (group != null)
+        {
+            foreach (var tfm in group.Tfms)
+            {
+                SelectedTfms.Add(tfm);
+            }
+            await SelectedTfmsChanged.InvokeAsync(SelectedTfms);
+        }
+    }
+
+    private async Task ClearFamily(string family)
+    {
+        var group = Groups.FirstOrDefault(g => g.Family == family);
+        if (group != null)
+        {
+            foreach (var tfm in group.Tfms)
+            {
+                SelectedTfms.Remove(tfm);
+            }
+            await SelectedTfmsChanged.InvokeAsync(SelectedTfms);
+        }
+    }
+}

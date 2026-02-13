@@ -5,6 +5,7 @@
 @inject PackageState PackageState
 @inject ThemeState ThemeState
 @inject IToastService ToastService
+@inject IJSRuntime JSRuntime
 @inject ILogger<Packages> Logger
 @implements IDisposable
 
@@ -13,39 +14,38 @@
 <div id="chartz">
     <section class="section">
         <div class="columns is-centered">
-            <PackageList />
-        </div>
-    </section>
-    <div class="columns is-vcentered is-centered">
-        <div class="column has-text-right has-text-centered-mobile is-narrow">
-            <label for="period" class="title is-5">Showing results for the last: </label>
-        </div>
-        <div class="column has-text-centered-mobile is-narrow">
-            <SearchPeriod />
-        </div>
-    </div>
-    <section class="section chart-section">
-        <div class="columns is-centered has-text-centered">
             <div class="column is-8">
-                @if (_isLoading)
-                {
-                    <div class="chart-loading">
-                        <span class="icon is-large has-text-grey-light">
-                            <i class="fa fa-line-chart fa-3x fa-pulse"></i>
-                        </span>
-                    </div>
-                }
-                else if (_chartDatasets.Count > 0)
-                {
-                    <div class="box is-shadowless chart-fade-in">
-                        <TrendChart Datasets="_chartDatasets"
-                                    SearchPeriod="PackageState.SearchPeriod"
-                                    IsDark="ThemeState.IsDark" />
-                    </div>
-                }
+                <div class="control has-icons-left has-icons-right">
+                    <SearchInput />
+                </div>
             </div>
         </div>
     </section>
+    @if (_chartInitialized || PackageState.Packages.Count > 0)
+    {
+        <section class="section" style="padding-top: 0">
+            <div class="columns is-centered">
+                <PackageList />
+            </div>
+        </section>
+        <div class="columns is-vcentered is-centered">
+            <div class="column has-text-right has-text-centered-mobile is-narrow">
+                <label for="period" class="title is-5">Showing results for the last: </label>
+            </div>
+            <div class="column has-text-centered-mobile is-narrow">
+                <SearchPeriod />
+            </div>
+        </div>
+        <section class="section chart-section">
+            <div class="columns is-centered has-text-centered">
+                <div class="column is-8">
+                    <div class="box is-shadowless">
+                        <canvas id="trend-chart" width="500" height="380"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+    }
 </div>
 
 @code {
@@ -58,22 +58,22 @@
     [SupplyParameterFromQuery(Name = "months")]
     public int? Months { get; set; }
 
-    private List<PackageDownloadHistory> _chartDatasets = [];
-    private bool _isLoading = true;
+    private bool _chartInitialized;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        // Set search period from URL before subscribing to events,
-        // otherwise the setter triggers OnSearchPeriodChanged with no packages loaded.
+        PackageState.PackagePlotted += OnPackagePlotted;
+        PackageState.PackageRemoved += OnPackageRemoved;
+        PackageState.SearchPeriodChanged += OnSearchPeriodChanged;
+        ThemeState.ThemeChanged += OnThemeChanged;
+
+        // Set search period from URL
         if (Months.HasValue && Months.Value > 0)
         {
             PackageState.SearchPeriod = Months.Value;
         }
 
-        PackageState.PackagePlotted += OnPackagePlotted;
-        PackageState.PackageRemoved += OnPackageRemoved;
-        PackageState.SearchPeriodChanged += OnSearchPeriodChanged;
-        ThemeState.ThemeChanged += OnThemeChanged;
+        await Task.CompletedTask;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -81,8 +81,6 @@
         if (firstRender)
         {
             await LoadPackagesFromUrl();
-            _isLoading = false;
-            StateHasChanged();
         }
     }
 
@@ -111,12 +109,6 @@
         foreach (var id in packageIdsToLoad)
         {
             await LoadPackage(id);
-        }
-
-        // If no packages were loaded, navigate home
-        if (PackageState.Packages.Count == 0)
-        {
-            Navigation.NavigateTo("/");
         }
     }
 
@@ -171,20 +163,18 @@
     {
         try
         {
-            await InvokeAsync(() =>
+            await InvokeAsync(async () =>
             {
-                var existing = _chartDatasets.FindIndex(d => d.Id.Equals(history.Id, StringComparison.OrdinalIgnoreCase));
-                if (existing >= 0)
+                if (!_chartInitialized)
                 {
-                    _chartDatasets[existing] = history;
+                    await InitializeChart(history);
+                    _chartInitialized = true;
                 }
                 else
                 {
-                    _chartDatasets.Add(history);
+                    await AddDataset(history);
                 }
 
-                // New list reference so Blazor detects parameter change on TrendChart
-                _chartDatasets = [.. _chartDatasets];
                 UpdateUrl();
                 StateHasChanged();
             });
@@ -199,17 +189,10 @@
     {
         try
         {
-            await InvokeAsync(() =>
+            await InvokeAsync(async () =>
             {
-                _chartDatasets.RemoveAll(d => d.Id.Equals(packageId, StringComparison.OrdinalIgnoreCase));
-                _chartDatasets = [.. _chartDatasets];
+                await JSRuntime.InvokeVoidAsync("chartInterop.removeDataset", packageId);
                 RemovePackageFromUrl(packageId);
-
-                if (PackageState.Packages.Count == 0)
-                {
-                    Navigation.NavigateTo("/");
-                }
-
                 StateHasChanged();
             });
         }
@@ -225,9 +208,7 @@
         {
             await InvokeAsync(async () =>
             {
-                _isLoading = true;
-                StateHasChanged();
-
+                // Reload all packages with new period
                 var packageIds = PackageState.Packages.Select(p => p.Id).ToList();
 
                 foreach (var id in packageIds)
@@ -247,10 +228,6 @@
                         Logger.LogError(ex, "Error reloading package {PackageId}", id);
                     }
                 }
-
-                _isLoading = false;
-                UpdateUrl();
-                StateHasChanged();
             });
         }
         catch (Exception ex)
@@ -263,12 +240,104 @@
     {
         try
         {
-            await InvokeAsync(StateHasChanged);
+            await InvokeAsync(async () =>
+            {
+                await JSRuntime.InvokeVoidAsync("chartInterop.updateTheme", ThemeState.IsDark);
+            });
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error updating theme");
         }
+    }
+
+    private async Task InitializeChart(PackageDownloadHistory history)
+    {
+        var config = new
+        {
+            type = "line",
+            data = new
+            {
+                datasets = new[]
+                {
+                    CreateDataset(history)
+                }
+            },
+            options = GetChartOptions()
+        };
+
+        await JSRuntime.InvokeVoidAsync("chartInterop.init", "trend-chart", config);
+    }
+
+    private async Task AddDataset(PackageDownloadHistory history)
+    {
+        var dataset = CreateDataset(history);
+        await JSRuntime.InvokeVoidAsync("chartInterop.addDataset", dataset);
+    }
+
+    private object CreateDataset(PackageDownloadHistory history)
+    {
+        var data = history.Downloads
+            .Where(d => d.Count.HasValue)
+            .Select(d => new { x = d.Week.ToString("O"), y = d.Count!.Value })
+            .ToArray();
+
+        return new
+        {
+            label = history.Id,
+            backgroundColor = history.Color,
+            borderColor = history.Color,
+            pointRadius = 6,
+            pointHoverRadius = 8,
+            pointBackgroundColor = history.Color,
+            pointBorderColor = "#fff",
+            pointBorderWidth = 1,
+            pointHoverBackgroundColor = history.Color,
+            pointHoverBorderColor = history.Color,
+            fill = false,
+            data
+        };
+    }
+
+    private object GetChartOptions()
+    {
+        var timeUnit = PackageState.SearchPeriod switch
+        {
+            <= 6 => "day",
+            <= 24 => "month",
+            _ => "year"
+        };
+
+        return new
+        {
+            responsive = true,
+            maintainAspectRatio = false,
+            plugins = new
+            {
+                legend = new { display = false },
+                tooltip = new
+                {
+                    animation = false
+                }
+            },
+            scales = new
+            {
+                x = new
+                {
+                    type = "time",
+                    time = new
+                    {
+                        unit = timeUnit,
+                        displayFormats = new
+                        {
+                            day = "dd MMM yyyy",
+                            month = "MMM yyyy",
+                            year = "yyyy"
+                        }
+                    }
+                }
+            }
+        };
     }
 
     private void UpdateUrl()

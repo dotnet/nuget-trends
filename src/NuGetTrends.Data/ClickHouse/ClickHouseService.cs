@@ -641,6 +641,215 @@ public class ClickHouseService : IClickHouseService
         _logger.LogInformation("ClickHouse migrations completed");
     }
 
+    public async Task<List<TfmAdoptionDataPoint>> GetTfmAdoptionFromSnapshotAsync(
+        IReadOnlyList<string>? tfms = null,
+        IReadOnlyList<string>? families = null,
+        CancellationToken ct = default,
+        ISpan? parentSpan = null)
+    {
+        var whereClauses = new List<string>();
+        if (tfms is { Count: > 0 })
+        {
+            var tfmList = string.Join(", ", tfms.Select((_, i) => $"{{tfm{i}:String}}"));
+            whereClauses.Add($"tfm IN ({tfmList})");
+        }
+        if (families is { Count: > 0 })
+        {
+            var familyList = string.Join(", ", families.Select((_, i) => $"{{family{i}:String}}"));
+            whereClauses.Add($"family IN ({familyList})");
+        }
+
+        var whereClause = whereClauses.Count > 0
+            ? "WHERE " + string.Join(" AND ", whereClauses)
+            : "";
+
+        var query = $"""
+            SELECT month, tfm, family, new_package_count, cumulative_package_count
+            FROM tfm_adoption_snapshot FINAL
+            {whereClause}
+            ORDER BY month, tfm
+            """;
+
+        var span = StartDatabaseSpan(parentSpan, query, "SELECT");
+
+        try
+        {
+            await using var connection = new ClickHouseConnection(_connectionString);
+            await connection.OpenAsync(ct);
+
+            await using var cmd = connection.CreateCommand();
+            cmd.CommandText = query;
+
+            if (tfms is { Count: > 0 })
+            {
+                for (var i = 0; i < tfms.Count; i++)
+                {
+                    var param = cmd.CreateParameter();
+                    param.ParameterName = $"tfm{i}";
+                    param.Value = tfms[i];
+                    cmd.Parameters.Add(param);
+                }
+            }
+            if (families is { Count: > 0 })
+            {
+                for (var i = 0; i < families.Count; i++)
+                {
+                    var param = cmd.CreateParameter();
+                    param.ParameterName = $"family{i}";
+                    param.Value = families[i];
+                    cmd.Parameters.Add(param);
+                }
+            }
+
+            var results = new List<TfmAdoptionDataPoint>();
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+
+            while (await reader.ReadAsync(ct))
+            {
+                results.Add(new TfmAdoptionDataPoint
+                {
+                    Month = DateOnly.FromDateTime(reader.GetDateTime(0)),
+                    Tfm = reader.GetString(1),
+                    Family = reader.GetString(2),
+                    NewPackageCount = reader.GetFieldValue<uint>(3),
+                    CumulativePackageCount = reader.GetFieldValue<uint>(4)
+                });
+            }
+
+            span?.SetData("db.rows_affected", results.Count);
+            span?.Finish(SpanStatus.Ok);
+
+            _logger.LogDebug("Retrieved {Count} TFM adoption data points from snapshot", results.Count);
+            return results;
+        }
+        catch (Exception ex)
+        {
+            span?.Finish(ex);
+            throw;
+        }
+    }
+
+    public async Task<int> InsertTfmAdoptionSnapshotAsync(
+        List<TfmAdoptionDataPoint> dataPoints,
+        CancellationToken ct = default,
+        ISpan? parentSpan = null)
+    {
+        if (dataPoints.Count == 0)
+        {
+            _logger.LogWarning("No TFM adoption data points to insert");
+            return 0;
+        }
+
+        const string bulkInsertDescription =
+            "INSERT INTO tfm_adoption_snapshot (month, tfm, family, new_package_count, cumulative_package_count)";
+        var span = StartDatabaseSpan(parentSpan, bulkInsertDescription, "INSERT");
+
+        try
+        {
+            await using var connection = new ClickHouseConnection(_connectionString);
+            await connection.OpenAsync(ct);
+
+            // Delete existing rows for target months to avoid duplicates on retries
+            var months = dataPoints.Select(d => d.Month).Distinct().ToList();
+            foreach (var month in months)
+            {
+                await using var deleteCmd = connection.CreateCommand();
+                deleteCmd.CommandText = "ALTER TABLE tfm_adoption_snapshot DELETE WHERE month = {month:Date}";
+                var monthParam = deleteCmd.CreateParameter();
+                monthParam.ParameterName = "month";
+                monthParam.Value = month.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                deleteCmd.Parameters.Add(monthParam);
+                await deleteCmd.ExecuteNonQueryAsync(ct);
+            }
+
+            _logger.LogInformation("Deleted existing TFM adoption rows for {Count} months before re-insert", months.Count);
+
+            using var bulkCopy = new ClickHouseBulkCopy(connection)
+            {
+                DestinationTableName = "tfm_adoption_snapshot",
+                ColumnNames = ["month", "tfm", "family", "new_package_count", "cumulative_package_count"],
+                BatchSize = dataPoints.Count
+            };
+
+            var data = dataPoints.Select(d => new object[]
+            {
+                d.Month.ToDateTime(TimeOnly.MinValue),
+                d.Tfm,
+                d.Family,
+                d.NewPackageCount,
+                d.CumulativePackageCount
+            });
+
+            await bulkCopy.InitAsync();
+            await bulkCopy.WriteToServerAsync(data, ct);
+
+            span?.SetData("db.rows_affected", dataPoints.Count);
+            span?.Finish(SpanStatus.Ok);
+
+            _logger.LogInformation("Inserted {Count} TFM adoption data points into snapshot", dataPoints.Count);
+            return dataPoints.Count;
+        }
+        catch (Exception ex)
+        {
+            span?.Finish(ex);
+            throw;
+        }
+    }
+
+    public async Task<List<TfmFamilyGroup>> GetAvailableTfmsAsync(
+        CancellationToken ct = default,
+        ISpan? parentSpan = null)
+    {
+        const string query = """
+            SELECT DISTINCT family, tfm
+            FROM tfm_adoption_snapshot FINAL
+            ORDER BY family, tfm
+            """;
+
+        var span = StartDatabaseSpan(parentSpan, query, "SELECT");
+
+        try
+        {
+            await using var connection = new ClickHouseConnection(_connectionString);
+            await connection.OpenAsync(ct);
+
+            await using var cmd = connection.CreateCommand();
+            cmd.CommandText = query;
+
+            var familyMap = new Dictionary<string, List<string>>();
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+
+            while (await reader.ReadAsync(ct))
+            {
+                var family = reader.GetString(0);
+                var tfm = reader.GetString(1);
+                if (!familyMap.TryGetValue(family, out var tfms))
+                {
+                    tfms = [];
+                    familyMap[family] = tfms;
+                }
+                tfms.Add(tfm);
+            }
+
+            var results = familyMap.Select(kv => new TfmFamilyGroup
+            {
+                Family = kv.Key,
+                Tfms = kv.Value
+            }).ToList();
+
+            span?.SetData("db.rows_affected", results.Sum(g => g.Tfms.Count));
+            span?.Finish(SpanStatus.Ok);
+
+            _logger.LogDebug("Retrieved {Count} TFM family groups", results.Count);
+            return results;
+        }
+        catch (Exception ex)
+        {
+            span?.Finish(ex);
+            throw;
+        }
+    }
+
     /// <summary>
     /// Starts a database span following Sentry's Queries module conventions.
     /// Includes query source attributes for the Sentry Queries module.
