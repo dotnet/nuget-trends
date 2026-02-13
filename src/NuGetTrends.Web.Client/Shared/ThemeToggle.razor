@@ -74,6 +74,10 @@
         {
             // Circuit disconnected, JS cleanup already happened
         }
+        catch (InvalidOperationException)
+        {
+            // JS interop not available (e.g., during server-side prerendering)
+        }
         _dotNetRef?.Dispose();
     }
 }
