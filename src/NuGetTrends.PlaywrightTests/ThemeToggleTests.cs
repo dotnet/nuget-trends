@@ -41,7 +41,10 @@ public class ThemeToggleTests
             });
 
             // Wait for WASM hydration
-            await page.WaitForTimeoutAsync(5_000);
+            await page.WaitForFunctionAsync(
+                "() => typeof Blazor !== 'undefined' && document.querySelector('.theme-toggle-btn') !== null",
+                null,
+                new PageWaitForFunctionOptions { Timeout = 15_000 });
 
             var bodyClass = await page.EvaluateAsync<string>("document.body.className");
             _output.WriteLine($"Initial body class: {bodyClass}");
@@ -91,7 +94,11 @@ public class ThemeToggleTests
             {
                 WaitUntil = WaitUntilState.NetworkIdle
             });
-            await page.WaitForTimeoutAsync(5_000);
+            // Wait for WASM hydration
+            await page.WaitForFunctionAsync(
+                "() => typeof Blazor !== 'undefined' && document.querySelector('.theme-toggle-btn') !== null",
+                null,
+                new PageWaitForFunctionOptions { Timeout = 15_000 });
 
             // Click toggle to change theme
             var toggleButton = page.Locator(".theme-toggle-btn");

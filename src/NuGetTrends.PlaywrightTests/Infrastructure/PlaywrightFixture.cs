@@ -129,6 +129,21 @@ public class PlaywrightFixture : IAsyncLifetime
             _clickHouse.DisposeAsync().AsTask());
     }
 
+    /// <summary>
+    /// Waits for Blazor WASM to hydrate, replacing blanket WaitForTimeoutAsync calls.
+    /// Only checks for the Blazor global. Tests needing specific elements should
+    /// wait for those separately after this call.
+    /// </summary>
+    public static async Task WaitForWasmAsync(IPage page, int timeoutMs = 30_000)
+    {
+        await page.WaitForFunctionAsync(
+            "() => typeof Blazor !== 'undefined'",
+            null,
+            new PageWaitForFunctionOptions { Timeout = timeoutMs });
+        // Give Blazor a moment to hydrate components after the global is available
+        await page.WaitForTimeoutAsync(500);
+    }
+
     public async Task<IPage> NewPageAsync(Action<string>? log = null)
     {
         var context = await Browser.NewContextAsync();

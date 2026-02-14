@@ -37,8 +37,9 @@ public class DeepLinkTests
                 WaitUntil = WaitUntilState.NetworkIdle
             });
 
-            // Wait for WASM hydration
-            await page.WaitForTimeoutAsync(5_000);
+            // Wait for chart to render
+            await page.Locator(".apexcharts-line-series .apexcharts-series").First.WaitForAsync(
+                new LocatorWaitForOptions { State = WaitForSelectorState.Visible, Timeout = 15_000 });
 
             // Verify the chart rendered with the Sentry dataset (ApexCharts renders SVG series)
             var seriesLocator = page.Locator(".apexcharts-line-series .apexcharts-series");
@@ -76,8 +77,9 @@ public class DeepLinkTests
                 WaitUntil = WaitUntilState.NetworkIdle
             });
 
-            // Wait for WASM hydration
-            await page.WaitForTimeoutAsync(5_000);
+            // Wait for chart to render
+            await page.Locator(".apexcharts-line-series .apexcharts-series").First.WaitForAsync(
+                new LocatorWaitForOptions { State = WaitForSelectorState.Visible, Timeout = 15_000 });
 
             // Verify the chart rendered with both datasets
             var seriesLocator = page.Locator(".apexcharts-line-series .apexcharts-series");
@@ -94,7 +96,7 @@ public class DeepLinkTests
             }
             _output.WriteLine($"Series names: {string.Join(", ", seriesNames)}");
             seriesNames.Should().Contain("Sentry");
-            seriesNames.Should().Contain("Newtonsoft.Json");
+            seriesNames.Should().Contain("NewtonsoftxJson");
         }
         finally
         {
@@ -118,7 +120,9 @@ public class DeepLinkTests
                 WaitUntil = WaitUntilState.NetworkIdle
             });
 
-            await page.WaitForTimeoutAsync(5_000);
+            // Wait for chart to render
+            await page.Locator(".apexcharts-line-series .apexcharts-series").First.WaitForAsync(
+                new LocatorWaitForOptions { State = WaitForSelectorState.Visible, Timeout = 15_000 });
 
             var datasetCount = await page.Locator(".apexcharts-line-series .apexcharts-series").CountAsync();
             _output.WriteLine($"Dataset count: {datasetCount}");

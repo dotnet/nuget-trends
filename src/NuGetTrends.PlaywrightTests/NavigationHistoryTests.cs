@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using FluentAssertions;
 using Microsoft.Playwright;
 using NuGetTrends.PlaywrightTests.Infrastructure;
@@ -29,18 +30,20 @@ public class NavigationHistoryTests
 
         try
         {
-            // Start at home
-            await page.GotoAsync(_fixture.ServerUrl, new PageGotoOptions
+            // Start at the packages page (which has the search input)
+            await page.GotoAsync($"{_fixture.ServerUrl}/packages", new PageGotoOptions
             {
                 WaitUntil = WaitUntilState.NetworkIdle
             });
-            await page.WaitForTimeoutAsync(3_000);
+
+            // Wait for search input
+            var searchInput = page.Locator("input.input.is-large");
+            await searchInput.WaitForAsync(new LocatorWaitForOptions { Timeout = 30_000 });
 
             var homeUrl = page.Url;
-            _output.WriteLine($"Home URL: {homeUrl}");
+            _output.WriteLine($"Start URL: {homeUrl}");
 
             // Search and select a package
-            var searchInput = page.Locator("input.input.is-large");
             await searchInput.FillAsync("sentry");
 
             var dropdown = page.Locator(".autocomplete-dropdown");
@@ -51,40 +54,40 @@ public class NavigationHistoryTests
             });
             await dropdown.Locator(".autocomplete-option").First.ClickAsync();
 
-            // Wait for packages page
-            await page.WaitForURLAsync("**/packages**", new PageWaitForURLOptions
+            // Wait for navigation to package detail page (/packages?ids=Sentry&months=24)
+            await page.WaitForURLAsync(new Regex(@"packages\?ids=Sentry"), new PageWaitForURLOptions
             {
                 Timeout = 10_000
             });
-            await page.WaitForTimeoutAsync(2_000);
+            await page.WaitForTimeoutAsync(1_000);
 
-            var packagesUrl = page.Url;
-            _output.WriteLine($"Packages URL: {packagesUrl}");
-            packagesUrl.Should().Contain("/packages");
+            var detailUrl = page.Url;
+            _output.WriteLine($"Detail URL: {detailUrl}");
+            detailUrl.Should().Contain("ids=Sentry");
 
-            // Press back
+            // Press back — should return to /packages (the search page)
             await page.GoBackAsync(new PageGoBackOptions
             {
                 WaitUntil = WaitUntilState.NetworkIdle
             });
-            await page.WaitForTimeoutAsync(2_000);
+            await page.WaitForTimeoutAsync(1_000);
 
             var backUrl = page.Url;
             _output.WriteLine($"After back: {backUrl}");
-            backUrl.Should().NotContain("/packages",
-                "back button should return to home page");
+            backUrl.Should().NotContain("ids=Sentry",
+                "back button should return from detail page");
 
-            // Press forward
+            // Press forward — should go back to the detail page
             await page.GoForwardAsync(new PageGoForwardOptions
             {
                 WaitUntil = WaitUntilState.NetworkIdle
             });
-            await page.WaitForTimeoutAsync(2_000);
+            await page.WaitForTimeoutAsync(1_000);
 
             var forwardUrl = page.Url;
             _output.WriteLine($"After forward: {forwardUrl}");
-            forwardUrl.Should().Contain("/packages",
-                "forward button should return to packages page");
+            forwardUrl.Should().Contain("ids=Sentry",
+                "forward button should return to package detail page");
         }
         finally
         {
