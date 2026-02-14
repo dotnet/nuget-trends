@@ -60,7 +60,6 @@
     {
         ThemeState.SetSystemPreference(prefersDark);
         await ApplyTheme();
-        await InvokeAsync(StateHasChanged);
     }
 
     private async Task Toggle()
