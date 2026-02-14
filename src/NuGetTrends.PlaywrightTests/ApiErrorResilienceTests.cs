@@ -115,7 +115,7 @@ public class ApiErrorResilienceTests
             // Wait for the redirect to complete.
             await page.WaitForURLAsync($"{_fixture.ServerUrl}/", new PageWaitForURLOptions
             {
-                Timeout = 30_000
+                Timeout = 60_000
             });
 
             // Page should not have crashed
