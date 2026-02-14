@@ -425,6 +425,8 @@ public class DailyDownloadWorker : IHostedService
         {
             var loweredIds = deletedPackageIds.Select(id => id.ToLowerInvariant()).Distinct().ToList();
 
+            await using var transaction = await context.Database.BeginTransactionAsync(_cancellationTokenSource.Token);
+
             var deleteCatalogSpan = StartDbSpan(parentSpan, "DELETE FROM package_details_catalog_leafs WHERE package_id_lowered IN (...)", "postgresql", "DELETE");
             deleteCatalogSpan.SetTag("count", deletedPackageIds.Count.ToString());
             try
@@ -460,6 +462,8 @@ public class DailyDownloadWorker : IHostedService
                 deleteDownloadsSpan.Finish(e);
                 throw;
             }
+
+            await transaction.CommitAsync(_cancellationTokenSource.Token);
         }
     }
 
