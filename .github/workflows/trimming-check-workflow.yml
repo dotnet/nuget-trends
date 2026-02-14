@@ -1,0 +1,126 @@
+name: Trimming Check
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: 1
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/NuGetTrends.Web/**'
+      - 'src/NuGetTrends.Web.Client/**'
+      - 'src/NuGetTrends.Data/**'
+      - '**/TrimmerRoots.xml'
+      - '**/trimming-check-workflow.yml'
+  pull_request:
+    paths:
+      - 'src/NuGetTrends.Web/**'
+      - 'src/NuGetTrends.Web.Client/**'
+      - 'src/NuGetTrends.Data/**'
+      - '**/TrimmerRoots.xml'
+      - '**/trimming-check-workflow.yml'
+  workflow_dispatch:
+
+jobs:
+  trimming-check:
+    name: Native AOT Trimming Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish with IL trimming
+        run: dotnet publish src/NuGetTrends.Web/NuGetTrends.Web.csproj -c Release -o ./publish -p:SentryUploadSymbols=false
+
+      - name: Install Playwright
+        run: npx playwright install chromium --with-deps
+
+      - name: Start published app and verify Blazor renders
+        run: |
+          cd publish
+
+          # Start the trimmed app in the background
+          ASPNETCORE_URLS="http://127.0.0.1:5555" \
+          ASPNETCORE_ENVIRONMENT=Development \
+          ConnectionStrings__NuGetTrends="Host=localhost;Database=nugettrends;" \
+          ConnectionStrings__clickhouse="Host=localhost;" \
+          Sentry__Dsn="" \
+            dotnet NuGetTrends.Web.dll &
+          APP_PID=$!
+
+          # Wait for the server to start (up to 30s)
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:5555/ > /dev/null 2>&1; then
+              echo "Server started after ${i}s"
+              break
+            fi
+            if ! kill -0 $APP_PID 2>/dev/null; then
+              echo "::error::Server process exited unexpectedly"
+              exit 1
+            fi
+            sleep 1
+          done
+
+          if ! curl -sf http://127.0.0.1:5555/ > /dev/null 2>&1; then
+            echo "::error::Server failed to start within 30s"
+            kill $APP_PID 2>/dev/null || true
+            exit 1
+          fi
+
+          # Use Playwright to verify Blazor WASM renders without errors
+          node --input-type=commonjs - <<'SCRIPT'
+          const { chromium } = require('playwright');
+
+          (async () => {
+            const errors = [];
+            const browser = await chromium.launch();
+            const page = await browser.newPage();
+
+            page.on('console', msg => {
+              if (msg.type() === 'error') errors.push(msg.text());
+            });
+
+            await page.goto('http://127.0.0.1:5555/', { waitUntil: 'networkidle', timeout: 30000 });
+            await page.waitForTimeout(5000);
+
+            const title = await page.title();
+            console.log('Page title:', title);
+
+            if (title === 'Not found') {
+              console.error('FAIL: Page title is "Not found" — Blazor components failed to render');
+              errors.push('Page title is "Not found"');
+            }
+
+            // Verify Blazor loaded
+            const blazorLoaded = await page.evaluate(() => typeof Blazor !== 'undefined');
+            console.log('Blazor loaded:', blazorLoaded);
+            if (!blazorLoaded) errors.push('Blazor did not load');
+
+            // Verify no CtorNotLocated or rendering errors
+            const criticalErrors = errors.filter(e => e.includes('CtorNotLocated') || e.includes('Unhandled exception rendering'));
+            if (criticalErrors.length > 0) {
+              console.error('FAIL: Critical rendering errors detected:');
+              criticalErrors.forEach(e => console.error(' ', e.substring(0, 200)));
+            }
+
+            await browser.close();
+
+            if (criticalErrors.length > 0) {
+              process.exit(1);
+            }
+
+            console.log('PASS: Blazor WASM rendered successfully after IL trimming');
+          })();
+          SCRIPT
+
+          EXIT_CODE=$?
+          kill $APP_PID 2>/dev/null || true
+          exit $EXIT_CODE
