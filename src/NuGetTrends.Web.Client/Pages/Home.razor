@@ -2,7 +2,9 @@
 @attribute [StreamRendering]
 @inject NavigationManager Navigation
 
-<PageTitle>NuGet Trends - Package Download Statistics</PageTitle>
+<SeoHead Title="NuGet Trends - Package Download Statistics"
+         Description="Track NuGet package downloads, discover trending packages, and analyze .NET framework adoption across the ecosystem."
+         Path="/" />
 
 @code {
     private void NavigateOnKey(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e, string url)

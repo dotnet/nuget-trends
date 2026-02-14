@@ -1,0 +1,24 @@
+<PageTitle>@Title</PageTitle>
+<HeadContent>
+    <meta name="description" content="@Description" />
+    <link rel="canonical" href="https://nugettrends.com@Path" />
+    <meta property="og:title" content="@Title" />
+    <meta property="og:description" content="@Description" />
+    <meta property="og:url" content="https://nugettrends.com@Path" />
+    <meta name="twitter:title" content="@Title" />
+    <meta name="twitter:description" content="@Description" />
+</HeadContent>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = "";
+
+    [Parameter, EditorRequired]
+    public string Description { get; set; } = "";
+
+    /// <summary>
+    /// The URL path including leading slash (e.g. "/packages"). Used to build canonical and og:url.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public string Path { get; set; } = "";
+}
