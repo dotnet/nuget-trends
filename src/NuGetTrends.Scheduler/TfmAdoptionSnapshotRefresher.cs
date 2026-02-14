@@ -146,11 +146,11 @@ public class TfmAdoptionSnapshotRefresher(
 
             logger.LogInformation("Job {JobId}: TFM adoption snapshot refreshed with {Count} data points", jobId, insertCount);
 
-            SentrySdk.Experimental.Metrics.EmitGauge<int>("scheduler.tfm_adoption.data_points", insertCount,
+            hub.Metrics.EmitGauge<int>("scheduler.tfm_adoption.data_points", insertCount,
                 MeasurementUnit.None, [new("job", "tfm-adoption"), new("mode", isBackfill ? "backfill" : "incremental")]);
-            SentrySdk.Experimental.Metrics.EmitGauge<int>("scheduler.tfm_adoption.tfm_month_combos", tfmPackages.Count,
+            hub.Metrics.EmitGauge<int>("scheduler.tfm_adoption.tfm_month_combos", tfmPackages.Count,
                 MeasurementUnit.None, [new("job", "tfm-adoption")]);
-            SentrySdk.Experimental.Metrics.EmitCounter<int>("scheduler.job.completed", 1,
+            hub.Metrics.EmitCounter<int>("scheduler.job.completed", 1,
                 [new("job", "tfm-adoption"), new("status", "ok")]);
 
             transaction.Finish(SpanStatus.Ok);
@@ -159,7 +159,7 @@ public class TfmAdoptionSnapshotRefresher(
         catch (OperationCanceledException)
         {
             logger.LogWarning("Job {JobId}: TFM adoption snapshot refresh was cancelled", jobId);
-            SentrySdk.Experimental.Metrics.EmitCounter<int>("scheduler.job.completed", 1,
+            hub.Metrics.EmitCounter<int>("scheduler.job.completed", 1,
                 [new("job", "tfm-adoption"), new("status", "cancelled")]);
             transaction.Finish(SpanStatus.Cancelled);
             hub.CaptureCheckIn(JobScheduleConfig.TfmAdoptionRefresher.MonitorSlug, CheckInStatus.Error, checkInId);
@@ -168,7 +168,7 @@ public class TfmAdoptionSnapshotRefresher(
         catch (Exception ex)
         {
             logger.LogError(ex, "Job {JobId}: Failed to refresh TFM adoption snapshot", jobId);
-            SentrySdk.Experimental.Metrics.EmitCounter<int>("scheduler.job.completed", 1,
+            hub.Metrics.EmitCounter<int>("scheduler.job.completed", 1,
                 [new("job", "tfm-adoption"), new("status", "error")]);
             transaction.Finish(ex);
             hub.CaptureException(ex);

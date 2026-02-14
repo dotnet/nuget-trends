@@ -65,7 +65,7 @@ public class NuGetCatalogImporter(
                 _logger.LogWarning("Job {JobId}: Skipping catalog import - another import is already in progress", jobId);
                 transaction.Finish(SpanStatus.Aborted);
                 hub.CaptureCheckIn(JobScheduleConfig.CatalogImporter.MonitorSlug, CheckInStatus.Ok, checkInId); // Skipped is OK, not an error
-                SentrySdk.Experimental.Metrics.EmitCounter<int>("scheduler.job.skipped", 1,
+                hub.Metrics.EmitCounter<int>("scheduler.job.skipped", 1,
                     [new("job", "catalog-importer"), new("reason", "concurrent")]);
                 throw new ConcurrentExecutionSkippedException(
                     $"Job {jobId}: Catalog import skipped - another import is already in progress");
@@ -81,7 +81,7 @@ public class NuGetCatalogImporter(
                         jobId, availabilityState.UnavailableSince);
                     transaction.Finish(SpanStatus.Unavailable);
                     hub.CaptureCheckIn(JobScheduleConfig.CatalogImporter.MonitorSlug, CheckInStatus.Ok, checkInId); // Skipped is OK, not an error
-                    SentrySdk.Experimental.Metrics.EmitCounter<int>("scheduler.job.skipped", 1,
+                    hub.Metrics.EmitCounter<int>("scheduler.job.skipped", 1,
                         [new("job", "catalog-importer"), new("reason", "nuget_unavailable")]);
                     return;
                 }
@@ -116,7 +116,7 @@ public class NuGetCatalogImporter(
                     transaction.Finish(SpanStatus.Ok);
                     hub.CaptureCheckIn(JobScheduleConfig.CatalogImporter.MonitorSlug, CheckInStatus.Ok, checkInId);
 
-                    SentrySdk.Experimental.Metrics.EmitCounter<int>("scheduler.job.completed", 1,
+                    hub.Metrics.EmitCounter<int>("scheduler.job.completed", 1,
                         [new("job", "catalog-importer"), new("status", "ok")]);
                 }
                 catch (HttpRequestException e)
@@ -127,7 +127,7 @@ public class NuGetCatalogImporter(
                     transaction.Finish(e);
                     hub.CaptureException(e);
                     hub.CaptureCheckIn(JobScheduleConfig.CatalogImporter.MonitorSlug, CheckInStatus.Error, checkInId);
-                    SentrySdk.Experimental.Metrics.EmitCounter<int>("scheduler.job.completed", 1,
+                    hub.Metrics.EmitCounter<int>("scheduler.job.completed", 1,
                         [new("job", "catalog-importer"), new("status", "error"), new("error_type", "http")]);
                     throw;
                 }
@@ -139,7 +139,7 @@ public class NuGetCatalogImporter(
                     transaction.Finish(e);
                     hub.CaptureException(e);
                     hub.CaptureCheckIn(JobScheduleConfig.CatalogImporter.MonitorSlug, CheckInStatus.Error, checkInId);
-                    SentrySdk.Experimental.Metrics.EmitCounter<int>("scheduler.job.completed", 1,
+                    hub.Metrics.EmitCounter<int>("scheduler.job.completed", 1,
                         [new("job", "catalog-importer"), new("status", "error"), new("error_type", "circuit_breaker")]);
                     throw;
                 }
@@ -149,7 +149,7 @@ public class NuGetCatalogImporter(
                     transaction.Finish(e);
                     hub.CaptureException(e);
                     hub.CaptureCheckIn(JobScheduleConfig.CatalogImporter.MonitorSlug, CheckInStatus.Error, checkInId);
-                    SentrySdk.Experimental.Metrics.EmitCounter<int>("scheduler.job.completed", 1,
+                    hub.Metrics.EmitCounter<int>("scheduler.job.completed", 1,
                         [new("job", "catalog-importer"), new("status", "error"), new("error_type", "unknown")]);
                     throw;
                 }

@@ -75,7 +75,7 @@ public class DailyDownloadPackageIdPublisher(
                 logger.LogWarning("Job {JobId}: Skipping daily download publisher - another instance is already in progress", jobId);
                 transaction.Finish(SpanStatus.Aborted);
                 hub.CaptureCheckIn(JobScheduleConfig.DailyDownloadPublisher.MonitorSlug, CheckInStatus.Ok, checkInId); // Skipped is OK, not an error
-                SentrySdk.Experimental.Metrics.EmitCounter<int>("scheduler.job.skipped", 1,
+                hub.Metrics.EmitCounter<int>("scheduler.job.skipped", 1,
                     [new("job", "daily-download-publisher"), new("reason", "concurrent")]);
                 throw new ConcurrentExecutionSkippedException(
                     $"Job {jobId}: Daily download publisher skipped - another instance is already in progress");
@@ -146,9 +146,9 @@ public class DailyDownloadPackageIdPublisher(
                         jobId, messageCount);
                 }
 
-                SentrySdk.Experimental.Metrics.EmitGauge<int>("scheduler.daily_download.packages_queued", messageCount,
+                hub.Metrics.EmitGauge<int>("scheduler.daily_download.packages_queued", messageCount,
                     MeasurementUnit.None, [new("job", "daily-download-publisher")]);
-                SentrySdk.Experimental.Metrics.EmitCounter<int>("scheduler.job.completed", 1,
+                hub.Metrics.EmitCounter<int>("scheduler.job.completed", 1,
                     [new("job", "daily-download-publisher"), new("status", "ok")]);
 
                 transaction.Finish(SpanStatus.Ok);
@@ -156,7 +156,7 @@ public class DailyDownloadPackageIdPublisher(
             }
             catch (Exception e)
             {
-                SentrySdk.Experimental.Metrics.EmitCounter<int>("scheduler.job.completed", 1,
+                hub.Metrics.EmitCounter<int>("scheduler.job.completed", 1,
                     [new("job", "daily-download-publisher"), new("status", "error")]);
                 transaction.Finish(e);
                 hub.CaptureCheckIn(JobScheduleConfig.DailyDownloadPublisher.MonitorSlug, CheckInStatus.Error, checkInId);

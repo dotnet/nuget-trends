@@ -134,11 +134,11 @@ public class TrendingPackagesSnapshotRefresher(
 
             logger.LogInformation("Job {JobId}: Trending packages snapshot refreshed with {Count} enriched packages", jobId, count);
 
-            SentrySdk.Experimental.Metrics.EmitGauge<int>("scheduler.trending.packages_count", count,
+            hub.Metrics.EmitGauge<int>("scheduler.trending.packages_count", count,
                 MeasurementUnit.None, [new("job", "trending-snapshot")]);
-            SentrySdk.Experimental.Metrics.EmitGauge<int>("scheduler.trending.new_packages_backfilled", newPackages,
+            hub.Metrics.EmitGauge<int>("scheduler.trending.new_packages_backfilled", newPackages,
                 MeasurementUnit.None, [new("job", "trending-snapshot")]);
-            SentrySdk.Experimental.Metrics.EmitCounter<int>("scheduler.job.completed", 1,
+            hub.Metrics.EmitCounter<int>("scheduler.job.completed", 1,
                 [new("job", "trending-snapshot"), new("status", "ok")]);
 
             transaction.Finish(SpanStatus.Ok);
@@ -147,7 +147,7 @@ public class TrendingPackagesSnapshotRefresher(
         catch (OperationCanceledException)
         {
             logger.LogWarning("Job {JobId}: Trending packages snapshot refresh was cancelled", jobId);
-            SentrySdk.Experimental.Metrics.EmitCounter<int>("scheduler.job.completed", 1,
+            hub.Metrics.EmitCounter<int>("scheduler.job.completed", 1,
                 [new("job", "trending-snapshot"), new("status", "cancelled")]);
             transaction.Finish(SpanStatus.Cancelled);
             hub.CaptureCheckIn(JobScheduleConfig.TrendingSnapshotRefresher.MonitorSlug, CheckInStatus.Error, checkInId);
@@ -156,7 +156,7 @@ public class TrendingPackagesSnapshotRefresher(
         catch (Exception ex)
         {
             logger.LogError(ex, "Job {JobId}: Failed to refresh trending packages snapshot", jobId);
-            SentrySdk.Experimental.Metrics.EmitCounter<int>("scheduler.job.completed", 1,
+            hub.Metrics.EmitCounter<int>("scheduler.job.completed", 1,
                 [new("job", "trending-snapshot"), new("status", "error")]);
             transaction.Finish(ex);
             hub.CaptureException(ex);
