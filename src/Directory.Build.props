@@ -7,9 +7,19 @@
     <NoWarn>$(NoWarn);1591</NoWarn>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <SentryVersion>6.2.0-alpha.0</SentryVersion>
-    <!-- Version embedding: set via CI with -p:SourceRevisionId=<sha>, defaults to 'local' for dev -->
+    <!-- Version embedding: set via CI with -p:SourceRevisionId=<sha>, defaults to git branch for dev -->
     <SourceRevisionId Condition="'$(SourceRevisionId)' == ''">local</SourceRevisionId>
   </PropertyGroup>
+
+  <!-- Resolve git branch name for local dev builds -->
+  <Target Name="SetGitBranchAsRevisionId" BeforeTargets="GetAssemblyVersion;GenerateNuspec" Condition="'$(SourceRevisionId)' == 'local'">
+    <Exec Command="git rev-parse --abbrev-ref HEAD" ConsoleToMSBuild="true" StandardOutputImportance="low" IgnoreExitCode="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_GitBranch" />
+    </Exec>
+    <PropertyGroup>
+      <SourceRevisionId Condition="'$(_GitBranch)' != ''">$(_GitBranch)</SourceRevisionId>
+    </PropertyGroup>
+  </Target>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <SentryOrg>nugettrends</SentryOrg>
