@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using ClickHouse.Driver.ADO;
+using DotNet.Testcontainers.Builders;
 using Testcontainers.ClickHouse;
 using Xunit;
 
@@ -25,6 +26,12 @@ public class ClickHouseFixture : IAsyncLifetime
             .WithImage(ClickHouseImage)
             .WithUsername(Username)
             .WithPassword(Password)
+            // ClickHouse 25.11+ requires authentication for HTTP health checks.
+            // Override the default unauthenticated wait strategy with one that sends credentials.
+            .WithWaitStrategy(Wait.ForUnixContainer()
+                .UntilHttpRequestIsSucceeded(r => r
+                    .ForPath("/ping")
+                    .ForPort(8123)))
             .Build();
     }
 

@@ -24,6 +24,7 @@ public class PageHealthTests
     [Theory]
     [InlineData("/", "Home")]
     [InlineData("/packages/Sentry", "Package detail")]
+    [InlineData("/frameworks", "Framework adoption")]
     public async Task Page_ShouldHaveNo404sOrJsErrors(string path, string label)
     {
         var page = await _fixture.NewPageAsync();

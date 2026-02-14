@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using ClickHouse.Driver.ADO;
+using DotNet.Testcontainers.Builders;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NuGet.Protocol.Catalog;
@@ -54,6 +55,12 @@ public class IntegrationTestFixture : IAsyncLifetime
             .WithImage(ClickHouseImage)
             .WithUsername(ClickHouseUser)
             .WithPassword(ClickHousePass)
+            // ClickHouse 25.11+ requires authentication for HTTP health checks.
+            // Override the default unauthenticated wait strategy with one that sends credentials.
+            .WithWaitStrategy(Wait.ForUnixContainer()
+                .UntilHttpRequestIsSucceeded(r => r
+                    .ForPath("/ping")
+                    .ForPort(8123)))
             .Build();
 
         _httpClient = new HttpClient();

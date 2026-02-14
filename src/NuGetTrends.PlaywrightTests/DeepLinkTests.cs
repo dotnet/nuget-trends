@@ -62,6 +62,47 @@ public class DeepLinkTests
     }
 
     [Fact]
+    public async Task DirectUrl_MultiplePackages_LoadsAllDatasetsOnChart()
+    {
+        var page = await _fixture.NewPageAsync(msg => _output.WriteLine(msg));
+
+        try
+        {
+            var url = $"{_fixture.ServerUrl}/packages?ids=Sentry&ids=Newtonsoft.Json&months=3";
+            _output.WriteLine($"Navigating directly to: {url}");
+
+            await page.GotoAsync(url, new PageGotoOptions
+            {
+                WaitUntil = WaitUntilState.NetworkIdle
+            });
+
+            // Wait for WASM hydration
+            await page.WaitForTimeoutAsync(5_000);
+
+            // Verify the chart rendered with both datasets
+            var seriesLocator = page.Locator(".apexcharts-line-series .apexcharts-series");
+            var datasetCount = await seriesLocator.CountAsync();
+            _output.WriteLine($"Dataset count: {datasetCount}");
+            datasetCount.Should().Be(2, "chart should have exactly 2 datasets from the deep link");
+
+            // Verify series names
+            var seriesNames = new List<string>();
+            for (var i = 0; i < datasetCount; i++)
+            {
+                var name = await seriesLocator.Nth(i).GetAttributeAsync("seriesName");
+                if (name != null) seriesNames.Add(name);
+            }
+            _output.WriteLine($"Series names: {string.Join(", ", seriesNames)}");
+            seriesNames.Should().Contain("Sentry");
+            seriesNames.Should().Contain("Newtonsoft.Json");
+        }
+        finally
+        {
+            await page.CloseAsync();
+        }
+    }
+
+    [Fact]
     public async Task DirectUrl_PackagePathFormat_LoadsCorrectly()
     {
         var page = await _fixture.NewPageAsync(msg => _output.WriteLine(msg));
