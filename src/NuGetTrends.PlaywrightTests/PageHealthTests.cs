@@ -23,7 +23,9 @@ public class PageHealthTests
 
     [Theory]
     [InlineData("/", "Home")]
+    [InlineData("/packages", "Package search")]
     [InlineData("/packages/Sentry", "Package detail")]
+    [InlineData("/trending", "Trending packages")]
     [InlineData("/frameworks", "Framework adoption")]
     public async Task Page_ShouldHaveNo404sOrJsErrors(string path, string label)
     {
