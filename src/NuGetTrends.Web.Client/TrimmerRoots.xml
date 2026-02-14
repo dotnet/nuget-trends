@@ -1,15 +1,10 @@
 <linker>
   <!--
-    Routes is the WASM root component, referenced only from the server's App.razor.
-    The IL trimmer can't see that cross-project reference, so preserve it explicitly.
+    Preserve the entire client assembly: the IL trimmer in TrimMode=full strips
+    constructor metadata from Razor components (e.g. MainLayout), causing
+    CtorNotLocated at runtime after dotnet publish. This only manifests in
+    published builds since dotnet run/build doesn't trigger trimming.
   -->
-  <assembly fullname="NuGetTrends.Web.Client">
-    <type fullname="NuGetTrends.Web.Client.Routes" preserve="all" />
-  </assembly>
-
-  <!--
-    Blazored.Toast's IToastService is injected into MainLayout.
-    The trimmer strips its implementation in TrimMode=full, causing CtorNotLocated at runtime.
-  -->
+  <assembly fullname="NuGetTrends.Web.Client" preserve="all" />
   <assembly fullname="Blazored.Toast" preserve="all" />
 </linker>
