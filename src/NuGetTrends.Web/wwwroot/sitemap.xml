@@ -8,4 +8,12 @@
     <loc>https://nugettrends.com/packages</loc>
     <priority>0.8</priority>
   </url>
+  <url>
+    <loc>https://nugettrends.com/frameworks</loc>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://nugettrends.com/trending</loc>
+    <priority>0.8</priority>
+  </url>
 </urlset>
