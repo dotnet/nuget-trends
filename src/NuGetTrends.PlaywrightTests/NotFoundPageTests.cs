@@ -38,8 +38,9 @@ public class NotFoundPageTests
                 WaitUntil = WaitUntilState.NetworkIdle
             });
 
-            // Wait for WASM hydration
-            await page.WaitForTimeoutAsync(5_000);
+            // Wait for page to render
+            await page.Locator("h1:has-text('Page not found')").WaitForAsync(
+                new LocatorWaitForOptions { State = WaitForSelectorState.Visible, Timeout = 15_000 });
 
             // Verify the "Page not found" heading appears
             var heading = page.Locator("h1:has-text('Page not found')");

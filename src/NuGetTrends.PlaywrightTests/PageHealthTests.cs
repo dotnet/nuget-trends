@@ -73,7 +73,10 @@ public class PageHealthTests
             });
 
             // Wait for WASM hydration
-            await page.WaitForTimeoutAsync(5_000);
+            await page.WaitForFunctionAsync(
+                "() => typeof Blazor !== 'undefined'",
+                null,
+                new PageWaitForFunctionOptions { Timeout = 15_000 });
 
             failedRequests.Should().BeEmpty(
                 $"{label} page should load all resources without HTTP errors");

@@ -58,15 +58,16 @@ public class FrameworkPageTests
                 WaitUntil = WaitUntilState.NetworkIdle
             });
 
-            // Wait for WASM hydration and data loading
-            await page.WaitForTimeoutAsync(5_000);
+            // Wait for chart to render
+            var seriesLocator = page.Locator(".apexcharts-line-series .apexcharts-series");
+            await seriesLocator.First.WaitForAsync(
+                new LocatorWaitForOptions { State = WaitForSelectorState.Visible, Timeout = 15_000 });
 
             // No HTTP errors or JS errors
             failedRequests.Should().BeEmpty("frameworks page should load without HTTP errors");
             consoleErrors.Should().BeEmpty("frameworks page should have no JS errors");
 
             // The ApexCharts chart should render with at least one series
-            var seriesLocator = page.Locator(".apexcharts-line-series .apexcharts-series");
             var seriesCount = await seriesLocator.CountAsync();
             _output.WriteLine($"Chart series count: {seriesCount}");
             seriesCount.Should().BeGreaterThan(0, "chart should render with TFM adoption data");
@@ -92,17 +93,21 @@ public class FrameworkPageTests
             {
                 WaitUntil = WaitUntilState.NetworkIdle
             });
-            await page.WaitForTimeoutAsync(5_000);
+            // Wait for chart to render
+            var seriesLocator = page.Locator(".apexcharts-line-series .apexcharts-series");
+            await seriesLocator.First.WaitForAsync(
+                new LocatorWaitForOptions { State = WaitForSelectorState.Visible, Timeout = 15_000 });
 
             // Verify chart is rendered in Individual mode (default)
-            var seriesLocator = page.Locator(".apexcharts-line-series .apexcharts-series");
             var individualCount = await seriesLocator.CountAsync();
             _output.WriteLine($"Individual series count: {individualCount}");
 
             // Click "Family" toggle button
             var familyButton = page.Locator("button:text('Family')");
             await familyButton.ClickAsync();
-            await page.WaitForTimeoutAsync(2_000);
+            // Wait for chart to re-render after toggling view
+            await seriesLocator.First.WaitForAsync(
+                new LocatorWaitForOptions { State = WaitForSelectorState.Visible, Timeout = 10_000 });
 
             // Family view should aggregate series - fewer lines than individual
             var familyCount = await seriesLocator.CountAsync();
@@ -129,15 +134,19 @@ public class FrameworkPageTests
             {
                 WaitUntil = WaitUntilState.NetworkIdle
             });
-            await page.WaitForTimeoutAsync(5_000);
+            // Wait for chart to render
+            var seriesLocator = page.Locator(".apexcharts-line-series .apexcharts-series");
+            await seriesLocator.First.WaitForAsync(
+                new LocatorWaitForOptions { State = WaitForSelectorState.Visible, Timeout = 15_000 });
 
             // Click "Relative" time toggle
             var relativeButton = page.Locator("button:text('Relative')");
             await relativeButton.ClickAsync();
-            await page.WaitForTimeoutAsync(2_000);
+            // Wait for chart to re-render in relative mode
+            await seriesLocator.First.WaitForAsync(
+                new LocatorWaitForOptions { State = WaitForSelectorState.Visible, Timeout = 10_000 });
 
             // Chart should still render
-            var seriesLocator = page.Locator(".apexcharts-line-series .apexcharts-series");
             var seriesCount = await seriesLocator.CountAsync();
             _output.WriteLine($"Series count in relative mode: {seriesCount}");
             seriesCount.Should().BeGreaterThan(0, "chart should render in relative time mode");
@@ -165,9 +174,11 @@ public class FrameworkPageTests
             {
                 WaitUntil = WaitUntilState.NetworkIdle
             });
-            await page.WaitForTimeoutAsync(5_000);
-
+            // Wait for chart to render
             var seriesLocator = page.Locator(".apexcharts-line-series .apexcharts-series");
+            await seriesLocator.First.WaitForAsync(
+                new LocatorWaitForOptions { State = WaitForSelectorState.Visible, Timeout = 15_000 });
+
             var initialCount = await seriesLocator.CountAsync();
             _output.WriteLine($"Initial series count: {initialCount}");
 
@@ -178,7 +189,6 @@ public class FrameworkPageTests
             // Click "Clear" on a family to remove some TFMs
             var clearLink = page.Locator("a:text('Clear')").First;
             await clearLink.ClickAsync();
-            await page.WaitForTimeoutAsync(1_000);
 
             // Close dropdown by clicking backdrop
             var backdrop = page.Locator(".tfm-filter-backdrop");
@@ -186,7 +196,8 @@ public class FrameworkPageTests
             {
                 await backdrop.ClickAsync();
             }
-            await page.WaitForTimeoutAsync(2_000);
+            // Wait for chart to re-render after filter change
+            await page.WaitForTimeoutAsync(1_000);
 
             var afterCount = await seriesLocator.CountAsync();
             _output.WriteLine($"Series count after clearing a family: {afterCount}");

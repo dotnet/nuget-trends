@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using FluentAssertions;
 using Microsoft.Playwright;
 using NuGetTrends.PlaywrightTests.Infrastructure;
@@ -30,30 +31,21 @@ public class SearchDropdownTests
 
         try
         {
-            // Navigate to the home page
-            _output.WriteLine($"Navigating to {_fixture.ServerUrl}");
-            await page.GotoAsync(_fixture.ServerUrl, new PageGotoOptions
+            // Navigate to the packages page (which has the search input)
+            var packagesUrl = $"{_fixture.ServerUrl}/packages";
+            _output.WriteLine($"Navigating to {packagesUrl}");
+            await page.GotoAsync(packagesUrl, new PageGotoOptions
             {
                 WaitUntil = WaitUntilState.NetworkIdle
             });
 
             // Wait for Blazor WASM to hydrate — the page should become interactive.
-            // Blazor removes the blazor-ssr markers and replaces with live components.
-            // A good signal is that the search input is focusable and accepting events.
             var searchInput = page.Locator("input.input.is-large");
             await searchInput.WaitForAsync(new LocatorWaitForOptions { Timeout = 30_000 });
 
             // Log page state before typing
             var title = await page.TitleAsync();
             _output.WriteLine($"Page title: {title}");
-
-            // Check if WASM loaded by looking for absence of blazor-ssr tag
-            var htmlContent = await page.ContentAsync();
-            var hasBlazorSsr = htmlContent.Contains("<blazor-ssr>");
-            _output.WriteLine($"Has <blazor-ssr> tag (streaming): {hasBlazorSsr}");
-
-            // Wait a bit for WASM to fully initialize
-            await page.WaitForTimeoutAsync(3_000);
 
             // Type "sentry" in the search box
             _output.WriteLine("Typing 'sentry' in search input...");
@@ -125,33 +117,23 @@ public class SearchDropdownTests
 
         try
         {
-            await page.GotoAsync(_fixture.ServerUrl, new PageGotoOptions
+            // Navigate to packages page (which has the search input)
+            await page.GotoAsync($"{_fixture.ServerUrl}/packages", new PageGotoOptions
             {
                 WaitUntil = WaitUntilState.NetworkIdle
             });
 
             // Wait for WASM hydration by checking that the Blazor framework is connected
-            // The blazor.web.js script should download and initialize WASM assemblies
             _output.WriteLine("Waiting for Blazor WASM initialization...");
 
-            // Wait for the blazor-ssr streaming to complete
-            await page.WaitForTimeoutAsync(2_000);
+            // Wait for the search input to appear (confirms WASM hydration)
+            var searchInput = page.Locator("input.input.is-large");
+            await searchInput.WaitForAsync(new LocatorWaitForOptions { Timeout = 30_000 });
 
             // Check that blazor.web.js was loaded
             var blazorLoaded = await page.EvaluateAsync<bool>(
                 "typeof Blazor !== 'undefined'");
             _output.WriteLine($"Blazor global available: {blazorLoaded}");
-
-            // Check WASM assembly loading by looking at network requests
-            var wasmDlls = await page.EvaluateAsync<int>(@"
-                performance.getEntriesByType('resource')
-                    .filter(r => r.name.includes('_framework') && (r.name.includes('.wasm') || r.name.includes('.dll')))
-                    .length
-            ");
-            _output.WriteLine($"WASM/DLL resources loaded: {wasmDlls}");
-
-            // Test interactivity: type and verify the input value changes via Blazor binding
-            var searchInput = page.Locator("input.input.is-large");
             await searchInput.FillAsync("test");
 
             var inputValue = await searchInput.InputValueAsync();
@@ -184,15 +166,15 @@ public class SearchDropdownTests
 
         try
         {
-            await page.GotoAsync(_fixture.ServerUrl, new PageGotoOptions
+            // Navigate to packages page (which has the search input)
+            await page.GotoAsync($"{_fixture.ServerUrl}/packages", new PageGotoOptions
             {
                 WaitUntil = WaitUntilState.NetworkIdle
             });
 
-            // Wait for WASM
-            await page.WaitForTimeoutAsync(3_000);
-
+            // Wait for search input to appear
             var searchInput = page.Locator("input.input.is-large");
+            await searchInput.WaitForAsync(new LocatorWaitForOptions { Timeout = 30_000 });
             await searchInput.FillAsync("sentry");
 
             // Wait for dropdown
@@ -207,15 +189,15 @@ public class SearchDropdownTests
             var firstOption = dropdown.Locator(".autocomplete-option").First;
             await firstOption.ClickAsync();
 
-            // Should navigate to /packages/Sentry
-            await page.WaitForURLAsync("**/packages/**", new PageWaitForURLOptions
+            // Should navigate to /packages?ids=Sentry&months=24
+            await page.WaitForURLAsync(new Regex(@"packages\?ids="), new PageWaitForURLOptions
             {
                 Timeout = 10_000
             });
 
             var url = page.Url;
             _output.WriteLine($"Navigated to: {url}");
-            url.Should().Contain("/packages/", "should navigate to packages page after selecting a result");
+            url.Should().Contain("ids=Sentry", "should navigate to packages page with Sentry after selecting a result");
         }
         finally
         {

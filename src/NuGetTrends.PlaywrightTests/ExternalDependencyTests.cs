@@ -55,7 +55,10 @@ public class ExternalDependencyTests
             });
 
             // Wait for WASM hydration to catch any lazy-loaded scripts
-            await page.WaitForTimeoutAsync(5_000);
+            await page.WaitForFunctionAsync(
+                "() => typeof Blazor !== 'undefined'",
+                null,
+                new PageWaitForFunctionOptions { Timeout = 15_000 });
 
             externalRequests.Should().BeEmpty(
                 $"{label} page should not load JS or CSS from external CDNs — vendor all dependencies locally");

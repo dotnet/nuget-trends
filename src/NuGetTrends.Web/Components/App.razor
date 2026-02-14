@@ -79,22 +79,25 @@
         }
     </style>
 
-    <!-- Sentry Browser SDK (spa project) — catches JS errors even if WASM fails to boot -->
-    <script
-      src="https://js.sentry-cdn.com/85a592e835c64ca3a97d93776c12e947.min.js"
-      crossorigin="anonymous"
-    ></script>
-    <script>
-        Sentry.onLoad(function() {
-            Sentry.init({
-                tunnel: "/t",
-                environment: "@_environment",
-                integrations: [Sentry.replayIntegration()],
-                replaysSessionSampleRate: 0,
-                replaysOnErrorSampleRate: 1.0,
+    @if (_sentryEnabled)
+    {
+        <!-- Sentry Browser SDK (spa project) — catches JS errors even if WASM fails to boot -->
+        <script
+          src="https://js.sentry-cdn.com/85a592e835c64ca3a97d93776c12e947.min.js"
+          crossorigin="anonymous"
+        ></script>
+        <script>
+            Sentry.onLoad(function() {
+                Sentry.init({
+                    tunnel: "/t",
+                    environment: "@_environment",
+                    integrations: [Sentry.replayIntegration()],
+                    replaysSessionSampleRate: 0,
+                    replaysOnErrorSampleRate: 1.0,
+                });
             });
-        });
-    </script>
+        </script>
+    }
 
     <!-- Custom JS -->
     <script src="@Assets["js/themeInterop.js"]"></script>
@@ -114,7 +117,7 @@
             }
         }).catch(function(err) {
             console.error('Blazor WASM failed to start:', err);
-            Sentry.captureException(err);
+            if (typeof Sentry !== 'undefined') Sentry.captureException(err);
         });
     </script>
 </body>
@@ -122,10 +125,12 @@
 </html>
 
 @inject IWebHostEnvironment Environment
+@inject IConfiguration Configuration
 
 @code {
     private string _appVersion = "unknown";
     private string _environment => Environment.EnvironmentName.ToLowerInvariant();
+    private bool _sentryEnabled => !string.IsNullOrEmpty(Configuration["Sentry:Dsn"]);
 
     protected override void OnInitialized()
     {
