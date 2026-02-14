@@ -82,8 +82,9 @@
             _isSearching = true;
             StateHasChanged();
 
-            var results = await Http.GetFromJsonAsync<List<PackageSearchResult>>(
+            var results = await Http.GetFromJsonAsync(
                 $"/api/package/search?q={Uri.EscapeDataString(_searchTerm.Trim())}",
+                NuGetTrendsJsonContext.Default.ListPackageSearchResult,
                 _debounceTokenSource.Token);
 
             _searchResults = results ?? [];
@@ -181,8 +182,9 @@
             }
 
             // Fetch download history
-            var history = await Http.GetFromJsonAsync<PackageDownloadHistory>(
-                $"/api/package/history/{Uri.EscapeDataString(package.PackageId)}?months={PackageState.SearchPeriod}");
+            var history = await Http.GetFromJsonAsync(
+                $"/api/package/history/{Uri.EscapeDataString(package.PackageId)}?months={PackageState.SearchPeriod}",
+                NuGetTrendsJsonContext.Default.PackageDownloadHistory);
 
             if (history == null)
             {
