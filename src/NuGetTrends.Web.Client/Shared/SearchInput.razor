@@ -166,6 +166,20 @@
 
         try
         {
+            // Check if chart is full before making a network request
+            if (PackageState.Packages.Count >= PackageState.MaxChartItems)
+            {
+                ToastService.ShowWarning("Insert bitcoin to add another item to the chart.");
+                return;
+            }
+
+            // Check if already on chart before making a network request
+            if (PackageState.HasPackage(package.PackageId))
+            {
+                ToastService.ShowInfo($"Package '{package.PackageId}' is already on the chart.");
+                return;
+            }
+
             // Fetch download history
             var history = await Http.GetFromJsonAsync<PackageDownloadHistory>(
                 $"/api/package/history/{Uri.EscapeDataString(package.PackageId)}?months={PackageState.SearchPeriod}");
@@ -173,20 +187,6 @@
             if (history == null)
             {
                 ToastService.ShowWarning($"Package '{package.PackageId}' doesn't exist.");
-                return;
-            }
-
-            // Check if chart is full
-            if (PackageState.Packages.Count >= PackageState.MaxChartItems)
-            {
-                ToastService.ShowWarning("Insert bitcoin to add another item to the chart.");
-                return;
-            }
-
-            // Check if already on chart
-            if (PackageState.HasPackage(package.PackageId))
-            {
-                ToastService.ShowInfo($"Package '{package.PackageId}' is already on the chart.");
                 return;
             }
 

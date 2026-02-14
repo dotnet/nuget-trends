@@ -65,7 +65,7 @@
                 await _chart.UpdateOptionsAsync(true, true, false);
             }
 
-            if (datasetsChanged)
+            if (datasetsChanged || periodChanged)
             {
                 await _chart.RenderAsync();
             }

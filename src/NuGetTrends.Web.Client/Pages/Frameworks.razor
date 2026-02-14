@@ -216,7 +216,7 @@
 
             var points = _timeMode == TfmTimeMode.Absolute
                 ? monthData
-                    .Select(kv => new TfmChartPoint(DateOnly.Parse(kv.Key).ToDateTime(TimeOnly.MinValue).Ticks, kv.Value))
+                    .Select(kv => new TfmChartPoint(DateOnly.ParseExact(kv.Key, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture).ToDateTime(TimeOnly.MinValue).Ticks, kv.Value))
                     .ToList()
                 : monthData
                     .Select((kv, i) => new TfmChartPoint(i, kv.Value))
@@ -364,15 +364,15 @@
     {
         try
         {
-            await InvokeAsync(() =>
+            await InvokeAsync(async () =>
             {
                 _chartOptions = BuildChartOptions();
                 StateHasChanged();
+                if (_chart is not null)
+                {
+                    await _chart.UpdateOptionsAsync(true, true, false);
+                }
             });
-            if (_chart is not null)
-            {
-                await _chart.UpdateOptionsAsync(true, true, false);
-            }
         }
         catch (Exception ex)
         {

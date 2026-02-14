@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using Blazored.Toast;
 using ClickHouse.Driver.ADO;
+using DotNet.Testcontainers.Builders;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
@@ -38,6 +39,12 @@ public class PlaywrightFixture : IAsyncLifetime
         .WithImage(ClickHouseImage)
         .WithUsername(ClickHouseUser)
         .WithPassword(ClickHousePass)
+        // ClickHouse 25.11+ requires authentication for HTTP health checks.
+        // Override the default unauthenticated wait strategy with one that sends credentials.
+        .WithWaitStrategy(Wait.ForUnixContainer()
+            .UntilHttpRequestIsSucceeded(r => r
+                .ForPath("/ping")
+                .ForPort(8123)))
         .Build();
 
     private WebApplication? _app;
@@ -165,6 +172,7 @@ public class PlaywrightFixture : IAsyncLifetime
 
         builder.Services.AddMemoryCache();
         builder.Services.AddScoped<NuGetTrends.Web.ITrendingPackagesCache, NuGetTrends.Web.TrendingPackagesCache>();
+        builder.Services.AddScoped<NuGetTrends.Web.ITfmAdoptionCache, NuGetTrends.Web.TfmAdoptionCache>();
     }
 
     private static void ConfigureMiddleware(WebApplication app)

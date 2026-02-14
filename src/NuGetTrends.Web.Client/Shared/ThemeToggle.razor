@@ -40,8 +40,19 @@
 
     private async void OnThemeChanged(object? sender, string theme)
     {
-        await ApplyTheme();
-        await InvokeAsync(StateHasChanged);
+        try
+        {
+            await ApplyTheme();
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (JSDisconnectedException)
+        {
+            // Circuit disconnected, JS cleanup already happened
+        }
+        catch (ObjectDisposedException)
+        {
+            // Component disposed during async operation
+        }
     }
 
     [JSInvokable]
