@@ -278,7 +278,7 @@
                 FontFamily = "inherit",
                 ForeColor = textColor,
             },
-            Legend = new Legend { Show = true, Position = LegendPosition.Top },
+            Legend = new Legend { Show = true, Position = LegendPosition.Top, FontSize = "14px" },
             Markers = new Markers
             {
                 Size = 4,
@@ -308,7 +308,7 @@
                             Month = "MMM yyyy",
                             Year = "yyyy",
                         },
-                        Style = new AxisLabelStyle { Colors = new Color(textColor) },
+                        Style = new AxisLabelStyle { Colors = new Color(textColor), FontSize = "13px" },
                     },
                     AxisBorder = new AxisBorder { Color = gridColor },
                     AxisTicks = new AxisTicks { Color = gridColor },
@@ -320,7 +320,7 @@
                     TickAmount = 10,
                     Labels = new XAxisLabels
                     {
-                        Style = new AxisLabelStyle { Colors = new Color(textColor) },
+                        Style = new AxisLabelStyle { Colors = new Color(textColor), FontSize = "13px" },
                         Formatter = @"function(val) { return Math.round(val); }",
                     },
                     AxisBorder = new AxisBorder { Color = gridColor },
@@ -332,7 +332,7 @@
                 {
                     Labels = new YAxisLabels
                     {
-                        Style = new AxisLabelStyle { Colors = new Color(textColor) },
+                        Style = new AxisLabelStyle { Colors = new Color(textColor), FontSize = "13px" },
                         Formatter = "function(val) { return val != null && !isNaN(val) ? val.toLocaleString() : ''; }",
                     },
                 },
