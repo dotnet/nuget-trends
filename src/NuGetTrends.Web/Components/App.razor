@@ -89,7 +89,7 @@
             Sentry.init({
                 tunnel: "/t",
                 integrations: [Sentry.replayIntegration()],
-                replaysSessionSampleRate: 0.1,
+                replaysSessionSampleRate: 0,
                 replaysOnErrorSampleRate: 1.0,
             });
         });
