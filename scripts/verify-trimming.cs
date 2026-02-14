@@ -122,7 +122,7 @@ try
         if (msg.Type == "error") errors.Add(msg.Text);
     };
 
-    await page.GotoAsync($"http://127.0.0.1:{port}/", new() { WaitUntil = WaitUntilState.NetworkIdle, Timeout = 30_000 });
+    await page.GotoAsync($"http://127.0.0.1:{port}/", new() { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 30_000 });
     await page.WaitForFunctionAsync(
         "() => typeof Blazor !== 'undefined'",
         null,
