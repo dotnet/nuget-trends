@@ -198,28 +198,30 @@ try
             context.Response.Headers.Append("Document-Policy", "js-profiling");
             // App version header
             context.Response.Headers.Append("X-Version", appVersion);
-
-            // Cache HTML responses but revalidate on every request.
-            // ETag is based on the app version (git SHA), so a new deploy
-            // busts the cache while same-version requests get a fast 304.
-            var contentType = context.Response.ContentType;
-            if (contentType is not null && contentType.StartsWith("text/html", StringComparison.OrdinalIgnoreCase))
-            {
-                context.Response.Headers["Cache-Control"] = "no-cache";
-                context.Response.Headers.ETag = appVersionETag;
-            }
-
             return Task.CompletedTask;
         });
 
-        // Return 304 if the client already has this version
-        if (context.Request.Headers.IfNoneMatch == appVersionETag)
+        // Return 304 for HTML navigation requests if the client already has this version.
+        // Only browser navigations send Accept: text/html — API and static file requests won't match.
+        var accept = context.Request.Headers.Accept.ToString();
+        if (accept.Contains("text/html", StringComparison.OrdinalIgnoreCase)
+            && context.Request.Headers.IfNoneMatch.Contains(appVersionETag))
         {
             context.Response.StatusCode = StatusCodes.Status304NotModified;
             return;
         }
 
         await next();
+
+        // Cache HTML responses but revalidate on every request.
+        // ETag is based on the app version (git SHA), so a new deploy
+        // busts the cache while same-version requests get a fast 304.
+        var contentType = context.Response.ContentType;
+        if (contentType is not null && contentType.StartsWith("text/html", StringComparison.OrdinalIgnoreCase))
+        {
+            context.Response.Headers["Cache-Control"] = "no-cache";
+            context.Response.Headers.ETag = appVersionETag;
+        }
     });
 
     app.UseResponseCompression();
