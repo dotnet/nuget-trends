@@ -311,6 +311,8 @@
             Tooltip = new Tooltip
             {
                 Theme = ThemeState.IsDark ? Mode.Dark : Mode.Light,
+                Shared = _timeMode == TfmTimeMode.Absolute,
+                Intersect = _timeMode != TfmTimeMode.Absolute,
                 X = _timeMode == TfmTimeMode.Absolute
                     ? new TooltipX
                     {
