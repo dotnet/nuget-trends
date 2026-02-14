@@ -423,21 +423,41 @@ public class DailyDownloadWorker : IHostedService
         // Handle deleted packages (batch query to avoid N+1)
         if (deletedPackageIds.Count > 0)
         {
-            var deleteSpan = StartDbSpan(parentSpan, "DELETE FROM package_details_catalog_leafs WHERE package_id_lowered IN (...)", "postgresql", "DELETE");
-            deleteSpan.SetTag("count", deletedPackageIds.Count.ToString());
+            var loweredIds = deletedPackageIds.Select(id => id.ToLowerInvariant()).Distinct().ToList();
+
+            var deleteCatalogSpan = StartDbSpan(parentSpan, "DELETE FROM package_details_catalog_leafs WHERE package_id_lowered IN (...)", "postgresql", "DELETE");
+            deleteCatalogSpan.SetTag("count", deletedPackageIds.Count.ToString());
             try
             {
-                var loweredIds = deletedPackageIds.Select(id => id.ToLowerInvariant()).Distinct().ToList();
                 var deletedCount = await context.PackageDetailsCatalogLeafs
                     .Where(p => loweredIds.Contains(p.PackageIdLowered))
                     .ExecuteDeleteAsync(_cancellationTokenSource.Token);
 
-                deleteSpan.SetData("db.rows_affected", deletedCount);
-                deleteSpan.Finish(SpanStatus.Ok);
+                deleteCatalogSpan.SetData("db.rows_affected", deletedCount);
+                deleteCatalogSpan.Finish(SpanStatus.Ok);
             }
             catch (Exception e)
             {
-                deleteSpan.Finish(e);
+                deleteCatalogSpan.Finish(e);
+                throw;
+            }
+
+            // Also remove stale package_downloads records so the publisher
+            // doesn't keep re-queuing packages that no longer exist.
+            var deleteDownloadsSpan = StartDbSpan(parentSpan, "DELETE FROM package_downloads WHERE package_id_lowered IN (...)", "postgresql", "DELETE");
+            deleteDownloadsSpan.SetTag("count", deletedPackageIds.Count.ToString());
+            try
+            {
+                var deletedDownloadsCount = await context.PackageDownloads
+                    .Where(p => loweredIds.Contains(p.PackageIdLowered))
+                    .ExecuteDeleteAsync(_cancellationTokenSource.Token);
+
+                deleteDownloadsSpan.SetData("db.rows_affected", deletedDownloadsCount);
+                deleteDownloadsSpan.Finish(SpanStatus.Ok);
+            }
+            catch (Exception e)
+            {
+                deleteDownloadsSpan.Finish(e);
                 throw;
             }
         }
