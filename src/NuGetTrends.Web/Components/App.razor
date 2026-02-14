@@ -44,6 +44,8 @@
     <link href="_content/Blazored.Toast/Blazored.Toast.bundle.scp.css" rel="stylesheet" />
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <!-- App version (read by Footer via JS interop) -->
+    <meta name="app-version" content="@_appVersion" />
 
     <HeadOutlet @rendermode="InteractiveWebAssembly" />
 </head>
@@ -82,8 +84,6 @@
     <!-- Custom JS -->
     <script src="js/themeInterop.js"></script>
     <script src="js/uiInterop.js"></script>
-    <!-- App version (server-rendered, read by Footer via JS interop) -->
-    <script>window.__appVersion = "@_appVersion";</script>
     <!-- Blazor WebAssembly -->
     <script src="_framework/blazor.web.js" autostart="false"></script>
     <script>

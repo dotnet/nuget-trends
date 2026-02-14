@@ -1,7 +1,8 @@
 // Small UI interop helpers for Blazor (avoids eval)
 window.uiInterop = {
     getAppVersion: function () {
-        return window.__appVersion || 'unknown';
+        var meta = document.querySelector('meta[name="app-version"]');
+        return (meta && meta.getAttribute('content')) || 'unknown';
     },
 
     focusElement: function (selector) {
