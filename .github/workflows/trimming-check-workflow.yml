@@ -41,19 +41,17 @@ jobs:
         run: dotnet publish src/NuGetTrends.Web/NuGetTrends.Web.csproj -c Release -o ./publish -p:SentryUploadSymbols=false
 
       - name: Install Playwright
-        run: npx playwright install chromium --with-deps
+        run: npm install playwright && npx playwright install chromium --with-deps
 
       - name: Start published app and verify Blazor renders
         run: |
-          cd publish
-
           # Start the trimmed app in the background
           ASPNETCORE_URLS="http://127.0.0.1:5555" \
           ASPNETCORE_ENVIRONMENT=Development \
           ConnectionStrings__NuGetTrends="Host=localhost;Database=nugettrends;" \
           ConnectionStrings__clickhouse="Host=localhost;" \
           Sentry__Dsn="" \
-            dotnet NuGetTrends.Web.dll &
+            dotnet ./publish/NuGetTrends.Web.dll &
           APP_PID=$!
 
           # Wait for the server to start (up to 30s)
