@@ -235,6 +235,10 @@ public class DailyDownloadWorker : IHostedService
             var receiveTimestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             var latencyMs = receiveTimestamp - enqueuedTime.Value;
             queueProcessSpan.SetData("messaging.message.receive.latency", (double)latencyMs);
+
+            SentrySdk.Experimental.Metrics.EmitDistribution<double>("worker.queue_latency", (double)latencyMs,
+                MeasurementUnit.Duration.Millisecond,
+                [new("queue", queueName)]);
         }
 
         List<string>? packageIds = null;
@@ -267,6 +271,12 @@ public class DailyDownloadWorker : IHostedService
             }
 
             consumer.Model.BasicAck(ea.DeliveryTag, false);
+
+            SentrySdk.Experimental.Metrics.EmitCounter<int>("worker.messages_processed", 1,
+                [new("queue", queueName)]);
+            SentrySdk.Experimental.Metrics.EmitDistribution<int>("worker.batch_size", packageIds.Count,
+                MeasurementUnit.None, [new("queue", queueName)]);
+
             queueProcessSpan.Finish(SpanStatus.Ok);
             transaction.Finish(SpanStatus.Ok);
         }
@@ -276,6 +286,8 @@ public class DailyDownloadWorker : IHostedService
             // Don't report to Sentry as this is expected during outages
             _logger.LogWarning(e, "NuGet unavailable, requeueing batch of {Count} packages.", packageIds?.Count ?? 0);
             consumer.Model.BasicNack(ea.DeliveryTag, multiple: false, requeue: true);
+            SentrySdk.Experimental.Metrics.EmitCounter<int>("worker.messages_requeued", 1,
+                [new("queue", queueName), new("reason", "nuget_unavailable")]);
             queueProcessSpan.Finish(SpanStatus.Unavailable);
             transaction.Finish(SpanStatus.Unavailable);
         }
@@ -285,6 +297,8 @@ public class DailyDownloadWorker : IHostedService
             // NACK the message so it gets redelivered later
             _logger.LogWarning(ae, "NuGet unavailable (multiple failures), requeueing batch of {Count} packages.", packageIds?.Count ?? 0);
             consumer.Model.BasicNack(ea.DeliveryTag, multiple: false, requeue: true);
+            SentrySdk.Experimental.Metrics.EmitCounter<int>("worker.messages_requeued", 1,
+                [new("queue", queueName), new("reason", "nuget_unavailable")]);
             queueProcessSpan.Finish(SpanStatus.Unavailable);
             transaction.Finish(SpanStatus.Unavailable);
         }
@@ -370,6 +384,12 @@ public class DailyDownloadWorker : IHostedService
         processDataSpan.SetData("packages_with_downloads", clickHouseDownloads.Count);
         processDataSpan.SetData("deleted_packages", deletedPackageIds.Count);
         processDataSpan.Finish(SpanStatus.Ok);
+
+        SentrySdk.Experimental.Metrics.EmitCounter<int>("worker.packages_processed", clickHouseDownloads.Count);
+        if (deletedPackageIds.Count > 0)
+        {
+            SentrySdk.Experimental.Metrics.EmitCounter<int>("worker.packages_deleted", deletedPackageIds.Count);
+        }
 
         using var scope = _services.CreateScope();
         await using var context = scope.ServiceProvider.GetRequiredService<NuGetTrendsContext>();

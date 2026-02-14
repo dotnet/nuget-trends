@@ -6,7 +6,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <SentryVersion>6.0.0</SentryVersion>
+    <SentryVersion>6.2.0-alpha.0</SentryVersion>
     <!-- Version embedding: set via CI with -p:SourceRevisionId=<sha>, defaults to 'local' for dev -->
     <SourceRevisionId Condition="'$(SourceRevisionId)' == ''">local</SourceRevisionId>
   </PropertyGroup>
