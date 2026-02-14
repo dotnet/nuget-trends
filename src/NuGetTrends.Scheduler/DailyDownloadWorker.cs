@@ -365,18 +365,17 @@ public class DailyDownloadWorker : IHostedService
             }
             else
             {
-                // Collect for batch insert to ClickHouse
-                if (packageMetadata.DownloadCount is { } downloadCount)
-                {
-                    clickHouseDownloads.Add((packageMetadata.Identity.Id, today, downloadCount));
+                var downloadCount = packageMetadata.DownloadCount ?? 0;
 
-                    // Collect for batch upsert to PostgreSQL
-                    postgresUpserts.Add(new PackageDownloadUpsert(
-                        PackageId: packageMetadata.Identity.Id,
-                        DownloadCount: downloadCount,
-                        CheckedUtc: now,
-                        IconUrl: packageMetadata.IconUrl?.ToString()));
-                }
+                // Collect for batch insert to ClickHouse
+                clickHouseDownloads.Add((packageMetadata.Identity.Id, today, downloadCount));
+
+                // Collect for batch upsert to PostgreSQL
+                postgresUpserts.Add(new PackageDownloadUpsert(
+                    PackageId: packageMetadata.Identity.Id,
+                    DownloadCount: downloadCount,
+                    CheckedUtc: now,
+                    IconUrl: packageMetadata.IconUrl?.ToString()));
             }
         }
 
