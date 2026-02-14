@@ -1,3 +1,4 @@
+@using System.Text.Json
 @inject HttpClient Http
 @inject NavigationManager Navigation
 @inject PersistentComponentState PersistentState
@@ -108,7 +109,8 @@
     {
         _persistingSubscription = PersistentState.RegisterOnPersisting(PersistData);
 
-        if (PersistentState.TryTakeFromJson<List<TrendingPackage>>(PersistenceKey, out var restored) && restored is not null)
+        if (PersistentState.TryTakeFromJson<string>(PersistenceKey, out var json) && json is not null
+            && JsonSerializer.Deserialize(json, NuGetTrendsJsonContext.Default.ListTrendingPackage) is { } restored)
         {
             _trendingPackages = restored;
             _isLoading = false;
@@ -121,7 +123,8 @@
 
     private Task PersistData()
     {
-        PersistentState.PersistAsJson(PersistenceKey, _trendingPackages);
+        PersistentState.PersistAsJson(PersistenceKey,
+            JsonSerializer.Serialize(_trendingPackages, NuGetTrendsJsonContext.Default.ListTrendingPackage));
         return Task.CompletedTask;
     }
 
@@ -132,7 +135,7 @@
 
         try
         {
-            var packages = await Http.GetFromJsonAsync<List<TrendingPackage>>("/api/package/trending?limit=10");
+            var packages = await Http.GetFromJsonAsync("/api/package/trending?limit=10", NuGetTrendsJsonContext.Default.ListTrendingPackage);
             _trendingPackages = packages ?? [];
         }
         catch (Exception ex)

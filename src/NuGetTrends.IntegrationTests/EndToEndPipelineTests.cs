@@ -454,8 +454,25 @@ public class EndToEndPipelineTests : IAsyncLifetime
         var todayUtc = DateTime.UtcNow.Date;
         var unprocessed = await context.GetUnprocessedPackageIds(todayUtc).ToListAsync();
 
-        unprocessed.Should().BeEmpty(
-            "all packages should have been processed by the pipeline today");
+        // Packages that were removed from the catalog by the pipeline (e.g. NuGet.org
+        // search didn't return them) will still have stale package_downloads records.
+        // Filter those out — their removal is expected, not a processing failure.
+        var catalogPackageIds = await context.PackageDetailsCatalogLeafs
+            .Select(p => p.PackageId)
+            .Where(id => id != null)
+            .ToListAsync();
+        var catalogSet = new HashSet<string>(catalogPackageIds!, StringComparer.OrdinalIgnoreCase);
+
+        var unprocessedInCatalog = unprocessed.Where(id => catalogSet.Contains(id)).ToList();
+
+        if (unprocessedInCatalog.Count < unprocessed.Count)
+        {
+            var removed = unprocessed.Except(unprocessedInCatalog).ToList();
+            _output.WriteLine($"Ignoring {removed.Count} packages removed from catalog during pipeline: {string.Join(", ", removed)}");
+        }
+
+        unprocessedInCatalog.Should().BeEmpty(
+            "all packages still in catalog should have been processed by the pipeline today");
 
         _output.WriteLine("Confirmed: no unprocessed packages remain.");
     }
@@ -464,10 +481,31 @@ public class EndToEndPipelineTests : IAsyncLifetime
     {
         _output.WriteLine("Verifying today's download data exists in ClickHouse...");
 
+        // Only check packages that still exist in the catalog (some may have been
+        // removed by the pipeline if NuGet.org search didn't return them).
+        await using var context = _fixture.CreateDbContext();
+        var catalogPackageIds = await context.PackageDetailsCatalogLeafs
+            .Select(p => p.PackageId)
+            .Where(id => id != null)
+            .ToListAsync();
+        var catalogSet = new HashSet<string>(catalogPackageIds!, StringComparer.OrdinalIgnoreCase);
+
+        var packagesToCheck = _fixture.ImportedPackages
+            .Where(p => catalogSet.Contains(p.PackageId))
+            .ToList();
+
+        if (packagesToCheck.Count < _fixture.ImportedPackages.Count)
+        {
+            var removed = _fixture.ImportedPackages
+                .Where(p => !catalogSet.Contains(p.PackageId))
+                .Select(p => p.PackageId);
+            _output.WriteLine($"Skipping packages removed from catalog: {string.Join(", ", removed)}");
+        }
+
         var clickHouseService = _fixture.CreateClickHouseService();
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
-        foreach (var pkg in _fixture.ImportedPackages)
+        foreach (var pkg in packagesToCheck)
         {
             // Query ClickHouse for today's data (package_id is lowercased in ClickHouse)
             var todaysDownloads = await clickHouseService.GetWeeklyDownloadsAsync(pkg.PackageId, months: 1);
