@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using NuGetTrends.IntegrationTests.Infrastructure;
 using NuGetTrends.Web.Client.Models;
 using Xunit;
@@ -34,12 +35,26 @@ public class SearchApiContractTests : IAsyncLifetime
         _output = output;
     }
 
-    public Task InitializeAsync()
+    public async Task InitializeAsync()
     {
         Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Testing");
+
+        // Ensure catalog entries exist (may have been deleted by the deletion test)
+        await _fixture.RestoreCatalogEntriesAsync();
+
+        // Seed package_downloads + ClickHouse data if empty so these tests
+        // don't depend on E2E tests running first.
+        await using var context = _fixture.CreateDbContext();
+        var hasDownloads = await context.PackageDownloads.AnyAsync();
+        if (!hasDownloads)
+        {
+            var clickHouseService = _fixture.CreateClickHouseService();
+            await TestDataSeeder.SeedHistoricalDownloadsAsync(
+                context, clickHouseService, _fixture.ImportedPackages);
+        }
+
         _factory = new NuGetTrendsWebApplicationFactory(_fixture);
         _client = _factory.CreateClient();
-        return Task.CompletedTask;
     }
 
     public Task DisposeAsync()
