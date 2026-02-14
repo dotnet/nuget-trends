@@ -199,6 +199,19 @@ try
             context.Response.Headers.Append("Document-Policy", "js-profiling");
             // App version header
             context.Response.Headers.Append("X-Version", appVersion);
+
+            // Cache HTML responses but revalidate on every request.
+            // ETag is based on the app version (git SHA), so a new deploy
+            // busts the cache while same-version requests get a fast 304.
+            // Must be set in OnStarting because Blazor SSR streams the body
+            // via chunked transfer, so headers are read-only after next().
+            var contentType = context.Response.ContentType;
+            if (contentType is not null && contentType.StartsWith("text/html", StringComparison.OrdinalIgnoreCase))
+            {
+                context.Response.Headers.CacheControl = "no-cache";
+                context.Response.Headers.ETag = appVersionETag;
+            }
+
             return Task.CompletedTask;
         });
 
@@ -216,16 +229,6 @@ try
         }
 
         await next();
-
-        // Cache HTML responses but revalidate on every request.
-        // ETag is based on the app version (git SHA), so a new deploy
-        // busts the cache while same-version requests get a fast 304.
-        var contentType = context.Response.ContentType;
-        if (contentType is not null && contentType.StartsWith("text/html", StringComparison.OrdinalIgnoreCase))
-        {
-            context.Response.Headers.CacheControl = "no-cache";
-            context.Response.Headers.ETag = appVersionETag;
-        }
     });
 
     app.UseResponseCompression();
