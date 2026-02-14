@@ -160,6 +160,36 @@ public class IntegrationTestFixture : IAsyncLifetime
     }
 
     /// <summary>
+    /// Re-inserts any missing ImportedPackages entries into PackageDetailsCatalogLeafs.
+    /// Call at the start of each test to repair state corrupted by previous tests
+    /// (e.g., the deletion test may remove real packages that NuGet.org search didn't find).
+    /// </summary>
+    public async Task RestoreCatalogEntriesAsync()
+    {
+        await using var context = CreateDbContext();
+        foreach (var package in ImportedPackages)
+        {
+            var exists = await context.PackageDetailsCatalogLeafs.AnyAsync(
+                p => p.PackageId == package.PackageId && p.PackageVersion == package.PackageVersion);
+
+            if (!exists)
+            {
+                context.PackageDetailsCatalogLeafs.Add(new PackageDetailsCatalogLeaf
+                {
+                    PackageId = package.PackageId,
+                    PackageIdLowered = package.PackageId.ToLowerInvariant(),
+                    PackageVersion = package.PackageVersion,
+                    CommitTimestamp = package.CommitTimestamp,
+                    Listed = true,
+                    IsPrerelease = false
+                });
+            }
+        }
+
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>
     /// Truncates the ClickHouse daily_downloads table.
     /// Useful for test isolation.
     /// </summary>
