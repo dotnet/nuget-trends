@@ -89,21 +89,18 @@
         var gridColor = IsDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)";
         var textColor = IsDark ? "#a0a0a0" : "#666666";
 
-        // Adapt marker size and date format to the data density
+        // Adapt marker size to the data density
         var showMarkers = SearchPeriod <= 12;
 
-        var dateFormat = SearchPeriod switch
-        {
-            <= 6 => "dd MMM yyyy",
-            <= 24 => "MMM yyyy",
-            _ => "yyyy"
-        };
+        // Set x-axis min so the axis spans the full requested period
+        var xMin = new DateTimeOffset(DateTime.UtcNow.AddMonths(-SearchPeriod)).ToUnixTimeMilliseconds();
 
         return new ApexChartOptions<DownloadDataPoint>
         {
             Chart = new Chart
             {
                 Toolbar = new Toolbar { Show = false },
+                Zoom = new Zoom { Enabled = false },
                 Animations = new Animations
                 {
                     Enabled = true,
@@ -136,15 +133,20 @@
             Xaxis = new XAxis
             {
                 Type = XAxisType.Datetime,
+                Min = xMin,
                 Labels = new XAxisLabels
                 {
                     DatetimeFormatter = new DatetimeFormatter
                     {
-                        Day = dateFormat,
+                        Day = "dd MMM",
                         Month = "MMM yyyy",
                         Year = "yyyy",
                     },
-                    Style = new AxisLabelStyle { Colors = new Color(textColor) },
+                    Style = new AxisLabelStyle
+                    {
+                        Colors = new Color(textColor),
+                        FontSize = "13px",
+                    },
                 },
                 AxisBorder = new AxisBorder { Color = gridColor },
                 AxisTicks = new AxisTicks { Color = gridColor },
@@ -155,17 +157,28 @@
                 {
                     Labels = new YAxisLabels
                     {
-                        Style = new AxisLabelStyle { Colors = new Color(textColor) },
-                        Formatter = "function(val) { return val.toLocaleString(); }",
+                        Style = new AxisLabelStyle
+                        {
+                            Colors = new Color(textColor),
+                            FontSize = "13px",
+                        },
+                        Formatter = @"function(val) {
+                            if (val >= 1e9) return (val / 1e9).toFixed(1).replace(/\.0$/, '') + 'B';
+                            if (val >= 1e6) return (val / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+                            if (val >= 1e3) return (val / 1e3).toFixed(1).replace(/\.0$/, '') + 'K';
+                            return val;
+                        }",
                     },
                 },
             },
             Tooltip = new Tooltip
             {
                 Theme = IsDark ? Mode.Dark : Mode.Light,
+                Shared = true,
+                Intersect = false,
                 X = new TooltipX
                 {
-                    Format = dateFormat,
+                    Format = "dd MMM yyyy",
                 },
                 Y = new TooltipY
                 {
