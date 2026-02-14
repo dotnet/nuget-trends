@@ -12,6 +12,7 @@
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <PublishTrimmed>true</PublishTrimmed>
     <TrimMode>full</TrimMode>
+    <TrimmerRootDescriptor>TrimmerRoots.xml</TrimmerRootDescriptor>
   </PropertyGroup>
 
   <ItemGroup>

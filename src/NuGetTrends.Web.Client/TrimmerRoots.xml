@@ -1,0 +1,9 @@
+<linker>
+  <!--
+    Routes is the WASM root component, referenced only from the server's App.razor.
+    The IL trimmer can't see that cross-project reference, so preserve it explicitly.
+  -->
+  <assembly fullname="NuGetTrends.Web.Client">
+    <type fullname="NuGetTrends.Web.Client.Routes" preserve="all" />
+  </assembly>
+</linker>
