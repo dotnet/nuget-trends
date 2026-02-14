@@ -33,19 +33,17 @@
     <link rel="image_src" href="https://nugettrends.com/images/banner_social.png" />
 
     <!-- Bulma CSS -->
-    <link rel="stylesheet" href="lib/bulma@0.9.4/bulma.min.css" />
+    <link rel="stylesheet" href="@Assets["lib/bulma@0.9.4/bulma.min.css"]" />
     <!-- Font Awesome -->
-    <link rel="stylesheet" href="lib/font-awesome@4.7.0/css/font-awesome.min.css" />
+    <link rel="stylesheet" href="@Assets["lib/font-awesome@4.7.0/css/font-awesome.min.css"]" />
     <!-- App styles -->
-    <link rel="stylesheet" href="css/app.css" />
+    <link rel="stylesheet" href="@Assets["css/app.css"]" />
     <!-- Blazor CSS isolation -->
-    <link rel="stylesheet" href="NuGetTrends.Web.styles.css" />
+    <link rel="stylesheet" href="@Assets["NuGetTrends.Web.styles.css"]" />
     <!-- Blazored Toast -->
-    <link href="_content/Blazored.Toast/Blazored.Toast.bundle.scp.css" rel="stylesheet" />
+    <link href="@Assets["_content/Blazored.Toast/Blazored.Toast.bundle.scp.css"]" rel="stylesheet" />
     <!-- Favicon -->
-    <link rel="icon" type="image/x-icon" href="favicon.ico" />
-    <!-- App version (read by Footer via JS interop) -->
-    <meta name="app-version" content="@_appVersion" />
+    <link rel="icon" type="image/x-icon" href="@Assets["favicon.ico"]" />
 
     <HeadOutlet @rendermode="InteractiveWebAssembly" />
 </head>
@@ -81,9 +79,28 @@
         }
     </style>
 
+    <!-- Sentry Browser SDK (spa project) — catches JS errors even if WASM fails to boot -->
+    <script
+      src="https://js.sentry-cdn.com/85a592e835c64ca3a97d93776c12e947.min.js"
+      crossorigin="anonymous"
+    ></script>
+    <script>
+        Sentry.onLoad(function() {
+            Sentry.init({
+                tunnel: "/t",
+                environment: "@_environment",
+                integrations: [Sentry.replayIntegration()],
+                replaysSessionSampleRate: 0,
+                replaysOnErrorSampleRate: 1.0,
+            });
+        });
+    </script>
+
     <!-- Custom JS -->
-    <script src="js/themeInterop.js"></script>
-    <script src="js/uiInterop.js"></script>
+    <script src="@Assets["js/themeInterop.js"]"></script>
+    <script src="@Assets["js/uiInterop.js"]"></script>
+    <!-- App version (server-rendered, read by Footer via JS interop) -->
+    <script>window.__appVersion = "@_appVersion";</script>
     <!-- Blazor WebAssembly -->
     <script src="_framework/blazor.web.js" autostart="false"></script>
     <script>
@@ -95,14 +112,20 @@
                 bar.style.opacity = '0';
                 setTimeout(function() { bar.remove(); }, 500);
             }
+        }).catch(function(err) {
+            console.error('Blazor WASM failed to start:', err);
+            Sentry.captureException(err);
         });
     </script>
 </body>
 
 </html>
 
+@inject IWebHostEnvironment Environment
+
 @code {
     private string _appVersion = "unknown";
+    private string _environment => Environment.EnvironmentName.ToLowerInvariant();
 
     protected override void OnInitialized()
     {

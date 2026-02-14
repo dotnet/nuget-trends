@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text.RegularExpressions;
 using Blazored.Toast;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.OpenApi.Models;
@@ -188,6 +189,7 @@ try
         .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
         ?.InformationalVersion?.Split('+').LastOrDefault() ?? "unknown";
 
+    var appVersionETag = $"\"{appVersion}\"";
     app.Use(async (context, next) =>
     {
         context.Response.OnStarting(() =>
@@ -199,11 +201,62 @@ try
             context.Response.Headers.Append("X-Version", appVersion);
             return Task.CompletedTask;
         });
+
+        // Return 304 for HTML navigation requests if the client already has this version.
+        // Only browser navigations send Accept: text/html — API and static file requests won't match.
+        // Per RFC 7232, the 304 must include ETag and Cache-Control as the 200 would.
+        var accept = context.Request.Headers.Accept.ToString();
+        if (accept.Contains("text/html", StringComparison.OrdinalIgnoreCase)
+            && context.Request.Headers.IfNoneMatch.Contains(appVersionETag))
+        {
+            context.Response.Headers.CacheControl = "no-cache";
+            context.Response.Headers.ETag = appVersionETag;
+            context.Response.StatusCode = StatusCodes.Status304NotModified;
+            return;
+        }
+
         await next();
+
+        // Cache HTML responses but revalidate on every request.
+        // ETag is based on the app version (git SHA), so a new deploy
+        // busts the cache while same-version requests get a fast 304.
+        var contentType = context.Response.ContentType;
+        if (contentType is not null && contentType.StartsWith("text/html", StringComparison.OrdinalIgnoreCase))
+        {
+            context.Response.Headers.CacheControl = "no-cache";
+            context.Response.Headers.ETag = appVersionETag;
+        }
     });
 
     app.UseResponseCompression();
-    app.UseStaticFiles();
+    // UseStaticFiles serves _framework files (fingerprinted WASM assemblies)
+    // before MapStaticAssets endpoint routing. Without no-cache, the browser
+    // caches blazor.web.js/dotnet.js indefinitely and after a redeploy the
+    // stale dotnet.js requests old fingerprinted assembly names → HTML 404.
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        OnPrepareResponse = ctx =>
+        {
+            if (!ctx.Context.Request.Path.StartsWithSegments("/_framework"))
+            {
+                return;
+            }
+
+            // Fingerprinted files have a hash before the extension
+            // (e.g. System.Runtime.dyj7dsbvv9.wasm, dotnet.runtime.0j6ezsi0n0.js).
+            // These are immutable — their URL changes on every build, cache forever.
+            // Non-fingerprinted loaders (blazor.web.js, dotnet.js) must
+            // revalidate so a redeploy serves fresh content immediately.
+            if (FingerprintedAssetRegex().IsMatch(ctx.Context.Request.Path.Value ?? ""))
+            {
+                ctx.Context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
+            }
+            else
+            {
+                ctx.Context.Response.Headers.CacheControl = "no-cache";
+            }
+        }
+    });
     app.MapStaticAssets();
 
     // Enable WebAssembly debugging in development
@@ -256,4 +309,10 @@ finally
 }
 
 // Required for WebApplicationFactory in integration tests
-public partial class Program { }
+public partial class Program
+{
+    // Matches files with a fingerprint hash before the extension:
+    // e.g. System.Runtime.dyj7dsbvv9.wasm, dotnet.runtime.0j6ezsi0n0.js
+    [GeneratedRegex(@"\.[a-z0-9]{8,}\.\w+$")]
+    private static partial Regex FingerprintedAssetRegex();
+}
