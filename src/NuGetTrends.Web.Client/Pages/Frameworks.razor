@@ -1,5 +1,6 @@
 @page "/frameworks"
 @inject HttpClient Http
+@inject NavigationManager Navigation
 @inject ThemeState ThemeState
 @inject ILogger<Frameworks> Logger
 @implements IDisposable
@@ -75,6 +76,15 @@
 </div>
 
 @code {
+    [SupplyParameterFromQuery(Name = "view")]
+    public string? View { get; set; }
+
+    [SupplyParameterFromQuery(Name = "time")]
+    public string? Time { get; set; }
+
+    [SupplyParameterFromQuery(Name = "tfms")]
+    public string[]? Tfms { get; set; }
+
     private TfmAdoptionResponse? _adoptionData;
     private List<TfmFamilyGroup> _familyGroups = [];
     private HashSet<string> _selectedTfms = [];
@@ -95,6 +105,16 @@
 
     protected override void OnInitialized()
     {
+        if (Enum.TryParse<TfmViewMode>(View, ignoreCase: true, out var viewMode))
+        {
+            _viewMode = viewMode;
+        }
+
+        if (Enum.TryParse<TfmTimeMode>(Time, ignoreCase: true, out var timeMode))
+        {
+            _timeMode = timeMode;
+        }
+
         ThemeState.ThemeChanged += OnThemeChanged;
         _chartOptions = BuildChartOptions();
     }
@@ -124,6 +144,7 @@
 
             SelectDefaultTfms();
             RebuildChartSeries();
+            UpdateUrl();
 
             _isLoading = false;
             StateHasChanged();
@@ -140,6 +161,14 @@
     private void SelectDefaultTfms()
     {
         if (_adoptionData == null) return;
+
+        // If TFMs were provided via query string, use those (filtered to valid ones)
+        if (Tfms is { Length: > 0 })
+        {
+            var validTfms = _adoptionData.Series.Select(s => s.Tfm).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            _selectedTfms = Tfms.Where(t => validTfms.Contains(t)).ToHashSet();
+            if (_selectedTfms.Count > 0) return;
+        }
 
         _selectedTfms = _adoptionData.Series
             .OrderByDescending(s => s.DataPoints.LastOrDefault()?.CumulativeCount ?? 0)
@@ -334,6 +363,7 @@
         _chartOptions = BuildChartOptions();
         RebuildChartSeries();
         _chartSeries = [.. _chartSeries]; // new reference for Blazor change detection
+        UpdateUrl();
         StateHasChanged();
         await UpdateChartAsync();
     }
@@ -344,6 +374,7 @@
         _chartOptions = BuildChartOptions();
         RebuildChartSeries();
         _chartSeries = [.. _chartSeries];
+        UpdateUrl();
         StateHasChanged();
         await UpdateChartAsync();
     }
@@ -353,8 +384,35 @@
         _selectedTfms = selected;
         RebuildChartSeries();
         _chartSeries = [.. _chartSeries];
+        UpdateUrl();
         StateHasChanged();
         await UpdateChartAsync();
+    }
+
+    private void UpdateUrl()
+    {
+        var queryParts = new List<string>();
+
+        if (_viewMode != TfmViewMode.Individual)
+        {
+            queryParts.Add($"view={_viewMode.ToString().ToLowerInvariant()}");
+        }
+
+        if (_timeMode != TfmTimeMode.Absolute)
+        {
+            queryParts.Add($"time={_timeMode.ToString().ToLowerInvariant()}");
+        }
+
+        foreach (var tfm in _selectedTfms.OrderBy(t => t, StringComparer.OrdinalIgnoreCase))
+        {
+            queryParts.Add($"tfms={Uri.EscapeDataString(tfm)}");
+        }
+
+        var url = queryParts.Count > 0
+            ? $"/frameworks?{string.Join("&", queryParts)}"
+            : "/frameworks";
+
+        Navigation.NavigateTo(url, replace: true);
     }
 
     private async Task UpdateChartAsync()
