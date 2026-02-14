@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text.RegularExpressions;
 using Blazored.Toast;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.OpenApi.Models;
@@ -208,7 +209,7 @@ try
         if (accept.Contains("text/html", StringComparison.OrdinalIgnoreCase)
             && context.Request.Headers.IfNoneMatch.Contains(appVersionETag))
         {
-            context.Response.Headers["Cache-Control"] = "no-cache";
+            context.Response.Headers.CacheControl = "no-cache";
             context.Response.Headers.ETag = appVersionETag;
             context.Response.StatusCode = StatusCodes.Status304NotModified;
             return;
@@ -222,13 +223,40 @@ try
         var contentType = context.Response.ContentType;
         if (contentType is not null && contentType.StartsWith("text/html", StringComparison.OrdinalIgnoreCase))
         {
-            context.Response.Headers["Cache-Control"] = "no-cache";
+            context.Response.Headers.CacheControl = "no-cache";
             context.Response.Headers.ETag = appVersionETag;
         }
     });
 
     app.UseResponseCompression();
-    app.UseStaticFiles();
+    // UseStaticFiles serves _framework files (fingerprinted WASM assemblies)
+    // before MapStaticAssets endpoint routing. Without no-cache, the browser
+    // caches blazor.web.js/dotnet.js indefinitely and after a redeploy the
+    // stale dotnet.js requests old fingerprinted assembly names → HTML 404.
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        OnPrepareResponse = ctx =>
+        {
+            if (!ctx.Context.Request.Path.StartsWithSegments("/_framework"))
+            {
+                return;
+            }
+
+            // Fingerprinted files have a hash before the extension
+            // (e.g. System.Runtime.dyj7dsbvv9.wasm, dotnet.runtime.0j6ezsi0n0.js).
+            // These are immutable — their URL changes on every build, cache forever.
+            // Non-fingerprinted loaders (blazor.web.js, dotnet.js) must
+            // revalidate so a redeploy serves fresh content immediately.
+            if (FingerprintedAssetRegex().IsMatch(ctx.Context.Request.Path.Value ?? ""))
+            {
+                ctx.Context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
+            }
+            else
+            {
+                ctx.Context.Response.Headers.CacheControl = "no-cache";
+            }
+        }
+    });
     app.MapStaticAssets();
 
     // Enable WebAssembly debugging in development
@@ -281,4 +309,10 @@ finally
 }
 
 // Required for WebApplicationFactory in integration tests
-public partial class Program { }
+public partial class Program
+{
+    // Matches files with a fingerprint hash before the extension:
+    // e.g. System.Runtime.dyj7dsbvv9.wasm, dotnet.runtime.0j6ezsi0n0.js
+    [GeneratedRegex(@"\.[a-z0-9]{8,}\.\w+$")]
+    private static partial Regex FingerprintedAssetRegex();
+}
