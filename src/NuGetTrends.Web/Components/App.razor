@@ -79,6 +79,17 @@
         }
     </style>
 
+    <!-- Sentry Browser SDK (spa project) — catches JS errors even if WASM fails to boot -->
+    <script
+      src="https://js.sentry-cdn.com/85a592e835c64ca3a97d93776c12e947.min.js"
+      crossorigin="anonymous"
+    ></script>
+    <script>
+        Sentry.onLoad(function() {
+            Sentry.init({ tunnel: "/t" });
+        });
+    </script>
+
     <!-- Custom JS -->
     <script src="js/themeInterop.js"></script>
     <script src="js/uiInterop.js"></script>
@@ -95,6 +106,9 @@
                 bar.style.opacity = '0';
                 setTimeout(function() { bar.remove(); }, 500);
             }
+        }).catch(function(err) {
+            console.error('Blazor WASM failed to start:', err);
+            Sentry.captureException(err);
         });
     </script>
 </body>
