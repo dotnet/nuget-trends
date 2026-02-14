@@ -5,6 +5,8 @@
     <ImplicitUsings>true</ImplicitUsings>
     <ContainerRepository>nugettrends/nugettrends.scheduler</ContainerRepository>
     <ContainerWorkingDirectory>/App/</ContainerWorkingDirectory>
+    <!-- Suppress experimental API warning for Sentry Metrics (IHub.Metrics) -->
+    <NoWarn>$(NoWarn);SENTRYTRACECONNECTEDMETRICS</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
