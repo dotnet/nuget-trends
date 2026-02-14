@@ -114,8 +114,8 @@
             _isLoading = true;
             StateHasChanged();
 
-            var availableTask = Http.GetFromJsonAsync<List<TfmFamilyGroup>>("/api/framework/available");
-            var adoptionTask = Http.GetFromJsonAsync<TfmAdoptionResponse>("/api/framework/adoption");
+            var availableTask = Http.GetFromJsonAsync("/api/framework/available", NuGetTrendsJsonContext.Default.ListTfmFamilyGroup);
+            var adoptionTask = Http.GetFromJsonAsync("/api/framework/adoption", NuGetTrendsJsonContext.Default.TfmAdoptionResponse);
 
             await Task.WhenAll(availableTask, adoptionTask);
 

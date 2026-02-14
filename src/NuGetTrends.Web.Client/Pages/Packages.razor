@@ -130,8 +130,9 @@
     {
         try
         {
-            var history = await Http.GetFromJsonAsync<PackageDownloadHistory>(
-                $"/api/package/history/{Uri.EscapeDataString(packageId)}?months={PackageState.SearchPeriod}");
+            var history = await Http.GetFromJsonAsync(
+                $"/api/package/history/{Uri.EscapeDataString(packageId)}?months={PackageState.SearchPeriod}",
+                NuGetTrendsJsonContext.Default.PackageDownloadHistory);
 
             if (history != null)
             {
@@ -234,8 +235,9 @@
                 {
                     try
                     {
-                        var history = await Http.GetFromJsonAsync<PackageDownloadHistory>(
-                            $"/api/package/history/{Uri.EscapeDataString(id)}?months={period}");
+                        var history = await Http.GetFromJsonAsync(
+                            $"/api/package/history/{Uri.EscapeDataString(id)}?months={period}",
+                            NuGetTrendsJsonContext.Default.PackageDownloadHistory);
 
                         if (history != null)
                         {
