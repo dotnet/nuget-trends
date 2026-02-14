@@ -18,8 +18,4 @@
     <!-- <SentryUploadSources>true</SentryUploadSources> -->
     <EmbedAllSources>true</EmbedAllSources>
   </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="UnoptimizedAssemblyDetector" PrivateAssets="All" />
-  </ItemGroup>
 </Project>
