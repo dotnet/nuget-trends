@@ -6,4 +6,10 @@
   <assembly fullname="NuGetTrends.Web.Client">
     <type fullname="NuGetTrends.Web.Client.Routes" preserve="all" />
   </assembly>
+
+  <!--
+    Blazored.Toast's IToastService is injected into MainLayout.
+    The trimmer strips its implementation in TrimMode=full, causing CtorNotLocated at runtime.
+  -->
+  <assembly fullname="Blazored.Toast" preserve="all" />
 </linker>
