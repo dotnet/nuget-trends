@@ -203,10 +203,13 @@ try
 
         // Return 304 for HTML navigation requests if the client already has this version.
         // Only browser navigations send Accept: text/html — API and static file requests won't match.
+        // Per RFC 7232, the 304 must include ETag and Cache-Control as the 200 would.
         var accept = context.Request.Headers.Accept.ToString();
         if (accept.Contains("text/html", StringComparison.OrdinalIgnoreCase)
             && context.Request.Headers.IfNoneMatch.Contains(appVersionETag))
         {
+            context.Response.Headers["Cache-Control"] = "no-cache";
+            context.Response.Headers.ETag = appVersionETag;
             context.Response.StatusCode = StatusCodes.Status304NotModified;
             return;
         }
