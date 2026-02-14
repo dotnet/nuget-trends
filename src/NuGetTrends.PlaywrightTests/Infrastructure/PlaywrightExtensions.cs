@@ -25,7 +25,10 @@ public static class PlaywrightExtensions
             Timeout = timeoutMs
         });
 
-        // Additional wait for WASM to fully initialize after SSR hydration
+        // Additional wait for WASM to fully initialize after SSR hydration completes.
+        // The search input may be present during SSR but not yet interactive with WASM event handlers.
+        // This fixed wait ensures the Blazor WASM runtime has finished attaching event handlers
+        // to the DOM elements. Without this, typing into inputs may not trigger WASM-side events.
         await page.WaitForTimeoutAsync(3_000);
     }
 
