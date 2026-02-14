@@ -109,7 +109,10 @@
     {
         _persistingSubscription = PersistentState.RegisterOnPersisting(PersistData);
 
+        // IL2026: PersistentComponentState lacks source-generator overloads; serializing string is trim-safe.
+#pragma warning disable IL2026
         if (PersistentState.TryTakeFromJson<string>(PersistenceKey, out var json) && json is not null
+#pragma warning restore IL2026
             && JsonSerializer.Deserialize(json, NuGetTrendsJsonContext.Default.ListTrendingPackage) is { } restored)
         {
             _trendingPackages = restored;
@@ -123,8 +126,11 @@
 
     private Task PersistData()
     {
+        // IL2026: PersistentComponentState lacks source-generator overloads; serializing string is trim-safe.
+#pragma warning disable IL2026
         PersistentState.PersistAsJson(PersistenceKey,
             JsonSerializer.Serialize(_trendingPackages, NuGetTrendsJsonContext.Default.ListTrendingPackage));
+#pragma warning restore IL2026
         return Task.CompletedTask;
     }
 
