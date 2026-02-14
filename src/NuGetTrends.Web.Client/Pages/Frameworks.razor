@@ -340,21 +340,11 @@
             Tooltip = new Tooltip
             {
                 Theme = ThemeState.IsDark ? Mode.Dark : Mode.Light,
-                Shared = _timeMode == TfmTimeMode.Absolute,
-                Intersect = _timeMode != TfmTimeMode.Absolute,
-                X = _timeMode == TfmTimeMode.Absolute
-                    ? new TooltipX
-                    {
-                        Format = "MMM yyyy",
-                    }
-                    : new TooltipX
-                    {
-                        Formatter = @"function(value) { return 'Month ' + Math.round(value); }",
-                    },
-                Y = new TooltipY
-                {
-                    Formatter = @"function(value) { return value != null && !isNaN(value) ? value.toLocaleString() : ''; }",
-                },
+                // Custom tooltip showing all series sorted by value (descending).
+                // Required for Relative mode where all series share identical X values
+                // and ApexCharts' nearest-point detection always picks the first series.
+                // Used for both modes so switching doesn't leave stale tooltip state.
+                Custom = BuildCustomTooltipFunction(),
             },
         };
     }
@@ -454,6 +444,41 @@
     public void Dispose()
     {
         ThemeState.ThemeChanged -= OnThemeChanged;
+    }
+
+    private string BuildCustomTooltipFunction()
+    {
+        var isRelative = _timeMode == TfmTimeMode.Relative;
+        var headerExpr = isRelative
+            ? "'Month ' + Math.round(xVal)"
+            : "new Date(xVal).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })";
+
+        return $$"""
+            function({ series, seriesIndex, dataPointIndex, w }) {
+                var items = [];
+                for (var i = 0; i < series.length; i++) {
+                    var val = series[i][dataPointIndex];
+                    if (val != null && !isNaN(val)) {
+                        items.push({ name: w.config.series[i].name, color: w.config.colors[i], value: val });
+                    }
+                }
+                items.sort(function(a, b) { return b.value - a.value; });
+                var xVal = w.config.series[seriesIndex].data[dataPointIndex].x;
+                var bg = w.config.tooltip.theme === 'dark' ? '#1e1e2f' : '#fff';
+                var fg = w.config.tooltip.theme === 'dark' ? '#e0e0e0' : '#333';
+                var header = {{headerExpr}};
+                var html = '<div style="background:' + bg + ';color:' + fg + ';padding:6px 0;border-radius:4px;font-size:12px;min-width:160px">';
+                html += '<div style="padding:4px 10px;border-bottom:1px solid rgba(128,128,128,0.2);font-weight:600">' + header + '</div>';
+                for (var j = 0; j < items.length; j++) {
+                    html += '<div style="display:flex;align-items:center;padding:3px 10px">';
+                    html += '<span style="width:8px;height:8px;border-radius:50%;background:' + items[j].color + ';margin-right:6px;flex-shrink:0"></span>';
+                    html += '<span>' + items[j].name + ': <b>' + items[j].value.toLocaleString() + '</b></span>';
+                    html += '</div>';
+                }
+                html += '</div>';
+                return html;
+            }
+            """;
     }
 
     private static decimal ToJsTimestamp(DateOnly date)
