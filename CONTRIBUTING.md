@@ -24,7 +24,7 @@ This starts:
 
 ### Aspire Dashboard
 
-The Aspire dashboard opens automatically at `https://localhost:17183` and provides:
+The Aspire dashboard URL is displayed in the terminal when the AppHost starts. It provides:
 - Real-time view of all services and their status
 - Centralized logs from all services
 - Distributed traces
