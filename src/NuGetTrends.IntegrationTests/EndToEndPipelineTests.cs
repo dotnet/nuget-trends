@@ -366,14 +366,10 @@ public class EndToEndPipelineTests : IAsyncLifetime
         // The queue reports 0 ready messages, but the consumer may still be
         // processing a delivered (unacked) message. Poll the database until
         // all packages have been processed before stopping the worker.
-        await WaitForAllPackagesProcessed(TimeSpan.FromSeconds(60));
+        await WaitForAllPackagesProcessed(TimeSpan.FromMinutes(3));
 
         // Stop the worker
         await worker.StopAsync(CancellationToken.None);
-
-        // Give any in-flight OnConsumerOnReceived handlers time to complete DB writes.
-        // StopAsync cancels the token and closes channels but doesn't await event handler tasks.
-        await Task.Delay(TimeSpan.FromSeconds(3));
 
         _output.WriteLine("Daily download pipeline completed.");
     }
@@ -443,7 +439,7 @@ public class EndToEndPipelineTests : IAsyncLifetime
             await Task.Delay(TimeSpan.FromSeconds(2));
         }
 
-        _output.WriteLine("Warning: timed out waiting for all packages to be processed.");
+        throw new TimeoutException($"Not all packages were processed within {timeout.TotalMinutes} minutes");
     }
 
     private async Task VerifyNoUnprocessedPackages()
