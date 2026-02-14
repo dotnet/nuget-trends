@@ -166,7 +166,7 @@
         if (Tfms is { Length: > 0 })
         {
             var validTfms = _adoptionData.Series.Select(s => s.Tfm).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            _selectedTfms = Tfms.Where(t => validTfms.Contains(t)).ToHashSet();
+            _selectedTfms = Tfms.Where(t => validTfms.Contains(t)).ToHashSet(StringComparer.OrdinalIgnoreCase);
             if (_selectedTfms.Count > 0) return;
         }
 
