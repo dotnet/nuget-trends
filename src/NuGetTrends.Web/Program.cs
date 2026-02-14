@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text.RegularExpressions;
 using Blazored.Toast;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.OpenApi.Models;
@@ -241,11 +242,12 @@ try
                 return;
             }
 
-            // Fingerprinted files (e.g. System.Runtime.dyj7dsbvv9.wasm) are
-            // immutable — their URL changes on every build, so cache forever.
+            // Fingerprinted files have a hash before the extension
+            // (e.g. System.Runtime.dyj7dsbvv9.wasm, dotnet.runtime.0j6ezsi0n0.js).
+            // These are immutable — their URL changes on every build, cache forever.
             // Non-fingerprinted loaders (blazor.web.js, dotnet.js) must
             // revalidate so a redeploy serves fresh content immediately.
-            if (ctx.Context.Request.Path.Value?.EndsWith(".wasm", StringComparison.OrdinalIgnoreCase) == true)
+            if (FingerprintedAssetRegex().IsMatch(ctx.Context.Request.Path.Value ?? ""))
             {
                 ctx.Context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
             }
@@ -307,4 +309,10 @@ finally
 }
 
 // Required for WebApplicationFactory in integration tests
-public partial class Program { }
+public partial class Program
+{
+    // Matches files with a fingerprint hash before the extension:
+    // e.g. System.Runtime.dyj7dsbvv9.wasm, dotnet.runtime.0j6ezsi0n0.js
+    [GeneratedRegex(@"\.[a-z0-9]{8,}\.\w+$")]
+    private static partial Regex FingerprintedAssetRegex();
+}
