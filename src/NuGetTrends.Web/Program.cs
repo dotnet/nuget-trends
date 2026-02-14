@@ -208,7 +208,7 @@ try
         if (accept.Contains("text/html", StringComparison.OrdinalIgnoreCase)
             && context.Request.Headers.IfNoneMatch.Contains(appVersionETag))
         {
-            context.Response.Headers["Cache-Control"] = "no-cache";
+            context.Response.Headers.CacheControl = "no-cache";
             context.Response.Headers.ETag = appVersionETag;
             context.Response.StatusCode = StatusCodes.Status304NotModified;
             return;
@@ -222,7 +222,7 @@ try
         var contentType = context.Response.ContentType;
         if (contentType is not null && contentType.StartsWith("text/html", StringComparison.OrdinalIgnoreCase))
         {
-            context.Response.Headers["Cache-Control"] = "no-cache";
+            context.Response.Headers.CacheControl = "no-cache";
             context.Response.Headers.ETag = appVersionETag;
         }
     });
@@ -247,11 +247,11 @@ try
             // revalidate so a redeploy serves fresh content immediately.
             if (ctx.Context.Request.Path.Value?.EndsWith(".wasm", StringComparison.OrdinalIgnoreCase) == true)
             {
-                ctx.Context.Response.Headers["Cache-Control"] = "public, max-age=31536000, immutable";
+                ctx.Context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
             }
             else
             {
-                ctx.Context.Response.Headers["Cache-Control"] = "no-cache";
+                ctx.Context.Response.Headers.CacheControl = "no-cache";
             }
         }
     });
