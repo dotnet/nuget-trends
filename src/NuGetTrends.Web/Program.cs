@@ -236,9 +236,22 @@ try
     {
         OnPrepareResponse = ctx =>
         {
-            if (ctx.Context.Request.Path.StartsWithSegments("/_framework"))
+            if (!ctx.Context.Request.Path.StartsWithSegments("/_framework"))
             {
-                ctx.Context.Response.Headers.CacheControl = "no-cache";
+                return;
+            }
+
+            // Fingerprinted files (e.g. System.Runtime.dyj7dsbvv9.wasm) are
+            // immutable — their URL changes on every build, so cache forever.
+            // Non-fingerprinted loaders (blazor.web.js, dotnet.js) must
+            // revalidate so a redeploy serves fresh content immediately.
+            if (ctx.Context.Request.Path.Value?.EndsWith(".wasm", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                ctx.Context.Response.Headers["Cache-Control"] = "public, max-age=31536000, immutable";
+            }
+            else
+            {
+                ctx.Context.Response.Headers["Cache-Control"] = "no-cache";
             }
         }
     });
