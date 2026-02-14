@@ -1,4 +1,6 @@
+@using System.Reflection
 @inject IJSRuntime JSRuntime
+@inject IToastService ToastService
 
 <footer>
     <div class="container">
@@ -38,30 +40,47 @@
         </p>
         <p class="version-info">
             <span class="version-badge" @onclick="CopyVersion" title="Copy to clipboard">
-                @_shortSha
+                @_shortFeSha
             </span>
         </p>
     </div>
 </footer>
 
 @code {
-    private string _appVersion = "unknown";
-    private string _shortSha = "unknown";
+    private string _feVersion = "unknown";
+    private string _shortFeSha = "unknown";
+
+    protected override void OnInitialized()
+    {
+        var infoVersion = typeof(Footer).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        _feVersion = infoVersion ?? "unknown";
+        var feParts = _feVersion.Split('+');
+        var feSha = feParts.Length > 1 ? feParts[^1] : _feVersion;
+        _shortFeSha = feSha.Length > 8 ? feSha[..8] : feSha;
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            _appVersion = await JSRuntime.InvokeAsync<string>("uiInterop.getAppVersion");
-            var parts = _appVersion.Split('+');
-            var sha = parts.Length > 1 ? parts[^1] : _appVersion;
-            _shortSha = sha.Length > 8 ? sha[..8] : sha;
-            StateHasChanged();
+            var beVersion = await JSRuntime.InvokeAsync<string>("uiInterop.getAppVersion");
+            var beParts = beVersion.Split('+');
+            var beSha = beParts.Length > 1 ? beParts[^1] : beVersion;
+
+            var feParts = _feVersion.Split('+');
+            var feSha = feParts.Length > 1 ? feParts[^1] : _feVersion;
+
+            if (beSha != feSha && beSha != "unknown" && feSha != "unknown")
+            {
+                ToastService.ShowWarning("A new version is available. Please hard-refresh (Ctrl+Shift+R) to update.");
+            }
         }
     }
 
     private async Task CopyVersion()
     {
-        await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", _appVersion);
+        await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", _feVersion);
     }
+
 }
