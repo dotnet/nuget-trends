@@ -6,9 +6,8 @@
     <Nullable>enable</Nullable>
     <UseSentryCLI>false</UseSentryCLI>
     <StaticWebAssetProjectMode>Default</StaticWebAssetProjectMode>
-    <!-- IL trimming: catch trim-unsafe patterns at build time, not just at publish -->
+    <!-- IL trimming: catch trim-unsafe patterns at build time via Roslyn analyzer -->
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
-    <SuppressTrimAnalysisWarnings>false</SuppressTrimAnalysisWarnings>
     <!-- IL2110/IL2111: false positives from Blazor framework Razor codegen (Router, LayoutView) -->
     <NoWarn>$(NoWarn);IL2110;IL2111</NoWarn>
   </PropertyGroup>
