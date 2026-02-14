@@ -228,7 +228,20 @@ try
     });
 
     app.UseResponseCompression();
-    app.UseStaticFiles();
+    // UseStaticFiles serves _framework files (fingerprinted WASM assemblies)
+    // before MapStaticAssets endpoint routing. Without no-cache, the browser
+    // caches blazor.web.js/dotnet.js indefinitely and after a redeploy the
+    // stale dotnet.js requests old fingerprinted assembly names → HTML 404.
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        OnPrepareResponse = ctx =>
+        {
+            if (ctx.Context.Request.Path.StartsWithSegments("/_framework"))
+            {
+                ctx.Context.Response.Headers.CacheControl = "no-cache";
+            }
+        }
+    });
     app.MapStaticAssets();
 
     // Enable WebAssembly debugging in development
