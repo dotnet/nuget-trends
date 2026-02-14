@@ -57,7 +57,8 @@
         _feVersion = infoVersion ?? "unknown";
         var feParts = _feVersion.Split('+');
         var feSha = feParts.Length > 1 ? feParts[^1] : _feVersion;
-        _shortFeSha = feSha.Length > 8 ? feSha[..8] : feSha;
+        var isSha = feSha.Length > 8 && feSha.All(c => char.IsAsciiHexDigit(c));
+        _shortFeSha = isSha ? feSha[..8] : feSha;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

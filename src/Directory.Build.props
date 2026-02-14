@@ -16,8 +16,11 @@
     <Exec Command="git rev-parse --abbrev-ref HEAD" ConsoleToMSBuild="true" StandardOutputImportance="low" IgnoreExitCode="true">
       <Output TaskParameter="ConsoleOutput" PropertyName="_GitBranch" />
     </Exec>
+    <Exec Condition="'$(_GitBranch)' == 'HEAD'" Command="git rev-parse --short HEAD" ConsoleToMSBuild="true" StandardOutputImportance="low" IgnoreExitCode="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_GitBranch" />
+    </Exec>
     <PropertyGroup>
-      <SourceRevisionId Condition="'$(_GitBranch)' != ''">$(_GitBranch)</SourceRevisionId>
+      <SourceRevisionId Condition="'$(_GitBranch)' != '' and '$(_GitBranch)' != 'HEAD'">$(_GitBranch)</SourceRevisionId>
     </PropertyGroup>
   </Target>
 
