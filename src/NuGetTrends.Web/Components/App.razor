@@ -88,6 +88,7 @@
         Sentry.onLoad(function() {
             Sentry.init({
                 tunnel: "/t",
+                environment: "@_environment",
                 integrations: [Sentry.replayIntegration()],
                 replaysSessionSampleRate: 0,
                 replaysOnErrorSampleRate: 1.0,
@@ -120,8 +121,11 @@
 
 </html>
 
+@inject IWebHostEnvironment Environment
+
 @code {
     private string _appVersion = "unknown";
+    private string _environment => Environment.EnvironmentName.ToLowerInvariant();
 
     protected override void OnInitialized()
     {
