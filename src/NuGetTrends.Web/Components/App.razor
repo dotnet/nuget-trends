@@ -86,7 +86,12 @@
     ></script>
     <script>
         Sentry.onLoad(function() {
-            Sentry.init({ tunnel: "/t" });
+            Sentry.init({
+                tunnel: "/t",
+                integrations: [Sentry.replayIntegration()],
+                replaysSessionSampleRate: 0.1,
+                replaysOnErrorSampleRate: 1.0,
+            });
         });
     </script>
 
