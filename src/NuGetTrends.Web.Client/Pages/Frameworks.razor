@@ -173,7 +173,7 @@
 
             var points = _timeMode == TfmTimeMode.Absolute
                 ? series.DataPoints
-                    .Select(dp => new TfmChartPoint(dp.Month.ToDateTime(TimeOnly.MinValue).Ticks, (decimal)dp.CumulativeCount))
+                    .Select(dp => new TfmChartPoint(ToJsTimestamp(dp.Month), (decimal)dp.CumulativeCount))
                     .ToList()
                 : series.DataPoints
                     .Select((dp, i) => new TfmChartPoint(i, (decimal)dp.CumulativeCount))
@@ -216,7 +216,7 @@
 
             var points = _timeMode == TfmTimeMode.Absolute
                 ? monthData
-                    .Select(kv => new TfmChartPoint(DateOnly.ParseExact(kv.Key, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture).ToDateTime(TimeOnly.MinValue).Ticks, kv.Value))
+                    .Select(kv => new TfmChartPoint(ToJsTimestamp(DateOnly.ParseExact(kv.Key, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)), kv.Value))
                     .ToList()
                 : monthData
                     .Select((kv, i) => new TfmChartPoint(i, kv.Value))
@@ -288,9 +288,11 @@
                 {
                     Type = XAxisType.Numeric,
                     Title = new AxisTitle { Text = "Months since first appearance" },
+                    TickAmount = 10,
                     Labels = new XAxisLabels
                     {
                         Style = new AxisLabelStyle { Colors = new Color(textColor) },
+                        Formatter = @"function(val) { return Math.round(val); }",
                     },
                     AxisBorder = new AxisBorder { Color = gridColor },
                     AxisTicks = new AxisTicks { Color = gridColor },
@@ -302,16 +304,25 @@
                     Labels = new YAxisLabels
                     {
                         Style = new AxisLabelStyle { Colors = new Color(textColor) },
-                        Formatter = "function(val) { return val.toLocaleString(); }",
+                        Formatter = "function(val) { return val != null && !isNaN(val) ? val.toLocaleString() : ''; }",
                     },
                 },
             },
             Tooltip = new Tooltip
             {
                 Theme = ThemeState.IsDark ? Mode.Dark : Mode.Light,
+                X = _timeMode == TfmTimeMode.Absolute
+                    ? new TooltipX
+                    {
+                        Format = "MMM yyyy",
+                    }
+                    : new TooltipX
+                    {
+                        Formatter = @"function(value) { return 'Month ' + value; }",
+                    },
                 Y = new TooltipY
                 {
-                    Formatter = @"function(value) { return value.toLocaleString(); }",
+                    Formatter = @"function(value) { return value != null && !isNaN(value) ? value.toLocaleString() : ''; }",
                 },
             },
         };
@@ -384,6 +395,9 @@
     {
         ThemeState.ThemeChanged -= OnThemeChanged;
     }
+
+    private static decimal ToJsTimestamp(DateOnly date)
+        => new DateTimeOffset(date.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero).ToUnixTimeMilliseconds();
 
     // Chart data types
     private record TfmChartPoint(decimal X, decimal Y);
