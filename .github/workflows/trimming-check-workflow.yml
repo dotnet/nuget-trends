@@ -11,22 +11,24 @@ on:
       - 'src/NuGetTrends.Web/**'
       - 'src/NuGetTrends.Web.Client/**'
       - 'src/NuGetTrends.Data/**'
+      - 'src/Directory.Build.props'
       - '**/TrimmerRoots.xml'
       - '**/trimming-check-workflow.yml'
-      - 'scripts/verify-trimming.sh'
+      - 'scripts/verify-trimming.cs'
   pull_request:
     paths:
       - 'src/NuGetTrends.Web/**'
       - 'src/NuGetTrends.Web.Client/**'
       - 'src/NuGetTrends.Data/**'
+      - 'src/Directory.Build.props'
       - '**/TrimmerRoots.xml'
       - '**/trimming-check-workflow.yml'
-      - 'scripts/verify-trimming.sh'
+      - 'scripts/verify-trimming.cs'
   workflow_dispatch:
 
 jobs:
   trimming-check:
-    name: Native AOT Trimming Check
+    name: IL Trimming Check
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -40,4 +42,4 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Verify trimmed build renders correctly
-        run: ./scripts/verify-trimming.sh
+        run: ./scripts/verify-trimming.cs
