@@ -425,45 +425,35 @@ public class DailyDownloadWorker : IHostedService
         {
             var loweredIds = deletedPackageIds.Select(id => id.ToLowerInvariant()).Distinct().ToList();
 
-            await using var transaction = await context.Database.BeginTransactionAsync(_cancellationTokenSource.Token);
-
-            var deleteCatalogSpan = StartDbSpan(parentSpan, "DELETE FROM package_details_catalog_leafs WHERE package_id_lowered IN (...)", "postgresql", "DELETE");
-            deleteCatalogSpan.SetTag("count", deletedPackageIds.Count.ToString());
+            var deleteSpan = StartDbSpan(parentSpan,
+                "DELETE FROM package_details_catalog_leafs, package_downloads WHERE package_id_lowered IN (...)",
+                "postgresql", "DELETE");
+            deleteSpan.SetTag("count", deletedPackageIds.Count.ToString());
             try
             {
-                var deletedCount = await context.PackageDetailsCatalogLeafs
+                await using var transaction = await context.Database.BeginTransactionAsync(_cancellationTokenSource.Token);
+
+                var deletedCatalogCount = await context.PackageDetailsCatalogLeafs
                     .Where(p => loweredIds.Contains(p.PackageIdLowered))
                     .ExecuteDeleteAsync(_cancellationTokenSource.Token);
 
-                deleteCatalogSpan.SetData("db.rows_affected", deletedCount);
-                deleteCatalogSpan.Finish(SpanStatus.Ok);
-            }
-            catch (Exception e)
-            {
-                deleteCatalogSpan.Finish(e);
-                throw;
-            }
-
-            // Also remove stale package_downloads records so the publisher
-            // doesn't keep re-queuing packages that no longer exist.
-            var deleteDownloadsSpan = StartDbSpan(parentSpan, "DELETE FROM package_downloads WHERE package_id_lowered IN (...)", "postgresql", "DELETE");
-            deleteDownloadsSpan.SetTag("count", deletedPackageIds.Count.ToString());
-            try
-            {
+                // Also remove stale package_downloads records so the publisher
+                // doesn't keep re-queuing packages that no longer exist.
                 var deletedDownloadsCount = await context.PackageDownloads
                     .Where(p => loweredIds.Contains(p.PackageIdLowered))
                     .ExecuteDeleteAsync(_cancellationTokenSource.Token);
 
-                deleteDownloadsSpan.SetData("db.rows_affected", deletedDownloadsCount);
-                deleteDownloadsSpan.Finish(SpanStatus.Ok);
+                await transaction.CommitAsync(_cancellationTokenSource.Token);
+
+                deleteSpan.SetData("db.catalog_rows_affected", deletedCatalogCount);
+                deleteSpan.SetData("db.downloads_rows_affected", deletedDownloadsCount);
+                deleteSpan.Finish(SpanStatus.Ok);
             }
             catch (Exception e)
             {
-                deleteDownloadsSpan.Finish(e);
+                deleteSpan.Finish(e);
                 throw;
             }
-
-            await transaction.CommitAsync(_cancellationTokenSource.Token);
         }
     }
 
