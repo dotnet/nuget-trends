@@ -56,7 +56,7 @@ public class ApiErrorResilienceTests
                 WaitUntil = WaitUntilState.NetworkIdle
             });
 
-            await page.WaitForTimeoutAsync(5_000);
+            await page.WaitForWasmInteractivityAsync();
 
             // Page should not have crashed
             pageErrors.Should().BeEmpty("page should not crash when trending API fails on client side");
@@ -115,7 +115,7 @@ public class ApiErrorResilienceTests
             // Wait for the redirect to complete.
             await page.WaitForURLAsync($"{_fixture.ServerUrl}/", new PageWaitForURLOptions
             {
-                Timeout = 15_000
+                Timeout = 30_000
             });
 
             // Page should not have crashed
@@ -156,7 +156,7 @@ public class ApiErrorResilienceTests
                 WaitUntil = WaitUntilState.NetworkIdle
             });
 
-            await page.WaitForTimeoutAsync(5_000);
+            await page.WaitForWasmInteractivityAsync();
 
             // Page should not have crashed
             pageErrors.Should().BeEmpty("page should not crash for non-existent packages");

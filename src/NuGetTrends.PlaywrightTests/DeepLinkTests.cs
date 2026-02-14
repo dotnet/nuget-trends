@@ -38,7 +38,7 @@ public class DeepLinkTests
             });
 
             // Wait for WASM hydration
-            await page.WaitForTimeoutAsync(5_000);
+            await page.WaitForWasmInteractivityAsync();
 
             // Verify the chart rendered with the Sentry dataset (ApexCharts renders SVG series)
             var seriesLocator = page.Locator(".apexcharts-line-series .apexcharts-series");
@@ -77,7 +77,7 @@ public class DeepLinkTests
             });
 
             // Wait for WASM hydration
-            await page.WaitForTimeoutAsync(5_000);
+            await page.WaitForWasmInteractivityAsync();
 
             // Verify the chart rendered with both datasets
             var seriesLocator = page.Locator(".apexcharts-line-series .apexcharts-series");
@@ -118,7 +118,7 @@ public class DeepLinkTests
                 WaitUntil = WaitUntilState.NetworkIdle
             });
 
-            await page.WaitForTimeoutAsync(5_000);
+            await page.WaitForWasmInteractivityAsync();
 
             var datasetCount = await page.Locator(".apexcharts-line-series .apexcharts-series").CountAsync();
             _output.WriteLine($"Dataset count: {datasetCount}");

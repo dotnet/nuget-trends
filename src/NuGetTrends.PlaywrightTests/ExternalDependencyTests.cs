@@ -55,7 +55,7 @@ public class ExternalDependencyTests
             });
 
             // Wait for WASM hydration to catch any lazy-loaded scripts
-            await page.WaitForTimeoutAsync(5_000);
+            await page.WaitForWasmInteractivityAsync();
 
             externalRequests.Should().BeEmpty(
                 $"{label} page should not load JS or CSS from external CDNs — vendor all dependencies locally");

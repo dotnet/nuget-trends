@@ -35,17 +35,13 @@ public class DateRangeDuplicateTests
                 WaitUntil = WaitUntilState.NetworkIdle
             });
 
-            await page.WaitForTimeoutAsync(3_000);
+            await page.WaitForWasmInteractivityAsync();
 
             var searchInput = page.Locator("input.input.is-large");
             await searchInput.FillAsync("sentry");
 
+            await page.WaitForSearchDropdownAsync();
             var dropdown = page.Locator(".autocomplete-dropdown");
-            await dropdown.WaitForAsync(new LocatorWaitForOptions
-            {
-                State = WaitForSelectorState.Visible,
-                Timeout = 10_000,
-            });
 
             // Select Sentry package
             await dropdown.Locator(".autocomplete-option").First.ClickAsync();

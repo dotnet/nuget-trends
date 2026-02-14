@@ -1,0 +1,58 @@
+name: Playwright Tests
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: 1
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/NuGetTrends.Web/**'
+      - 'src/NuGetTrends.Web.Client/**'
+      - 'src/NuGetTrends.Data/**'
+      - 'src/NuGetTrends.PlaywrightTests/**'
+      - 'src/Directory.Build.props'
+      - '**/playwright-workflow.yml'
+  pull_request:
+    paths:
+      - 'src/NuGetTrends.Web/**'
+      - 'src/NuGetTrends.Web.Client/**'
+      - 'src/NuGetTrends.Data/**'
+      - 'src/NuGetTrends.PlaywrightTests/**'
+      - 'src/Directory.Build.props'
+      - '**/playwright-workflow.yml'
+  workflow_dispatch:
+
+jobs:
+  playwright:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore src/NuGetTrends.PlaywrightTests
+
+      - name: Build
+        run: dotnet build src/NuGetTrends.PlaywrightTests -c Release --no-restore -p:SentryUploadSymbols=false
+
+      - name: Install Playwright Browsers with System Dependencies
+        run: pwsh src/NuGetTrends.PlaywrightTests/bin/Release/net10.0/playwright.ps1 install --with-deps chromium
+
+      - name: Run Playwright Tests
+        run: dotnet test src/NuGetTrends.PlaywrightTests -c Release --no-build --logger "trx;LogFileName=playwright-results.trx" --logger "console;verbosity=detailed"
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-test-results
+          path: '**/playwright-results.trx'

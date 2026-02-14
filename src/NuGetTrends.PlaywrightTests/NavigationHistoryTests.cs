@@ -34,7 +34,7 @@ public class NavigationHistoryTests
             {
                 WaitUntil = WaitUntilState.NetworkIdle
             });
-            await page.WaitForTimeoutAsync(3_000);
+            await page.WaitForWasmInteractivityAsync();
 
             var homeUrl = page.Url;
             _output.WriteLine($"Home URL: {homeUrl}");
@@ -43,12 +43,8 @@ public class NavigationHistoryTests
             var searchInput = page.Locator("input.input.is-large");
             await searchInput.FillAsync("sentry");
 
+            await page.WaitForSearchDropdownAsync();
             var dropdown = page.Locator(".autocomplete-dropdown");
-            await dropdown.WaitForAsync(new LocatorWaitForOptions
-            {
-                State = WaitForSelectorState.Visible,
-                Timeout = 10_000,
-            });
             await dropdown.Locator(".autocomplete-option").First.ClickAsync();
 
             // Wait for packages page

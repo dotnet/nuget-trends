@@ -37,11 +37,8 @@ public class SearchDropdownTests
                 WaitUntil = WaitUntilState.NetworkIdle
             });
 
-            // Wait for Blazor WASM to hydrate — the page should become interactive.
-            // Blazor removes the blazor-ssr markers and replaces with live components.
-            // A good signal is that the search input is focusable and accepting events.
-            var searchInput = page.Locator("input.input.is-large");
-            await searchInput.WaitForAsync(new LocatorWaitForOptions { Timeout = 30_000 });
+            // Wait for Blazor WASM to hydrate and become interactive
+            await page.WaitForWasmInteractivityAsync();
 
             // Log page state before typing
             var title = await page.TitleAsync();
@@ -52,22 +49,16 @@ public class SearchDropdownTests
             var hasBlazorSsr = htmlContent.Contains("<blazor-ssr>");
             _output.WriteLine($"Has <blazor-ssr> tag (streaming): {hasBlazorSsr}");
 
-            // Wait a bit for WASM to fully initialize
-            await page.WaitForTimeoutAsync(3_000);
+            var searchInput = page.Locator("input.input.is-large");
 
             // Type "sentry" in the search box
             _output.WriteLine("Typing 'sentry' in search input...");
             await searchInput.FillAsync("sentry");
 
             // Wait for the dropdown to appear (debounce is 300ms + API call time)
-            var dropdown = page.Locator(".autocomplete-dropdown");
             try
             {
-                await dropdown.WaitForAsync(new LocatorWaitForOptions
-                {
-                    State = WaitForSelectorState.Visible,
-                    Timeout = 10_000,
-                });
+                await page.WaitForSearchDropdownAsync();
             }
             catch (TimeoutException)
             {
@@ -99,6 +90,7 @@ public class SearchDropdownTests
             }
 
             // Verify the dropdown has results
+            var dropdown = page.Locator(".autocomplete-dropdown");
             var options = dropdown.Locator(".autocomplete-option");
             var count = await options.CountAsync();
             _output.WriteLine($"Dropdown visible with {count} option(s)");
@@ -133,9 +125,7 @@ public class SearchDropdownTests
             // Wait for WASM hydration by checking that the Blazor framework is connected
             // The blazor.web.js script should download and initialize WASM assemblies
             _output.WriteLine("Waiting for Blazor WASM initialization...");
-
-            // Wait for the blazor-ssr streaming to complete
-            await page.WaitForTimeoutAsync(2_000);
+            await page.WaitForWasmInteractivityAsync();
 
             // Check that blazor.web.js was loaded
             var blazorLoaded = await page.EvaluateAsync<bool>(
@@ -190,18 +180,14 @@ public class SearchDropdownTests
             });
 
             // Wait for WASM
-            await page.WaitForTimeoutAsync(3_000);
+            await page.WaitForWasmInteractivityAsync();
 
             var searchInput = page.Locator("input.input.is-large");
             await searchInput.FillAsync("sentry");
 
             // Wait for dropdown
+            await page.WaitForSearchDropdownAsync();
             var dropdown = page.Locator(".autocomplete-dropdown");
-            await dropdown.WaitForAsync(new LocatorWaitForOptions
-            {
-                State = WaitForSelectorState.Visible,
-                Timeout = 10_000,
-            });
 
             // Click the first result
             var firstOption = dropdown.Locator(".autocomplete-option").First;

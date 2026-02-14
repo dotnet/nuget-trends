@@ -65,7 +65,7 @@ public class MobileViewportTests
                 WaitUntil = WaitUntilState.NetworkIdle
             });
 
-            await page.WaitForTimeoutAsync(5_000);
+            await page.WaitForWasmInteractivityAsync();
 
             // Verify no JS errors or failed requests
             consoleErrors.Should().BeEmpty(
@@ -113,17 +113,13 @@ public class MobileViewportTests
             {
                 WaitUntil = WaitUntilState.NetworkIdle
             });
-            await page.WaitForTimeoutAsync(3_000);
+            await page.WaitForWasmInteractivityAsync();
 
             var searchInput = page.Locator("input.input.is-large");
             await searchInput.FillAsync("sentry");
 
+            await page.WaitForSearchDropdownAsync();
             var dropdown = page.Locator(".autocomplete-dropdown");
-            await dropdown.WaitForAsync(new LocatorWaitForOptions
-            {
-                State = WaitForSelectorState.Visible,
-                Timeout = 10_000,
-            });
 
             var count = await dropdown.Locator(".autocomplete-option").CountAsync();
             _output.WriteLine($"Dropdown options on mobile: {count}");
