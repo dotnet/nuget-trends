@@ -318,7 +318,7 @@
                     }
                     : new TooltipX
                     {
-                        Formatter = @"function(value) { return 'Month ' + value; }",
+                        Formatter = @"function(value) { return 'Month ' + Math.round(value); }",
                     },
                 Y = new TooltipY
                 {
