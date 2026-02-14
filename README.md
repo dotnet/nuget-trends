@@ -27,7 +27,7 @@ dotnet run --project src/NuGetTrends.AppHost
 
 This starts PostgreSQL, RabbitMQ, ClickHouse, the Angular SPA, Web API, and Scheduler - all with a single command.
 
-The **Aspire Dashboard** opens at `https://localhost:17183` showing all services, logs, and traces.
+The **Aspire Dashboard** URL is shown in the terminal output, providing a view of all services, logs, and traces.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed setup instructions.
 
