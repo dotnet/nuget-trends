@@ -56,10 +56,11 @@
     }
 
     [JSInvokable]
-    public void OnSystemPreferenceChanged(bool prefersDark)
+    public async Task OnSystemPreferenceChanged(bool prefersDark)
     {
         ThemeState.SetSystemPreference(prefersDark);
-        InvokeAsync(StateHasChanged);
+        await ApplyTheme();
+        StateHasChanged();
     }
 
     private async Task Toggle()
