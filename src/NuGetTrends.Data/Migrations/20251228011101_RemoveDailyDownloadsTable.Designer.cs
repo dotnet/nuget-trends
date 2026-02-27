@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using NuGetTrends.Data;
@@ -12,9 +13,11 @@ using NuGetTrends.Data;
 namespace NuGetTrends.Data.Migrations
 {
     [DbContext(typeof(NuGetTrendsContext))]
-    partial class NuGetTrendsContextModelSnapshot : ModelSnapshot
+    [Migration("20251228011101_RemoveDailyDownloadsTable")]
+    partial class RemoveDailyDownloadsTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -146,11 +149,6 @@ namespace NuGetTrends.Data.Migrations
                         .HasColumnType("text")
                         .HasColumnName("package_id");
 
-                    b.Property<string>("PackageIdLowered")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("package_id_lowered");
-
                     b.Property<long>("PackageSize")
                         .HasColumnType("bigint")
                         .HasColumnName("package_size");
@@ -199,10 +197,6 @@ namespace NuGetTrends.Data.Migrations
                         .HasName("pk_package_details_catalog_leafs");
 
                     b.HasIndex("PackageId");
-
-                    b.HasIndex("PackageIdLowered");
-
-                    NpgsqlIndexBuilderExtensions.IncludeProperties(b.HasIndex("PackageIdLowered"), new[] { "PackageId" });
 
                     b.HasIndex("PackageId", "PackageVersion")
                         .IsUnique();
