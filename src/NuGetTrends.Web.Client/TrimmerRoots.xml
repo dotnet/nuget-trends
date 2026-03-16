@@ -7,4 +7,11 @@
   -->
   <assembly fullname="NuGetTrends.Web.Client" preserve="all" />
   <assembly fullname="Blazored.Toast" preserve="all" />
+  <!--
+    Blazor-ApexCharts uses reflection-based System.Text.Json serialization
+    for chart options (Toolbar, Zoom, YAxisLabels, etc.). TrimMode=full strips
+    property metadata needed for serialization, causing options like
+    Toolbar.Show=false and custom Y-axis formatters to silently not apply.
+  -->
+  <assembly fullname="Blazor-ApexCharts" preserve="all" />
 </linker>
