@@ -154,6 +154,10 @@ try
         return 1;
     }
 
+    // Note: Chart-specific trimming checks (toolbar hidden, Y-axis formatting)
+    // require a database with seed data, so they live in the Playwright test suite
+    // (ChartRenderingTests.cs) which uses Testcontainers. This script only verifies
+    // that the Blazor runtime itself survives trimming.
     Console.WriteLine("PASS: Blazor WASM rendered successfully after IL trimming");
     return 0;
 }
