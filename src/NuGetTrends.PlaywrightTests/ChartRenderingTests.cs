@@ -147,7 +147,10 @@ public class ChartRenderingTests
         await page.Locator(".apexcharts-line-series .apexcharts-series").First.WaitForAsync(
             new LocatorWaitForOptions { State = WaitForSelectorState.Visible, Timeout = 15_000 });
 
-        // Give the chart a moment to finish rendering labels
-        await page.WaitForTimeoutAsync(500);
+        // Wait for axis labels to be populated (ApexCharts renders labels after series)
+        await page.Locator(".apexcharts-yaxis-label tspan").First.WaitForAsync(
+            new LocatorWaitForOptions { State = WaitForSelectorState.Attached, Timeout = 5_000 });
+        await page.Locator(".apexcharts-xaxis-label tspan").First.WaitForAsync(
+            new LocatorWaitForOptions { State = WaitForSelectorState.Attached, Timeout = 5_000 });
     }
 }
