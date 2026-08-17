@@ -74,20 +74,21 @@
 
     @if (_sentryEnabled)
     {
-        <!-- Sentry Browser SDK (spa project) — catches JS errors even if WASM fails to boot -->
+        <!-- Sentry Browser SDK (frontend project) — catches JS errors even if WASM fails to boot.
+             Uses the plain CDN bundle rather than the SaaS loader script, because the loader
+             bakes its DSN into the CDN key and can't point at a self-hosted instance. -->
         <script
-          src="https://js.sentry-cdn.com/85a592e835c64ca3a97d93776c12e947.min.js"
+          src="https://browser.sentry-cdn.com/10.12.0/bundle.tracing.replay.min.js"
           crossorigin="anonymous"
         ></script>
         <script>
-            Sentry.onLoad(function() {
-                Sentry.init({
-                    tunnel: "/t",
-                    environment: "@_environment",
-                    integrations: [Sentry.replayIntegration()],
-                    replaysSessionSampleRate: 0,
-                    replaysOnErrorSampleRate: 1.0,
-                });
+            Sentry.init({
+                dsn: "https://fa6e5ca9a2e9347861919ad11c3b8d8c@sentry.garcia.in/3",
+                tunnel: "/t",
+                environment: "@_environment",
+                integrations: [Sentry.replayIntegration()],
+                replaysSessionSampleRate: 0,
+                replaysOnErrorSampleRate: 1.0,
             });
         </script>
     }

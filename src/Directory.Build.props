@@ -26,7 +26,9 @@
 
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <SentryOrg>nugettrends</SentryOrg>
-    <SentryUploadSymbols>true</SentryUploadSymbols>
+    <!-- Disabled on this branch: events go to the self-hosted instance at sentry.garcia.in,
+         so uploading symbols to the nugettrends org on sentry.io would be pointless. -->
+    <SentryUploadSymbols>false</SentryUploadSymbols>
     <!-- With sources in the PDB Sentry can already show source context -->
     <!-- <SentryUploadSources>true</SentryUploadSources> -->
     <EmbedAllSources>true</EmbedAllSources>

@@ -8,7 +8,7 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 
 builder.UseSentry(options =>
 {
-    options.Dsn = "https://57331596a25b4c3da49750b292299e09@o179108.ingest.sentry.io/5936035";
+    options.Dsn = "https://fa6e5ca9a2e9347861919ad11c3b8d8c@sentry.garcia.in/3";
     options.TracesSampleRate = 1.0;
     options.AddExceptionFilterForType<OperationCanceledException>();
 });

@@ -74,7 +74,9 @@ try
             o.AddExceptionFilterForType<OperationCanceledException>();
         });
 
-    builder.Services.AddSentryTunneling(); // Add Sentry Tunneling to avoid ad-blockers.
+    // Add Sentry Tunneling to avoid ad-blockers. Only sentry.io hosts are allowed by default,
+    // so the self-hosted instance has to be listed explicitly or its envelopes are dropped.
+    builder.Services.AddSentryTunneling("sentry.garcia.in");
 
     // Add Blazor services
     builder.Services.AddRazorComponents()
