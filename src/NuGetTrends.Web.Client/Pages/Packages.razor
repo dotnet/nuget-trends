@@ -29,6 +29,20 @@
                 <PackageList />
             </div>
         </section>
+        @if (_comparison is not null)
+        {
+            <div class="columns is-centered has-text-centered">
+                <div class="column is-8">
+                    <p class="subtitle is-6">
+                        <strong>@_comparison.LeaderId</strong> has
+                        @_comparison.DownloadRatio.ToString("0.#")&times;
+                        the downloads of <strong>@_comparison.TrailingId</strong>,
+                        peaking at @_comparison.PeakRatio.ToString("0.#")&times;
+                        over this period.
+                    </p>
+                </div>
+            </div>
+        }
         <div class="columns is-vcentered is-centered">
             <div class="column has-text-right has-text-centered-mobile is-narrow">
                 <label for="period" class="title is-5">Showing results for the last: </label>
@@ -74,6 +88,7 @@
 
     private List<PackageDownloadHistory> _chartDatasets = [];
     private bool _isLoading = true;
+    private PackageComparison? _comparison;
 
     protected override void OnInitialized()
     {
@@ -197,11 +212,44 @@
                 UpdateUrl();
                 StateHasChanged();
             });
+
+            await LoadComparison();
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error plotting package");
         }
+    }
+
+    /// <summary>
+    /// Loads the head-to-head summary once there are at least two packages on the chart.
+    /// </summary>
+    private async Task LoadComparison()
+    {
+        if (_chartDatasets.Count < 2)
+        {
+            _comparison = null;
+            return;
+        }
+
+        var query = string.Join("&", _chartDatasets
+            .Take(2)
+            .Select(d => $"ids={Uri.EscapeDataString(d.Id)}"));
+
+        try
+        {
+            _comparison = await Http.GetFromJsonAsync(
+                $"/api/package/compare?{query}&months={PackageState.SearchPeriod}",
+                NuGetTrendsJsonContext.Default.PackageComparison);
+        }
+        catch (Exception ex)
+        {
+            _comparison = null;
+            Logger.LogError(ex, "Error comparing packages");
+            ToastService.ShowError("Our servers are too cool (or not) to handle your request at the moment.");
+        }
+
+        await InvokeAsync(StateHasChanged);
     }
 
     private async void OnPackageRemoved(object? sender, string packageId)
@@ -215,6 +263,8 @@
                 RemovePackageFromUrl(packageId);
                 StateHasChanged();
             });
+
+            await LoadComparison();
         }
         catch (Exception ex)
         {

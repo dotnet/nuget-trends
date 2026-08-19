@@ -51,6 +51,19 @@ public record TrendingPackage
 }
 
 /// <summary>
+/// Head-to-head comparison summary for two packages.
+/// </summary>
+public record PackageComparison
+{
+    public required string LeaderId { get; init; }
+    public required string TrailingId { get; init; }
+    public double DownloadRatio { get; init; }
+    public double PeakRatio { get; init; }
+    public required string OlderId { get; init; }
+    public int ExtraWeeksTracked { get; init; }
+}
+
+/// <summary>
 /// Package with its assigned chart color.
 /// </summary>
 public record PackageColor

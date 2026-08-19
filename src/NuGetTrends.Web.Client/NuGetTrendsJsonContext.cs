@@ -5,6 +5,7 @@ namespace NuGetTrends.Web.Client;
 
 [JsonSerializable(typeof(List<PackageSearchResult>))]
 [JsonSerializable(typeof(PackageDownloadHistory))]
+[JsonSerializable(typeof(PackageComparison))]
 [JsonSerializable(typeof(List<TrendingPackage>))]
 [JsonSerializable(typeof(List<TfmFamilyGroup>))]
 [JsonSerializable(typeof(TfmAdoptionResponse))]
