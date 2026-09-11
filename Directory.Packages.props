@@ -53,7 +53,9 @@
     <PackageVersion Include="Testcontainers.ClickHouse" Version="4.15.0" />
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.15.0" />
     <PackageVersion Include="Testcontainers.RabbitMq" Version="4.15.0" />
-    <PackageVersion Include="Microsoft.Playwright" Version="1.51.0" />
+    <!-- 1.62.0+: .NET 11 Blazor WASM emits standardized exnref exception handling,
+         which older bundled Chromium builds cannot compile. -->
+    <PackageVersion Include="Microsoft.Playwright" Version="1.62.0" />
     <PackageVersion Include="xunit" Version="2.9.2" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
     <!-- Referenced only to lift a vulnerable transitive dependency (via Aspire 13.1.2)
