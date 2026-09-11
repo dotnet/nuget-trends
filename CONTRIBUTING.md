@@ -4,7 +4,7 @@ Please raise an issue to discuss changes before raising large PRs.
 
 ## Requirements
 
-- .NET SDK 10
+- .NET SDK 11
 - Docker (for Aspire-managed containers: PostgreSQL, RabbitMQ, ClickHouse)
 
 ## Running Locally with .NET Aspire
@@ -156,6 +156,10 @@ Production continues to use:
 We lock the .NET SDK version via `global.json` to have a reference version and avoid surprises during CI.
 If you don't have that exact version, usually anything with that major works just fine.
 If you just want to quickly build, try deleting `global.json`.
+
+The project currently targets **.NET 11 RC 1**, which ships under a
+[go-live license](https://dotnet.microsoft.com/platform/support/policy/dotnet-core) (supported in production).
+`global.json` pins the exact RC build; `rollForward: latestMinor` picks up the GA SDK once it releases.
 
 ---
 
