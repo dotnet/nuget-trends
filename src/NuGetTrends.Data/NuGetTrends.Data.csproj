@@ -13,6 +13,8 @@
     <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="ClickHouse.Driver" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <!-- Not used directly; lifts the vulnerable OpenTelemetry.Api that Aspire pulls in -->
+    <PackageReference Include="OpenTelemetry.Api" />
     <PackageReference Include="Sentry" />
   </ItemGroup>
 

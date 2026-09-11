@@ -31,12 +31,10 @@ public class PlaywrightFixture : IAsyncLifetime
     private const string ClickHouseUser = "clickhouse";
     private const string ClickHousePass = "clickhouse";
 
-    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder()
-        .WithImage("postgres:17")
+    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:17")
         .Build();
 
-    private readonly ClickHouseContainer _clickHouse = new ClickHouseBuilder()
-        .WithImage(ClickHouseImage)
+    private readonly ClickHouseContainer _clickHouse = new ClickHouseBuilder(ClickHouseImage)
         .WithUsername(ClickHouseUser)
         .WithPassword(ClickHousePass)
         // ClickHouse 25.11+ requires authentication for HTTP health checks.

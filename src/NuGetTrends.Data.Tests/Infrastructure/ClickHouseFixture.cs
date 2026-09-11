@@ -22,8 +22,7 @@ public class ClickHouseFixture : IAsyncLifetime
 
     public ClickHouseFixture()
     {
-        _container = new ClickHouseBuilder()
-            .WithImage(ClickHouseImage)
+        _container = new ClickHouseBuilder(ClickHouseImage)
             .WithUsername(Username)
             .WithPassword(Password)
             // ClickHouse 25.11+ requires authentication for HTTP health checks.
