@@ -1,13 +1,21 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <UseSentryCLI>false</UseSentryCLI>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- AngleSharp 1.1.2 (moderate) reaches us only through bunit 1.37.7, which pins it.
+         The patched 1.5.0 breaks bunit's DOM handling, and the first bunit to move past
+         1.2.0 is 2.x, a breaking rewrite. AngleSharp is a test-only HTML parser and is
+         never shipped, so suppress this one advisory until bunit 2.x is worth adopting. -->
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-pgww-w46g-26qg" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="bunit" />

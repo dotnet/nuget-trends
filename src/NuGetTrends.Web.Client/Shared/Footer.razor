@@ -65,7 +65,17 @@
     {
         if (firstRender)
         {
-            var beVersion = await JSRuntime.InvokeAsync<string>("uiInterop.getAppVersion");
+            string beVersion;
+            try
+            {
+                beVersion = await JSRuntime.InvokeAsync<string>("uiInterop.getAppVersion");
+            }
+            catch (JSDisconnectedException)
+            {
+                // Circuit disconnected, skip the version comparison
+                return;
+            }
+
             var beParts = beVersion.Split('+');
             var beSha = beParts.Length > 1 ? beParts[^1] : beVersion;
 
@@ -81,7 +91,18 @@
 
     private async Task CopyVersion()
     {
-        await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", _feVersion);
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", _feVersion);
+        }
+        catch (JSDisconnectedException)
+        {
+            // Circuit disconnected, nothing to copy to
+        }
+        catch (JSException)
+        {
+            // Clipboard unavailable (denied permission or insecure context)
+        }
     }
 
 }

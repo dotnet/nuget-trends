@@ -358,7 +358,6 @@
         RebuildChartSeries();
         _chartSeries = [.. _chartSeries]; // new reference for Blazor change detection
         UpdateUrl();
-        StateHasChanged();
         await UpdateChartAsync();
     }
 
@@ -369,7 +368,6 @@
         RebuildChartSeries();
         _chartSeries = [.. _chartSeries];
         UpdateUrl();
-        StateHasChanged();
         await UpdateChartAsync();
     }
 
@@ -379,7 +377,6 @@
         RebuildChartSeries();
         _chartSeries = [.. _chartSeries];
         UpdateUrl();
-        StateHasChanged();
         await UpdateChartAsync();
     }
 

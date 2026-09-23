@@ -262,12 +262,6 @@ try
     });
     app.MapStaticAssets();
 
-    // Enable WebAssembly debugging in development
-    if (app.Environment.IsDevelopment())
-    {
-        app.UseWebAssemblyDebugging();
-    }
-
     app.UseRouting();
     app.UseSentryTracing();
     app.UseAntiforgery();

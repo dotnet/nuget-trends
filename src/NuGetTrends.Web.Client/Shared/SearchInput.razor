@@ -55,8 +55,15 @@
     {
         if (firstRender)
         {
-            // Auto-focus the search input
-            await JSRuntime.InvokeVoidAsync("uiInterop.focusElement", ".input.is-large");
+            try
+            {
+                // Auto-focus the search input
+                await JSRuntime.InvokeVoidAsync("uiInterop.focusElement", ".input.is-large");
+            }
+            catch (JSDisconnectedException)
+            {
+                // Circuit disconnected, nothing to focus
+            }
         }
     }
 
