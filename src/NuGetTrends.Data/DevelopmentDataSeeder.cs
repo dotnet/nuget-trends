@@ -8,13 +8,23 @@ namespace NuGetTrends.Data;
 /// </summary>
 public static class DevelopmentDataSeeder
 {
-    private static readonly (int Day, long Count)[] Downloads =
+    // Two weeks of consecutive daily snapshots ending yesterday. Dates are relative to
+    // "now" so the sample data always falls inside the chart query windows (e.g. months=3)
+    // no matter when the seeder runs. Hardcoded dates silently aged out of range and left
+    // the Playwright chart tests with an empty series.
+    private static readonly long[] DownloadCounts =
     [
-        (25, 48_000_000), (26, 48_100_000), (27, 48_200_000), (28, 48_350_000),
-        (29, 48_500_000), (30, 48_620_000), (31, 48_750_000),
-        (1,  48_830_000), (2,  48_900_000), (3,  49_050_000), (4,  49_200_000),
-        (5,  49_350_000), (6,  49_480_000), (7,  49_600_000),
+        48_000_000, 48_100_000, 48_200_000, 48_350_000, 48_500_000, 48_620_000, 48_750_000,
+        48_830_000, 48_900_000, 49_050_000, 49_200_000, 49_350_000, 49_480_000, 49_600_000,
     ];
+
+    private static readonly DateOnly SeedEndDate = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-1);
+
+    private static readonly (DateOnly Date, long Count)[] Downloads = DownloadCounts
+        .Select((count, i) => (SeedEndDate.AddDays(i - (DownloadCounts.Length - 1)), count))
+        .ToArray();
+
+    private static readonly DateTime SeedEndDateUtc = SeedEndDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
 
     public static void SeedPostgresIfEmpty(NuGetTrendsContext db)
     {
@@ -28,7 +38,7 @@ public static class DevelopmentDataSeeder
             PackageId = "Sentry",
             PackageIdLowered = "sentry",
             LatestDownloadCount = 49_600_000,
-            LatestDownloadCountCheckedUtc = new DateTime(2026, 2, 7, 0, 0, 0, DateTimeKind.Utc),
+            LatestDownloadCountCheckedUtc = SeedEndDateUtc,
             IconUrl = "https://raw.githubusercontent.com/getsentry/sentry-dotnet/main/assets/sentry-nuget.png"
         });
 
@@ -37,23 +47,23 @@ public static class DevelopmentDataSeeder
             PackageId = "Newtonsoft.Json",
             PackageIdLowered = "newtonsoft.json",
             LatestDownloadCount = 99_200_000,
-            LatestDownloadCountCheckedUtc = new DateTime(2026, 2, 7, 0, 0, 0, DateTimeKind.Utc),
+            LatestDownloadCountCheckedUtc = SeedEndDateUtc,
             IconUrl = "https://www.newtonsoft.com/content/images/nugeticon.png"
         });
 
-        foreach (var (day, count) in Downloads)
+        foreach (var (date, count) in Downloads)
         {
-            var month = day >= 25 ? 1 : 2;
+            var dateUtc = date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
             db.DailyDownloads.Add(new DailyDownload
             {
                 PackageId = "Sentry",
-                Date = new DateTime(2026, month, day, 0, 0, 0, DateTimeKind.Utc),
+                Date = dateUtc,
                 DownloadCount = count
             });
             db.DailyDownloads.Add(new DailyDownload
             {
                 PackageId = "Newtonsoft.Json",
-                Date = new DateTime(2026, month, day, 0, 0, 0, DateTimeKind.Utc),
+                Date = dateUtc,
                 DownloadCount = count * 2
             });
         }
@@ -75,28 +85,20 @@ public static class DevelopmentDataSeeder
             return;
         }
 
-        var rows = Downloads.Select(d =>
-        {
-            var month = d.Day >= 25 ? 1 : 2;
-            return (
-                PackageId: "sentry",
-                Date: new DateOnly(2026, month, d.Day),
-                DownloadCount: d.Count
-            );
-        });
+        var rows = Downloads.Select(d => (
+            PackageId: "sentry",
+            Date: d.Date,
+            DownloadCount: d.Count
+        ));
 
         await clickHouseService.InsertDailyDownloadsAsync(rows);
 
         // Seed a second package (Newtonsoft.Json) for multi-package testing
-        var newtonsoftRows = Downloads.Select(d =>
-        {
-            var month = d.Day >= 25 ? 1 : 2;
-            return (
-                PackageId: "newtonsoft.json",
-                Date: new DateOnly(2026, month, d.Day),
-                DownloadCount: d.Count * 2 // Different scale for visual distinction
-            );
-        });
+        var newtonsoftRows = Downloads.Select(d => (
+            PackageId: "newtonsoft.json",
+            Date: d.Date,
+            DownloadCount: d.Count * 2 // Different scale for visual distinction
+        ));
 
         await clickHouseService.InsertDailyDownloadsAsync(newtonsoftRows);
     }
