@@ -41,18 +41,15 @@ public class IntegrationTestFixture : IAsyncLifetime
 
     public IntegrationTestFixture()
     {
-        _postgresContainer = new PostgreSqlBuilder()
-            .WithImage("postgres:17")
+        _postgresContainer = new PostgreSqlBuilder("postgres:17")
             .Build();
 
-        _rabbitMqContainer = new RabbitMqBuilder()
-            .WithImage("rabbitmq:3.12.0-management")
+        _rabbitMqContainer = new RabbitMqBuilder("rabbitmq:3.12.0-management")
             .WithUsername(RabbitMqUser)
             .WithPassword(RabbitMqPass)
             .Build();
 
-        _clickHouseContainer = new ClickHouseBuilder()
-            .WithImage(ClickHouseImage)
+        _clickHouseContainer = new ClickHouseBuilder(ClickHouseImage)
             .WithUsername(ClickHouseUser)
             .WithPassword(ClickHousePass)
             // ClickHouse 25.11+ requires authentication for HTTP health checks.

@@ -10,6 +10,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- bunit 1.x is compiled against AngleSharp 1.2 and crashes at runtime with the patched AngleSharp >= 1.5
+         (IHtmlCollection indexer became an explicit interface member). The advisory is an mXSS in HTML parsing,
+         which does not apply to a test-only parser of our own rendered markup. Remove once migrated to bunit 2.x. -->
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-pgww-w46g-26qg" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="bunit" />
     <PackageReference Include="FluentAssertions" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />

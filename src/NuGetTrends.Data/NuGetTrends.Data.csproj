@@ -12,6 +12,8 @@
   <ItemGroup>
     <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="ClickHouse.Driver" />
+    <!-- Lifts the transitive OpenTelemetry.Api pulled in by Aspire.Npgsql above the vulnerable 1.14.0 (GHSA-g94r-2vxg-569j) -->
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
