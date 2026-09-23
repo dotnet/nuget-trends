@@ -261,43 +261,15 @@
 
     private ApexChartOptions<TfmChartPoint> BuildChartOptions()
     {
-        var gridColor = ThemeState.IsDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)";
-        var textColor = ThemeState.IsDark ? "#a0a0a0" : "#666666";
+        var isDark = ThemeState.IsDark;
 
         return new ApexChartOptions<TfmChartPoint>
         {
-            Chart = new Chart
-            {
-                Toolbar = new Toolbar { Show = false },
-                Animations = new Animations
-                {
-                    Enabled = true,
-                    Easing = Easing.Easeinout,
-                    Speed = 400,
-                    AnimateGradually = new AnimateGradually { Enabled = false },
-                },
-                Background = "transparent",
-                FontFamily = "inherit",
-                ForeColor = textColor,
-            },
+            Chart = LineChartDefaults.Chart(isDark),
             Legend = new Legend { Show = true, Position = LegendPosition.Top, FontSize = "14px" },
-            Markers = new Markers
-            {
-                Size = 4,
-                Hover = new MarkersHover { SizeOffset = 3 },
-                StrokeWidth = new Size(1),
-                StrokeColors = new Color("#fff"),
-                Shape = MarkerShape.Circle,
-            },
-            Stroke = new Stroke
-            {
-                Curve = Curve.MonotoneCubic,
-                Width = 2,
-            },
-            Grid = new Grid
-            {
-                BorderColor = gridColor,
-            },
+            Markers = LineChartDefaults.Markers(4),
+            Stroke = LineChartDefaults.Stroke(),
+            Grid = LineChartDefaults.Grid(isDark),
             Xaxis = _timeMode == TfmTimeMode.Absolute
                 ? new XAxis
                 {
@@ -310,10 +282,10 @@
                             Month = "MMM yyyy",
                             Year = "yyyy",
                         },
-                        Style = new AxisLabelStyle { Colors = new Color(textColor), FontSize = "13px" },
+                        Style = LineChartDefaults.AxisLabelStyle(isDark),
                     },
-                    AxisBorder = new AxisBorder { Color = gridColor },
-                    AxisTicks = new AxisTicks { Color = gridColor },
+                    AxisBorder = LineChartDefaults.AxisBorder(isDark),
+                    AxisTicks = LineChartDefaults.AxisTicks(isDark),
                 }
                 : new XAxis
                 {
@@ -322,11 +294,11 @@
                     TickAmount = 10,
                     Labels = new XAxisLabels
                     {
-                        Style = new AxisLabelStyle { Colors = new Color(textColor), FontSize = "13px" },
+                        Style = LineChartDefaults.AxisLabelStyle(isDark),
                         Formatter = @"function(val) { return Math.round(val); }",
                     },
-                    AxisBorder = new AxisBorder { Color = gridColor },
-                    AxisTicks = new AxisTicks { Color = gridColor },
+                    AxisBorder = LineChartDefaults.AxisBorder(isDark),
+                    AxisTicks = LineChartDefaults.AxisTicks(isDark),
                 },
             Yaxis = new List<YAxis>
             {
@@ -334,14 +306,14 @@
                 {
                     Labels = new YAxisLabels
                     {
-                        Style = new AxisLabelStyle { Colors = new Color(textColor), FontSize = "13px" },
+                        Style = LineChartDefaults.AxisLabelStyle(isDark),
                         Formatter = "function(val) { return val != null && !isNaN(val) ? val.toLocaleString() : ''; }",
                     },
                 },
             },
             Tooltip = new Tooltip
             {
-                Theme = ThemeState.IsDark ? Mode.Dark : Mode.Light,
+                Theme = isDark ? Mode.Dark : Mode.Light,
                 // Custom tooltip showing all series sorted by value (descending).
                 // Required for Relative mode where all series share identical X values
                 // and ApexCharts' nearest-point detection always picks the first series.

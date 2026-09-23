@@ -86,11 +86,8 @@
 
     private ApexChartOptions<DownloadDataPoint> BuildOptions()
     {
-        var gridColor = IsDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)";
-        var textColor = IsDark ? "#a0a0a0" : "#666666";
-
         // Adapt marker size to the data density
-        var showMarkers = SearchPeriod <= 12;
+        var markerSize = SearchPeriod <= 12 ? 4 : 0;
 
         // Set x-axis min so the axis spans the full requested period,
         // but extend further if the data starts before the period boundary.
@@ -106,39 +103,11 @@
 
         return new ApexChartOptions<DownloadDataPoint>
         {
-            Chart = new Chart
-            {
-                Toolbar = new Toolbar { Show = false },
-                Zoom = new Zoom { Enabled = false },
-                Animations = new Animations
-                {
-                    Enabled = true,
-                    Easing = Easing.Easeinout,
-                    Speed = 400,
-                    AnimateGradually = new AnimateGradually { Enabled = false },
-                },
-                Background = "transparent",
-                FontFamily = "inherit",
-                ForeColor = textColor,
-            },
+            Chart = LineChartDefaults.Chart(IsDark),
             Legend = new Legend { Show = false },
-            Markers = new Markers
-            {
-                Size = showMarkers ? 4 : 0,
-                Hover = new MarkersHover { SizeOffset = showMarkers ? 3 : 5 },
-                StrokeWidth = new Size(showMarkers ? 1 : 0),
-                StrokeColors = new Color("#fff"),
-                Shape = MarkerShape.Circle,
-            },
-            Stroke = new Stroke
-            {
-                Curve = Curve.MonotoneCubic,
-                Width = 2,
-            },
-            Grid = new Grid
-            {
-                BorderColor = gridColor,
-            },
+            Markers = LineChartDefaults.Markers(markerSize),
+            Stroke = LineChartDefaults.Stroke(),
+            Grid = LineChartDefaults.Grid(IsDark),
             Xaxis = new XAxis
             {
                 Type = XAxisType.Datetime,
@@ -151,14 +120,10 @@
                         Month = "MMM yyyy",
                         Year = "yyyy",
                     },
-                    Style = new AxisLabelStyle
-                    {
-                        Colors = new Color(textColor),
-                        FontSize = "13px",
-                    },
+                    Style = LineChartDefaults.AxisLabelStyle(IsDark),
                 },
-                AxisBorder = new AxisBorder { Color = gridColor },
-                AxisTicks = new AxisTicks { Color = gridColor },
+                AxisBorder = LineChartDefaults.AxisBorder(IsDark),
+                AxisTicks = LineChartDefaults.AxisTicks(IsDark),
             },
             Yaxis = new List<YAxis>
             {
@@ -166,11 +131,7 @@
                 {
                     Labels = new YAxisLabels
                     {
-                        Style = new AxisLabelStyle
-                        {
-                            Colors = new Color(textColor),
-                            FontSize = "13px",
-                        },
+                        Style = LineChartDefaults.AxisLabelStyle(IsDark),
                         Formatter = @"function(val) {
                             if (val === null || val === undefined || isNaN(val)) return '';
                             if (val >= 1e9) return (val / 1e9).toFixed(1).replace(/\.0$/, '') + 'B';
