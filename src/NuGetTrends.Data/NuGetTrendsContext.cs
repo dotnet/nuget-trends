@@ -16,7 +16,6 @@ public class NuGetTrendsContext(DbContextOptions<NuGetTrendsContext> options) : 
 {
     public DbSet<PackageDetailsCatalogLeaf> PackageDetailsCatalogLeafs { get; set; } = null!;
     public DbSet<Cursor> Cursors { get; set; } = null!;
-    public DbSet<DailyDownload> DailyDownloads { get; set; } = null!;
     public DbSet<PackageDownload> PackageDownloads { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -31,9 +30,6 @@ public class NuGetTrendsContext(DbContextOptions<NuGetTrendsContext> options) : 
         // as it fails in our custom FixSnakeCaseNames since it expects the object to exist in the db.
         // TODO: Will manually remove the table from the migration - Follow GH issues later to see what's new
         modelBuilder.Entity<DailyDownloadResult>().HasNoKey();
-
-        modelBuilder.Entity<DailyDownload>()
-            .HasKey(k => new { k.PackageId, k.Date });
 
         modelBuilder
             .Entity<Cursor>()
