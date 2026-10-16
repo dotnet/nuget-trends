@@ -86,6 +86,29 @@ public class DailyDownloadWorkerResilienceTests(IntegrationTestFixture fixture)
         }
     }
 
+    [Fact]
+    public async Task Shutdown_MidBatch_RequeuesOnce_WithoutRedeliveringToStoppingConsumer()
+    {
+        var connectionFactory = CreateConnectionFactory();
+        PurgeQueue(connectionFactory);
+        var nuGet = new BlockingNuGetSearchService();
+        var worker = CreateWorker(connectionFactory, nuGet);
+
+        await worker.StartAsync(CancellationToken.None);
+        await WaitForConsumer(connectionFactory);
+        Publish(connectionFactory, "Some.Package");
+        await WaitUntil(() => nuGet.Calls >= 1, "the worker never received the message");
+
+        await worker.StopAsync(CancellationToken.None);
+
+        // The interrupted delivery stays unacked until the connection closes. A nack would free the prefetch slot
+        // and let the broker hand the message back to the stopping consumer (a narrow race before the close).
+        await Task.Delay(TimeSpan.FromMilliseconds(500));
+        nuGet.Calls.Should().Be(1, "the stopping consumer must not receive the message again");
+        GetMessageCount(connectionFactory).Should().Be(1, "the interrupted batch goes back to the queue for the next instance");
+        PurgeQueue(connectionFactory);
+    }
+
     private ConnectionFactory CreateConnectionFactory() => new()
     {
         HostName = fixture.RabbitMqHostname,
@@ -178,6 +201,21 @@ public class DailyDownloadWorkerResilienceTests(IntegrationTestFixture fixture)
         }
 
         throw new TimeoutException(because);
+    }
+
+    /// <summary>Never completes a lookup until cancelled, keeping a batch in flight.</summary>
+    private sealed class BlockingNuGetSearchService : INuGetSearchService
+    {
+        private int _calls;
+
+        public int Calls => Volatile.Read(ref _calls);
+
+        public async Task<IPackageSearchMetadata?> GetPackage(string packageId, CancellationToken token)
+        {
+            Interlocked.Increment(ref _calls);
+            await Task.Delay(System.Threading.Timeout.Infinite, token);
+            return null;
+        }
     }
 
     /// <summary>Fails every lookup, standing in for any failure while processing a batch (e.g. ClickHouse out of disk).</summary>

@@ -270,6 +270,20 @@ public class DailyDownloadWorker : IHostedService
         }
     }
 
+    /// <summary>
+    /// Puts a delivery back on the queue, unless its consumer is stopping. Then it stays unacked: nacking would
+    /// free the consumer's only prefetch slot and the broker would hand the message straight back to the stopping
+    /// consumer, over and over until the connection closes. The connection is always closed right after processing
+    /// is cancelled, and the broker requeues unacked deliveries when it does.
+    /// </summary>
+    private void Requeue(IModel channel, ulong deliveryTag, CancellationToken token)
+    {
+        if (!token.IsCancellationRequested)
+        {
+            Settle(channel, deliveryTag, ack: false, requeue: true);
+        }
+    }
+
     private static async Task DelayBeforeRequeueAsync(CancellationToken token)
     {
         try
@@ -285,6 +299,12 @@ public class DailyDownloadWorker : IHostedService
     private async Task OnConsumerOnReceived(object sender, BasicDeliverEventArgs ea, CancellationToken token)
     {
         const string queueName = QueueName;
+        if (token.IsCancellationRequested)
+        {
+            // Delivered while this consumer is stopping: leave it unacked for the broker to requeue on close.
+            return;
+        }
+
         using var _ = _logger.BeginScope("OnConsumerOnReceived");
 
         // Extract distributed trace context from message headers if present
@@ -418,8 +438,8 @@ public class DailyDownloadWorker : IHostedService
         catch (Exception) when (token.IsCancellationRequested)
         {
             // Stopping, or the consumer was lost, mid-batch (cancellation may surface wrapped, e.g. by Npgsql or
-            // HttpClient): put the message back for the next consumer. Not an error.
-            Settle(consumer.Model, ea.DeliveryTag, ack: false, requeue: true);
+            // HttpClient). Not an error: the message goes back to the queue when the connection closes.
+            Requeue(consumer.Model, ea.DeliveryTag, token);
             queueProcessSpan.Finish(SpanStatus.Cancelled);
             transaction.Finish(SpanStatus.Cancelled);
         }
@@ -429,7 +449,7 @@ public class DailyDownloadWorker : IHostedService
             // Don't report to Sentry as this is expected during outages
             _logger.LogWarning(e, "NuGet unavailable, requeueing batch of {Count} packages.", packageIds?.Count ?? 0);
             await DelayBeforeRequeueAsync(token);
-            Settle(consumer.Model, ea.DeliveryTag, ack: false, requeue: true);
+            Requeue(consumer.Model, ea.DeliveryTag, token);
             SentrySdk.Experimental.Metrics.EmitCounter<int>("worker.messages_requeued", 1,
                 [new("queue", queueName), new("reason", "nuget_unavailable")]);
             queueProcessSpan.Finish(SpanStatus.Unavailable);
@@ -441,7 +461,7 @@ public class DailyDownloadWorker : IHostedService
             // NACK the message so it gets redelivered later
             _logger.LogWarning(ae, "NuGet unavailable (multiple failures), requeueing batch of {Count} packages.", packageIds?.Count ?? 0);
             await DelayBeforeRequeueAsync(token);
-            Settle(consumer.Model, ea.DeliveryTag, ack: false, requeue: true);
+            Requeue(consumer.Model, ea.DeliveryTag, token);
             SentrySdk.Experimental.Metrics.EmitCounter<int>("worker.messages_requeued", 1,
                 [new("queue", queueName), new("reason", "nuget_unavailable")]);
             queueProcessSpan.Finish(SpanStatus.Unavailable);
