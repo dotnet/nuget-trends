@@ -39,6 +39,21 @@ public class ClickHouseServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task GetPackageIdsWithDailyDownloadsAsync_ReturnsOnlyIdsInsertedForThatDate()
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        await _sut.InsertDailyDownloadsAsync(
+        [
+            ("Sentry", today, 1000),
+            ("Moq", today.AddDays(-1), 500),
+        ]);
+
+        var result = await _sut.GetPackageIdsWithDailyDownloadsAsync(["Sentry", "Moq", "Newtonsoft.Json"], today);
+
+        result.Should().BeEquivalentTo(["sentry"]);
+    }
+
+    [Fact]
     public async Task InsertDailyDownloadsAsync_InsertsData_Successfully()
     {
         // Arrange

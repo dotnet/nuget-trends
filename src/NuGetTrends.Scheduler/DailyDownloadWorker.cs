@@ -23,6 +23,9 @@ public class DailyDownloadWorker : IHostedService
     // With prefetch 1 a requeued message comes straight back: wait so it isn't spun through the broker during an outage.
     private static readonly TimeSpan NuGetUnavailableRequeueDelay = TimeSpan.FromSeconds(30);
 
+    // How long a cancelled delivery gets to wind down before its consumer reconnects or the service stops.
+    private static readonly TimeSpan InFlightDeliveryTimeout = TimeSpan.FromSeconds(30);
+
     private readonly DailyDownloadWorkerOptions _options;
     private readonly IConnectionFactory _connectionFactory;
     private readonly IServiceProvider _services;
@@ -92,6 +95,9 @@ public class DailyDownloadWorker : IHostedService
         {
             // Completed from the RabbitMQ client's threads, so continuations must not run inline there.
             var consumerLost = new TaskCompletionSource<ShutdownEventArgs>(TaskCreationOptions.RunContinuationsAsynchronously);
+            // Cancels the delivery being processed when this consumer is lost or the service stops.
+            using var processing = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+            var inFlight = new InFlightDelivery();
             IConnection? connection = null;
             try
             {
@@ -101,7 +107,7 @@ public class DailyDownloadWorker : IHostedService
                 try
                 {
                     connection = _connectionFactory.CreateConnection($"daily-download-worker-{workerIndex}");
-                    Consume(connection, consumerLost);
+                    Consume(connection, consumerLost, inFlight, processing.Token);
                     connectSpan.Finish(SpanStatus.Ok);
                     startSpan.Finish(SpanStatus.Ok);
                 }
@@ -128,6 +134,8 @@ public class DailyDownloadWorker : IHostedService
                     reason = await consumerLost.Task;
                 }
 
+                // The broker requeues the unacked delivery for another consumer: stop working on it here.
+                processing.Cancel();
                 _logger.LogError(new RabbitMqConsumerLostException(QueueName, reason),
                     "Consumer {WorkerIndex} on queue '{QueueName}' was lost. Reconnecting.", workerIndex, QueueName);
                 await Task.Delay(ReconnectDelay, stoppingToken);
@@ -144,12 +152,32 @@ public class DailyDownloadWorker : IHostedService
             }
             finally
             {
+                // Let the delivery being processed wind down before closing and reconnecting, so it never runs
+                // alongside its own redelivery (that would insert into ClickHouse twice).
+                processing.Cancel();
+                await inFlight.WaitAsync(InFlightDeliveryTimeout);
                 CloseConnection(connection);
             }
         }
     }
 
-    private void Consume(IConnection connection, TaskCompletionSource<ShutdownEventArgs> consumerLost)
+    /// <summary>
+    /// The delivery a consumer is processing. With prefetch 1 there is at most one at a time.
+    /// </summary>
+    private sealed class InFlightDelivery
+    {
+        private Task _current = Task.CompletedTask;
+
+        public void Set(Task task) => Volatile.Write(ref _current, task);
+
+        public Task WaitAsync(TimeSpan timeout) => Task.WhenAny(Volatile.Read(ref _current), Task.Delay(timeout));
+    }
+
+    private void Consume(
+        IConnection connection,
+        TaskCompletionSource<ShutdownEventArgs> consumerLost,
+        InFlightDelivery inFlight,
+        CancellationToken processingToken)
     {
         var channel = connection.CreateModel();
 
@@ -175,7 +203,12 @@ public class DailyDownloadWorker : IHostedService
 
         var consumer = new AsyncEventingBasicConsumer(channel);
 
-        consumer.Received += OnConsumerOnReceived;
+        consumer.Received += (sender, ea) =>
+        {
+            var delivery = OnConsumerOnReceived(sender, ea, processingToken);
+            inFlight.Set(delivery);
+            return delivery;
+        };
         // The broker can cancel a consumer without closing its channel, e.g. when the queue is deleted.
         consumer.ConsumerCancelled += (_, _) =>
         {
@@ -237,11 +270,11 @@ public class DailyDownloadWorker : IHostedService
         }
     }
 
-    private async Task DelayBeforeRequeueAsync()
+    private static async Task DelayBeforeRequeueAsync(CancellationToken token)
     {
         try
         {
-            await Task.Delay(NuGetUnavailableRequeueDelay, _cancellationTokenSource.Token);
+            await Task.Delay(NuGetUnavailableRequeueDelay, token);
         }
         catch (OperationCanceledException)
         {
@@ -249,7 +282,7 @@ public class DailyDownloadWorker : IHostedService
         }
     }
 
-    private async Task OnConsumerOnReceived(object sender, BasicDeliverEventArgs ea)
+    private async Task OnConsumerOnReceived(object sender, BasicDeliverEventArgs ea, CancellationToken token)
     {
         const string queueName = QueueName;
         using var _ = _logger.BeginScope("OnConsumerOnReceived");
@@ -363,7 +396,7 @@ public class DailyDownloadWorker : IHostedService
             updateCountSpan.SetTag("packageIds", packageIds.Count.ToString());
             try
             {
-                await UpdateDownloadCount(packageIds, updateCountSpan);
+                await UpdateDownloadCount(packageIds, ea.Redelivered, updateCountSpan, token);
                 updateCountSpan.Finish(SpanStatus.Ok);
             }
             catch (Exception e)
@@ -382,10 +415,10 @@ public class DailyDownloadWorker : IHostedService
             queueProcessSpan.Finish(SpanStatus.Ok);
             transaction.Finish(SpanStatus.Ok);
         }
-        catch (Exception) when (_cancellationTokenSource.IsCancellationRequested)
+        catch (Exception) when (token.IsCancellationRequested)
         {
-            // Shutting down mid-batch (cancellation may surface wrapped, e.g. by Npgsql or HttpClient):
-            // put the message back for the next instance. Not an error.
+            // Stopping, or the consumer was lost, mid-batch (cancellation may surface wrapped, e.g. by Npgsql or
+            // HttpClient): put the message back for the next consumer. Not an error.
             Settle(consumer.Model, ea.DeliveryTag, ack: false, requeue: true);
             queueProcessSpan.Finish(SpanStatus.Cancelled);
             transaction.Finish(SpanStatus.Cancelled);
@@ -395,7 +428,7 @@ public class DailyDownloadWorker : IHostedService
             // NuGet is unavailable - NACK the message so it gets redelivered later
             // Don't report to Sentry as this is expected during outages
             _logger.LogWarning(e, "NuGet unavailable, requeueing batch of {Count} packages.", packageIds?.Count ?? 0);
-            await DelayBeforeRequeueAsync();
+            await DelayBeforeRequeueAsync(token);
             Settle(consumer.Model, ea.DeliveryTag, ack: false, requeue: true);
             SentrySdk.Experimental.Metrics.EmitCounter<int>("worker.messages_requeued", 1,
                 [new("queue", queueName), new("reason", "nuget_unavailable")]);
@@ -407,7 +440,7 @@ public class DailyDownloadWorker : IHostedService
             // Multiple GetPackage calls failed due to NuGet unavailability (Task.WhenAll wraps in AggregateException)
             // NACK the message so it gets redelivered later
             _logger.LogWarning(ae, "NuGet unavailable (multiple failures), requeueing batch of {Count} packages.", packageIds?.Count ?? 0);
-            await DelayBeforeRequeueAsync();
+            await DelayBeforeRequeueAsync(token);
             Settle(consumer.Model, ea.DeliveryTag, ack: false, requeue: true);
             SentrySdk.Experimental.Metrics.EmitCounter<int>("worker.messages_requeued", 1,
                 [new("queue", queueName), new("reason", "nuget_unavailable")]);
@@ -434,7 +467,7 @@ public class DailyDownloadWorker : IHostedService
         }
     }
 
-    private async Task UpdateDownloadCount(IList<string> packageIds, ISpan parentSpan)
+    private async Task UpdateDownloadCount(IList<string> packageIds, bool redelivered, ISpan parentSpan, CancellationToken token)
     {
         // Fail-fast if NuGet is known to be unavailable - no point starting a batch of requests
         if (!_availabilityState.IsAvailable)
@@ -447,7 +480,7 @@ public class DailyDownloadWorker : IHostedService
         var tasks = new List<Task<IPackageSearchMetadata?>>(packageIds.Count);
         foreach (var id in packageIds)
         {
-            tasks.Add(_nuGetSearchService.GetPackage(id, _cancellationTokenSource.Token));
+            tasks.Add(_nuGetSearchService.GetPackage(id, token));
         }
         packageInfoQueue.Finish(SpanStatus.Ok);
         var waitSpan = parentSpan.StartChild("package.info.wait", "Await for all tasks");
@@ -512,12 +545,22 @@ public class DailyDownloadWorker : IHostedService
         using var scope = _services.CreateScope();
         await using var context = scope.ServiceProvider.GetRequiredService<NuGetTrendsContext>();
 
+        // A redelivered batch may already be partly in ClickHouse: the previous attempt can be interrupted after the
+        // insert (deploy, lost consumer). Inserting again would double-count weekly_downloads, which can't deduplicate.
+        if (redelivered && clickHouseDownloads.Count > 0)
+        {
+            var alreadyInserted = await _clickHouseService.GetPackageIdsWithDailyDownloadsAsync(
+                clickHouseDownloads.Select(d => d.PackageId).ToList(), today, token, parentSpan);
+            var skipped = clickHouseDownloads.RemoveAll(d => alreadyInserted.Contains(d.PackageId.ToLowerInvariant()));
+            parentSpan.SetData("redelivery_skipped_inserts", skipped);
+        }
+
         // Batch insert to ClickHouse (span created inside ClickHouseService for Sentry Queries module)
         if (clickHouseDownloads.Count > 0)
         {
             await _clickHouseService.InsertDailyDownloadsAsync(
                 clickHouseDownloads,
-                _cancellationTokenSource.Token,
+                token,
                 parentSpan);
         }
 
@@ -528,7 +571,7 @@ public class DailyDownloadWorker : IHostedService
             pgUpsertSpan.SetTag("count", postgresUpserts.Count.ToString());
             try
             {
-                var rowsAffected = await context.UpsertPackageDownloadsAsync(postgresUpserts, _cancellationTokenSource.Token);
+                var rowsAffected = await context.UpsertPackageDownloadsAsync(postgresUpserts, token);
                 pgUpsertSpan.SetData("db.rows_affected", rowsAffected);
                 pgUpsertSpan.Finish(SpanStatus.Ok);
             }
@@ -550,19 +593,19 @@ public class DailyDownloadWorker : IHostedService
             deleteSpan.SetTag("count", deletedPackageIds.Count.ToString());
             try
             {
-                await using var transaction = await context.Database.BeginTransactionAsync(_cancellationTokenSource.Token);
+                await using var transaction = await context.Database.BeginTransactionAsync(token);
 
                 var deletedCatalogCount = await context.PackageDetailsCatalogLeafs
                     .Where(p => loweredIds.Contains(p.PackageIdLowered))
-                    .ExecuteDeleteAsync(_cancellationTokenSource.Token);
+                    .ExecuteDeleteAsync(token);
 
                 // Also remove stale package_downloads records so the publisher
                 // doesn't keep re-queuing packages that no longer exist.
                 var deletedDownloadsCount = await context.PackageDownloads
                     .Where(p => loweredIds.Contains(p.PackageIdLowered))
-                    .ExecuteDeleteAsync(_cancellationTokenSource.Token);
+                    .ExecuteDeleteAsync(token);
 
-                await transaction.CommitAsync(_cancellationTokenSource.Token);
+                await transaction.CommitAsync(token);
 
                 deleteSpan.SetData("db.catalog_rows_affected", deletedCatalogCount);
                 deleteSpan.SetData("db.downloads_rows_affected", deletedDownloadsCount);
