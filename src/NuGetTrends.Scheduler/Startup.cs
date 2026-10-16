@@ -73,7 +73,9 @@ public class Startup(
                     Uri = new Uri(connectionString),
                     // For some reason you have to opt-in to have async code:
                     // If you don't set this, subscribing to Received with AsyncEventingBasicConsumer will silently fail.
-                    DispatchConsumersAsync = true
+                    DispatchConsumersAsync = true,
+                    // DailyDownloadWorker reconnects itself (automatic recovery misses channels the broker closes).
+                    AutomaticRecoveryEnabled = false
                 };
                 return factory;
             }
@@ -86,7 +88,8 @@ public class Startup(
                 Port = options.Port,
                 Password = options.Password,
                 UserName = options.Username,
-                DispatchConsumersAsync = true
+                DispatchConsumersAsync = true,
+                AutomaticRecoveryEnabled = false
             };
         });
 

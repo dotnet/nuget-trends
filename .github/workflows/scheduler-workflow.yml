@@ -12,6 +12,7 @@ on:
       - 'src/NuGetTrends.Scheduler/**'
       - 'src/NuGetTrends.Data/**'
       - 'src/NuGetTrends.Data.Tests/**'
+      - 'src/NuGetTrends.Scheduler.Tests/**'
       - 'src/NuGet.Protocol.Catalog/**'
       - 'src/Directory.Build.props'
       - '**/scheduler-workflow.yml'
@@ -20,6 +21,7 @@ on:
       - 'src/NuGetTrends.Scheduler/**'
       - 'src/NuGetTrends.Data/**'
       - 'src/NuGetTrends.Data.Tests/**'
+      - 'src/NuGetTrends.Scheduler.Tests/**'
       - 'src/NuGet.Protocol.Catalog/**'
       - 'src/Directory.Build.props'
       - '**/scheduler-workflow.yml'
@@ -44,6 +46,10 @@ jobs:
       - name: Test
         run: dotnet test -c Release -p:SentryUploadSymbols=false
         working-directory: src/NuGetTrends.Data.Tests/
+
+      - name: Test Scheduler
+        run: dotnet test -c Release -p:SentryUploadSymbols=false
+        working-directory: src/NuGetTrends.Scheduler.Tests/
 
       - name: Compute image tags
         id: tags

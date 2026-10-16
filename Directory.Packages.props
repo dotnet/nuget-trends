@@ -15,6 +15,9 @@
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
     <PackageVersion Include="NuGet.Client" Version="4.3.0-beta1-2418" />
     <PackageVersion Include="NuGet.Protocol" Version="7.0.3" />
+    <!-- Transitive pin: NuGet.Packaging 7.0.3 brings 9.0.6 (GHSA-846f-f764-76mx, GHSA-2fmv-rv2c-59x7).
+         Drop once NuGet.Protocol depends on a patched version. -->
+    <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
     <PackageVersion Include="ClickHouse.Driver" Version="0.9.0" />
     <PackageVersion Include="RabbitMQ.Client" Version="6.8.1" />
     <PackageVersion Include="Sentry" Version="$(SentryVersion)" />
@@ -28,8 +31,8 @@
     <PackageVersion Include="Serilog.Sinks.Console" Version="5.0.1" />
     <PackageVersion Include="Swashbuckle.AspNetCore" Version="6.5.0" />
     <!-- Blazor packages -->
-    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.0" />
-    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.13" />
     <PackageVersion Include="Blazor-ApexCharts" Version="6.1.0" />
     <PackageVersion Include="Blazored.Toast" Version="4.2.1" />
     <PackageVersion Include="bunit" Version="1.37.7" />

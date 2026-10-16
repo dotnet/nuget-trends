@@ -14,6 +14,8 @@
     <PackageReference Include="NuGet.Protocol" />
     <PackageReference Include="Newtonsoft.Json" />
     <PackageReference Include="Sentry" />
+    <!-- Pins the vulnerable transitive dependency of NuGet.Protocol; see Directory.Packages.props -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" />
   </ItemGroup>
 
 </Project>

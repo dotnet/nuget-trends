@@ -145,4 +145,20 @@ public interface IClickHouseService
     Task<List<TfmFamilyGroup>> GetAvailableTfmsAsync(
         CancellationToken ct = default,
         ISpan? parentSpan = null);
+
+    /// <summary>
+    /// Returns which of the given package IDs (lowercased) already have a daily_downloads row for <paramref name="date"/>.
+    /// </summary>
+    Task<HashSet<string>> GetPackageIdsWithDailyDownloadsAsync(
+        IReadOnlyCollection<string> packageIds,
+        DateOnly date,
+        CancellationToken ct = default,
+        ISpan? parentSpan = null);
+
+    /// <summary>
+    /// Gets free and total space of the default ClickHouse disk, which holds all tables.
+    /// </summary>
+    Task<ClickHouseDiskUsage> GetDiskUsageAsync(
+        CancellationToken ct = default,
+        ISpan? parentSpan = null);
 }

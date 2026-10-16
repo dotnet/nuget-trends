@@ -28,6 +28,32 @@ public class ClickHouseServiceTests : IAsyncLifetime
     public Task DisposeAsync() => Task.CompletedTask;
 
     [Fact]
+    public async Task GetDiskUsageAsync_ReturnsDefaultDisk()
+    {
+        var usage = await _sut.GetDiskUsageAsync();
+
+        usage.Name.Should().Be("default");
+        usage.TotalBytes.Should().BeGreaterThan(0);
+        usage.FreeBytes.Should().BeLessThanOrEqualTo(usage.TotalBytes);
+        usage.FreeRatio.Should().BeInRange(0, 1);
+    }
+
+    [Fact]
+    public async Task GetPackageIdsWithDailyDownloadsAsync_ReturnsOnlyIdsInsertedForThatDate()
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        await _sut.InsertDailyDownloadsAsync(
+        [
+            ("Sentry", today, 1000),
+            ("Moq", today.AddDays(-1), 500),
+        ]);
+
+        var result = await _sut.GetPackageIdsWithDailyDownloadsAsync(["Sentry", "Moq", "Newtonsoft.Json"], today);
+
+        result.Should().BeEquivalentTo(["sentry"]);
+    }
+
+    [Fact]
     public async Task InsertDailyDownloadsAsync_InsertsData_Successfully()
     {
         // Arrange

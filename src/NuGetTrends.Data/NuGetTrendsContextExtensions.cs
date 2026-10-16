@@ -46,6 +46,22 @@ public static class NuGetTrendsContextExtensions
     }
 
     /// <summary>
+    /// Counts known packages whose download count hasn't been checked since <paramref name="todayUtc"/>.
+    /// Used to verify the daily download run finished. Packages added to the catalog today are excluded:
+    /// the hourly catalog importer keeps adding them after the nightly run is published.
+    /// </summary>
+    /// <param name="context">DbContext to query.</param>
+    /// <param name="todayUtc">Today's date in UTC (typically DateTime.UtcNow.Date).</param>
+    /// <param name="ct">Cancellation token.</param>
+    public static async Task<(int Unchecked, int Total)> GetDailyDownloadProgressAsync(
+        this NuGetTrendsContext context, DateTime todayUtc, CancellationToken ct = default)
+    {
+        var total = await context.PackageDownloads.CountAsync(ct);
+        var uncheckedCount = await context.PackageDownloads.CountAsync(pd => pd.LatestDownloadCountCheckedUtc < todayUtc, ct);
+        return (uncheckedCount, total);
+    }
+
+    /// <summary>
     /// Get daily download number grouped by week for the packageId
     /// </summary>
     /// <param name="context">DbContext to query.</param>

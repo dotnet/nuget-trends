@@ -846,6 +846,98 @@ public class ClickHouseService : IClickHouseService
         }
     }
 
+    public async Task<HashSet<string>> GetPackageIdsWithDailyDownloadsAsync(
+        IReadOnlyCollection<string> packageIds,
+        DateOnly date,
+        CancellationToken ct = default,
+        ISpan? parentSpan = null)
+    {
+        var result = new HashSet<string>(StringComparer.Ordinal);
+        if (packageIds.Count == 0)
+        {
+            return result;
+        }
+
+        const string query = """
+            SELECT DISTINCT package_id
+            FROM daily_downloads
+            WHERE date = {date:Date} AND package_id IN {packageIds:Array(String)}
+            """;
+
+        var span = StartDatabaseSpan(parentSpan, query, "SELECT");
+
+        try
+        {
+            await using var connection = new ClickHouseConnection(_connectionString);
+            await connection.OpenAsync(ct);
+
+            await using var cmd = connection.CreateCommand();
+            cmd.CommandText = query;
+
+            var dateParam = cmd.CreateParameter();
+            dateParam.ParameterName = "date";
+            dateParam.Value = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            cmd.Parameters.Add(dateParam);
+
+            var idsParam = cmd.CreateParameter();
+            idsParam.ParameterName = "packageIds";
+            idsParam.Value = packageIds.Select(id => id.ToLower(CultureInfo.InvariantCulture)).ToArray();
+            cmd.Parameters.Add(idsParam);
+
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+            {
+                result.Add(reader.GetString(0));
+            }
+
+            span?.SetData("db.rows_affected", result.Count);
+            span?.Finish(SpanStatus.Ok);
+            return result;
+        }
+        catch (Exception ex)
+        {
+            span?.Finish(ex);
+            throw;
+        }
+    }
+
+    public async Task<ClickHouseDiskUsage> GetDiskUsageAsync(
+        CancellationToken ct = default,
+        ISpan? parentSpan = null)
+    {
+        const string query = "SELECT name, free_space, total_space FROM system.disks WHERE name = 'default'";
+
+        var span = StartDatabaseSpan(parentSpan, query, "SELECT");
+
+        try
+        {
+            await using var connection = new ClickHouseConnection(_connectionString);
+            await connection.OpenAsync(ct);
+
+            await using var cmd = connection.CreateCommand();
+            cmd.CommandText = query;
+
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            if (!await reader.ReadAsync(ct))
+            {
+                throw new InvalidOperationException("ClickHouse reported no 'default' disk in system.disks.");
+            }
+
+            var usage = new ClickHouseDiskUsage(
+                reader.GetString(0),
+                Convert.ToUInt64(reader.GetValue(1)),
+                Convert.ToUInt64(reader.GetValue(2)));
+
+            span?.Finish(SpanStatus.Ok);
+            return usage;
+        }
+        catch (Exception ex)
+        {
+            span?.Finish(ex);
+            throw;
+        }
+    }
+
     /// <summary>
     /// Starts a database span following Sentry's Queries module conventions.
     /// Includes query source attributes for the Sentry Queries module.
