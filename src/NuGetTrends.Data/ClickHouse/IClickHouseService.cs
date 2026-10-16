@@ -145,4 +145,11 @@ public interface IClickHouseService
     Task<List<TfmFamilyGroup>> GetAvailableTfmsAsync(
         CancellationToken ct = default,
         ISpan? parentSpan = null);
+
+    /// <summary>
+    /// Gets free and total space of the default ClickHouse disk, which holds all tables.
+    /// </summary>
+    Task<ClickHouseDiskUsage> GetDiskUsageAsync(
+        CancellationToken ct = default,
+        ISpan? parentSpan = null);
 }

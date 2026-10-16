@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using MessagePack;
 using Microsoft.EntityFrameworkCore;
@@ -8,6 +7,7 @@ using NuGetTrends.Data;
 using NuGetTrends.Data.ClickHouse;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using RabbitMQ.Client.Exceptions;
 using Sentry;
 
 namespace NuGetTrends.Scheduler;
@@ -15,6 +15,14 @@ namespace NuGetTrends.Scheduler;
 // ReSharper disable once ClassNeverInstantiated.Global - DI
 public class DailyDownloadWorker : IHostedService
 {
+    internal const string QueueName = "daily-download";
+
+    // Pause before reconnecting after the broker drops a consumer, so a broker that keeps cancelling doesn't spin the loop.
+    private static readonly TimeSpan ReconnectDelay = TimeSpan.FromSeconds(5);
+
+    // With prefetch 1 a requeued message comes straight back: wait so it isn't spun through the broker during an outage.
+    private static readonly TimeSpan NuGetUnavailableRequeueDelay = TimeSpan.FromSeconds(30);
+
     private readonly DailyDownloadWorkerOptions _options;
     private readonly IConnectionFactory _connectionFactory;
     private readonly IServiceProvider _services;
@@ -23,7 +31,6 @@ public class DailyDownloadWorker : IHostedService
     private readonly NuGetAvailabilityState _availabilityState;
     private readonly ILogger<DailyDownloadWorker> _logger;
     private readonly CancellationTokenSource _cancellationTokenSource = new();
-    private readonly ConcurrentBag<(IModel, IConnection)> _connections = new();
 
     private readonly List<Task> _workers;
 
@@ -56,50 +63,8 @@ public class DailyDownloadWorker : IHostedService
         {
             for (var i = 0; i < _options.WorkerCount; i++)
             {
-                _workers.Add(Task.Run(async () =>
-                {
-                    using var _ = SentrySdk.PushScope();
-                    var startSpan = SentrySdk.StartTransaction("worker.start", "worker.start", traceHeader);
-                    SentrySdk.ConfigureScope(s =>
-                    {
-                        s.Transaction = startSpan;
-                        s.SetTag("worker_thread_id", Thread.CurrentThread.ManagedThreadId.ToString());
-                    });
-
-                    try
-                    {
-                        var attempt = 0;
-                        while (true)
-                        {
-                            attempt++;
-                            var connectSpan =
-                                startSpan.StartChild("rabbit.mq.connect", "Connecting to RabbitMQ");
-                            try
-                            {
-                                Connect();
-                                connectSpan.Finish(SpanStatus.Ok);
-                                break;
-                            }
-                            catch (Exception e)
-                            {
-                                connectSpan.Finish(e);
-                                SentrySdk.CaptureException(e);
-
-                                var waitMs = attempt >= 6 ? 60_000 : attempt * 10_000;
-                                _logger.LogError(e,
-                                    "Failed to connect to the broker. Waiting for '{waitMs}' milliseconds. Attempt '{attempts}'.",
-                                    waitMs, attempt);
-                                await Task.Delay(waitMs, _cancellationTokenSource.Token);
-                            }
-                        }
-                        startSpan.Finish(SpanStatus.Ok);
-                    }
-                    catch (Exception e)
-                    {
-                        startSpan.Finish(e);
-                        throw;
-                    }
-                }, _cancellationTokenSource.Token));
+                var workerIndex = i;
+                _workers.Add(Task.Run(() => RunWorkerAsync(workerIndex, traceHeader, _cancellationTokenSource.Token)));
             }
 
             startWorkerTransaction.Finish();
@@ -111,15 +76,95 @@ public class DailyDownloadWorker : IHostedService
         return Task.CompletedTask;
     }
 
-    private void Connect()
+    /// <summary>
+    /// Keeps one consumer connected until the service stops. RabbitMQ.Client doesn't recover a channel the broker
+    /// closes (e.g. after consumer_timeout) or a consumer it cancels (e.g. queue deleted), and the process stays
+    /// healthy without consumers. So every loss is reported as an error and the consumer reconnects.
+    /// </summary>
+    private async Task RunWorkerAsync(int workerIndex, SentryTraceHeader traceHeader, CancellationToken stoppingToken)
     {
-        var connection = _connectionFactory.CreateConnection();
-        var channel = connection.CreateModel();
-        _connections.Add((channel, connection));
+        using var _ = SentrySdk.PushScope();
+        SentrySdk.ConfigureScope(s => s.SetTag("worker_index", workerIndex.ToString()));
 
-        const string queueName = "daily-download";
+        var failedAttempts = 0;
+        var connectedBefore = false;
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            // Completed from the RabbitMQ client's threads, so continuations must not run inline there.
+            var consumerLost = new TaskCompletionSource<ShutdownEventArgs>(TaskCreationOptions.RunContinuationsAsynchronously);
+            IConnection? connection = null;
+            try
+            {
+                var startSpan = SentrySdk.StartTransaction(connectedBefore ? "worker.reconnect" : "worker.start", "worker.start", traceHeader);
+                SentrySdk.ConfigureScope(s => s.Transaction = startSpan);
+                var connectSpan = startSpan.StartChild("rabbit.mq.connect", "Connecting to RabbitMQ");
+                try
+                {
+                    connection = _connectionFactory.CreateConnection($"daily-download-worker-{workerIndex}");
+                    Consume(connection, consumerLost);
+                    connectSpan.Finish(SpanStatus.Ok);
+                    startSpan.Finish(SpanStatus.Ok);
+                }
+                catch (Exception e) when (!stoppingToken.IsCancellationRequested)
+                {
+                    connectSpan.Finish(e);
+                    startSpan.Finish(e);
+
+                    failedAttempts++;
+                    var waitMs = failedAttempts >= 6 ? 60_000 : failedAttempts * 10_000;
+                    _logger.LogError(e,
+                        "Failed to connect to the broker. Waiting for '{waitMs}' milliseconds. Attempt '{attempts}'.",
+                        waitMs, failedAttempts);
+                    await Task.Delay(waitMs, stoppingToken);
+                    continue;
+                }
+
+                failedAttempts = 0;
+                connectedBefore = true;
+
+                ShutdownEventArgs reason;
+                await using (stoppingToken.Register(() => consumerLost.TrySetCanceled(stoppingToken)))
+                {
+                    reason = await consumerLost.Task;
+                }
+
+                _logger.LogError(new RabbitMqConsumerLostException(QueueName, reason),
+                    "Consumer {WorkerIndex} on queue '{QueueName}' was lost. Reconnecting.", workerIndex, QueueName);
+                await Task.Delay(ReconnectDelay, stoppingToken);
+            }
+            catch (Exception) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception e)
+            {
+                // Unexpected: keep the worker alive rather than silently leaving the queue with one consumer fewer.
+                _logger.LogError(e, "Worker {WorkerIndex} failed unexpectedly. Reconnecting.", workerIndex);
+                await Task.Delay(ReconnectDelay, CancellationToken.None);
+            }
+            finally
+            {
+                CloseConnection(connection);
+            }
+        }
+    }
+
+    private void Consume(IConnection connection, TaskCompletionSource<ShutdownEventArgs> consumerLost)
+    {
+        var channel = connection.CreateModel();
+
+        // Raised on the client's reader thread: only signal the worker loop from here.
+        channel.ModelShutdown += (_, args) => consumerLost.TrySetResult(args);
+        // Exceptions escaping the Received handler are otherwise swallowed by the client.
+        channel.CallbackException += (_, args) =>
+            _logger.LogError(args.Exception, "Unhandled exception in a RabbitMQ consumer callback.");
+
+        // One unacked message per consumer: deliveries waiting in a client-side buffer count towards the
+        // broker's consumer_timeout (30 minutes), after which it closes the channel.
+        channel.BasicQos(prefetchSize: 0, prefetchCount: 1, global: false);
+
         var queueDeclareOk = channel.QueueDeclare(
-            queue: queueName,
+            queue: QueueName,
             durable: true,
             exclusive: false,
             autoDelete: false,
@@ -131,25 +176,82 @@ public class DailyDownloadWorker : IHostedService
         var consumer = new AsyncEventingBasicConsumer(channel);
 
         consumer.Received += OnConsumerOnReceived;
-
-        channel.BasicConsume(
-            queue: queueName,
-            autoAck: false,
-            consumer: consumer);
-
-        var defaultConsumer = new EventingBasicConsumer(channel);
-
-        defaultConsumer.Received += (s, e) =>
+        // The broker can cancel a consumer without closing its channel, e.g. when the queue is deleted.
+        consumer.ConsumerCancelled += (_, _) =>
         {
-            _logger.LogWarning("DefaultConsumer fired message '{message}'.", Convert.ToBase64String(e.Body.ToArray()));
+            consumerLost.TrySetResult(channel.CloseReason
+                ?? new ShutdownEventArgs(ShutdownInitiator.Peer, 0, "Consumer cancelled by the broker"));
+            return Task.CompletedTask;
         };
 
-        channel.DefaultConsumer = defaultConsumer;
+        channel.BasicConsume(
+            queue: QueueName,
+            autoAck: false,
+            consumer: consumer);
+    }
+
+    private void CloseConnection(IConnection? connection)
+    {
+        if (connection == null)
+        {
+            return;
+        }
+
+        try
+        {
+            // "Disposing channel and connection objects is not enough, they must be explicitly closed with the API methods..."
+            // https://www.rabbitmq.com/dotnet-api-guide.html
+            // Closing the connection also closes its channel, unless the broker already did.
+            if (connection.IsOpen)
+            {
+                connection.Close(TimeSpan.FromSeconds(5));
+            }
+            connection.Dispose();
+        }
+        catch (Exception e)
+        {
+            _logger.LogWarning(e, "Failed to close the RabbitMQ connection.");
+        }
+    }
+
+    /// <summary>
+    /// Acks or nacks a delivery. The channel may have been closed while the batch was processed, in which case
+    /// the broker already requeued the message.
+    /// </summary>
+    private void Settle(IModel channel, ulong deliveryTag, bool ack, bool requeue = false)
+    {
+        try
+        {
+            if (ack)
+            {
+                channel.BasicAck(deliveryTag, multiple: false);
+            }
+            else
+            {
+                channel.BasicNack(deliveryTag, multiple: false, requeue: requeue);
+            }
+        }
+        catch (AlreadyClosedException e)
+        {
+            _logger.LogWarning(e, "Channel closed before delivery {DeliveryTag} could be settled; the broker requeues it.", deliveryTag);
+        }
+    }
+
+    private async Task DelayBeforeRequeueAsync()
+    {
+        try
+        {
+            await Task.Delay(NuGetUnavailableRequeueDelay, _cancellationTokenSource.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            // Stopping: requeue right away.
+        }
     }
 
     private async Task OnConsumerOnReceived(object sender, BasicDeliverEventArgs ea)
     {
-        const string queueName = "daily-download";
+        const string queueName = QueueName;
         using var _ = _logger.BeginScope("OnConsumerOnReceived");
 
         // Extract distributed trace context from message headers if present
@@ -270,7 +372,7 @@ public class DailyDownloadWorker : IHostedService
                 throw;
             }
 
-            consumer.Model.BasicAck(ea.DeliveryTag, false);
+            Settle(consumer.Model, ea.DeliveryTag, ack: true);
 
             SentrySdk.Experimental.Metrics.EmitCounter<int>("worker.messages_processed", 1,
                 [new("queue", queueName)]);
@@ -280,12 +382,21 @@ public class DailyDownloadWorker : IHostedService
             queueProcessSpan.Finish(SpanStatus.Ok);
             transaction.Finish(SpanStatus.Ok);
         }
+        catch (Exception) when (_cancellationTokenSource.IsCancellationRequested)
+        {
+            // Shutting down mid-batch (cancellation may surface wrapped, e.g. by Npgsql or HttpClient):
+            // put the message back for the next instance. Not an error.
+            Settle(consumer.Model, ea.DeliveryTag, ack: false, requeue: true);
+            queueProcessSpan.Finish(SpanStatus.Cancelled);
+            transaction.Finish(SpanStatus.Cancelled);
+        }
         catch (NuGetUnavailableException e)
         {
             // NuGet is unavailable - NACK the message so it gets redelivered later
             // Don't report to Sentry as this is expected during outages
             _logger.LogWarning(e, "NuGet unavailable, requeueing batch of {Count} packages.", packageIds?.Count ?? 0);
-            consumer.Model.BasicNack(ea.DeliveryTag, multiple: false, requeue: true);
+            await DelayBeforeRequeueAsync();
+            Settle(consumer.Model, ea.DeliveryTag, ack: false, requeue: true);
             SentrySdk.Experimental.Metrics.EmitCounter<int>("worker.messages_requeued", 1,
                 [new("queue", queueName), new("reason", "nuget_unavailable")]);
             queueProcessSpan.Finish(SpanStatus.Unavailable);
@@ -296,7 +407,8 @@ public class DailyDownloadWorker : IHostedService
             // Multiple GetPackage calls failed due to NuGet unavailability (Task.WhenAll wraps in AggregateException)
             // NACK the message so it gets redelivered later
             _logger.LogWarning(ae, "NuGet unavailable (multiple failures), requeueing batch of {Count} packages.", packageIds?.Count ?? 0);
-            consumer.Model.BasicNack(ea.DeliveryTag, multiple: false, requeue: true);
+            await DelayBeforeRequeueAsync();
+            Settle(consumer.Model, ea.DeliveryTag, ack: false, requeue: true);
             SentrySdk.Experimental.Metrics.EmitCounter<int>("worker.messages_requeued", 1,
                 [new("queue", queueName), new("reason", "nuget_unavailable")]);
             queueProcessSpan.Finish(SpanStatus.Unavailable);
@@ -311,7 +423,14 @@ public class DailyDownloadWorker : IHostedService
             queueProcessSpan.Finish(e);
             transaction.Finish(e);
             _logger.LogCritical(e, "Failed to process batch.");
-            throw;
+
+            // Never leave the delivery unacked: it would hold the consumer's only prefetch slot until the broker
+            // closes the channel (consumer_timeout), silently killing the consumer. Drop rather than requeue:
+            // the batch may be partially written to ClickHouse and weekly_downloads can't deduplicate a retry.
+            // Its packages stay unchecked and are queued again by the next publisher run.
+            Settle(consumer.Model, ea.DeliveryTag, ack: false, requeue: false);
+            SentrySdk.Experimental.Metrics.EmitCounter<int>("worker.messages_failed", 1,
+                [new("queue", queueName)]);
         }
     }
 
@@ -484,25 +603,16 @@ public class DailyDownloadWorker : IHostedService
         {
             _cancellationTokenSource.Cancel();
 
-            if (_workers is { } workers)
-            {
-                await Task.WhenAll(workers);
-            }
+            // Each worker closes its own connection on the way out.
+            await Task.WhenAll(_workers).WaitAsync(cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogWarning("Shutdown timed out before all workers stopped.");
         }
         catch (Exception e)
         {
             _logger.LogError(e, "Failed canceling the worker.");
-        }
-        finally
-        {
-            foreach (var (channel, connection) in _connections)
-            {
-                // "Disposing channel and connection objects is not enough, they must be explicitly closed with the API methods..."
-                // https://www.rabbitmq.com/dotnet-api-guide.html
-                // - Why?
-                channel?.Close();
-                connection?.Close();
-            }
         }
     }
 }

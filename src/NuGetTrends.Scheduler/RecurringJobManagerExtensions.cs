@@ -43,5 +43,14 @@ internal static class RecurringJobManagerExtensions
             j => j.Refresh(JobCancellationToken.Null, null),
             Cron.Weekly(JobScheduleConfig.TfmAdoptionRefresher.RunOnDay,
                 JobScheduleConfig.TfmAdoptionRefresher.RunAtHourUtc));
+
+        // Production health only: local setups would trip it (small Docker disks, no nightly run) and alert.
+        if (!app.ApplicationServices.GetRequiredService<IWebHostEnvironment>().IsDevelopment())
+        {
+            jobManager.AddOrUpdate<PipelineHealthCheck>(
+                "PipelineHealthCheck",
+                j => j.Run(JobCancellationToken.Null, null),
+                Cron.Hourly(JobScheduleConfig.PipelineHealthCheck.RunAtMinute));
+        }
     }
 }

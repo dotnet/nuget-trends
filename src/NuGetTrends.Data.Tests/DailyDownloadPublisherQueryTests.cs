@@ -280,4 +280,36 @@ public class DailyDownloadPublisherQueryTests : IAsyncLifetime
         result.Should().HaveCount(1);
         result.Should().Contain("Sentry");
     }
+
+    [Fact]
+    public async Task GetDailyDownloadProgress_CountsPackagesNotCheckedToday()
+    {
+        var today = DateTime.UtcNow.Date;
+        await _fixture.SeedPackageDownloadsAsync(
+            ("Sentry", today.AddHours(1)),
+            ("Newtonsoft.Json", today.AddDays(-1)),
+            ("Moq", null));
+
+        await using var context = _fixture.CreateDbContext();
+
+        var (uncheckedCount, total) = await context.GetDailyDownloadProgressAsync(today);
+
+        uncheckedCount.Should().Be(2);
+        total.Should().Be(3);
+    }
+
+    [Fact]
+    public async Task GetDailyDownloadProgress_IgnoresPackagesOnlyInCatalog()
+    {
+        // Packages the hourly catalog importer added today aren't part of the nightly run yet.
+        await _fixture.SeedPackageCatalogAsync("Brand.New.Package");
+        await _fixture.SeedPackageDownloadsAsync(("Sentry", DateTime.UtcNow));
+
+        await using var context = _fixture.CreateDbContext();
+
+        var (uncheckedCount, total) = await context.GetDailyDownloadProgressAsync(DateTime.UtcNow.Date);
+
+        uncheckedCount.Should().Be(0);
+        total.Should().Be(1);
+    }
 }

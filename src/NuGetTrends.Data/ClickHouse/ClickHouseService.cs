@@ -846,6 +846,43 @@ public class ClickHouseService : IClickHouseService
         }
     }
 
+    public async Task<ClickHouseDiskUsage> GetDiskUsageAsync(
+        CancellationToken ct = default,
+        ISpan? parentSpan = null)
+    {
+        const string query = "SELECT name, free_space, total_space FROM system.disks WHERE name = 'default'";
+
+        var span = StartDatabaseSpan(parentSpan, query, "SELECT");
+
+        try
+        {
+            await using var connection = new ClickHouseConnection(_connectionString);
+            await connection.OpenAsync(ct);
+
+            await using var cmd = connection.CreateCommand();
+            cmd.CommandText = query;
+
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            if (!await reader.ReadAsync(ct))
+            {
+                throw new InvalidOperationException("ClickHouse reported no 'default' disk in system.disks.");
+            }
+
+            var usage = new ClickHouseDiskUsage(
+                reader.GetString(0),
+                Convert.ToUInt64(reader.GetValue(1)),
+                Convert.ToUInt64(reader.GetValue(2)));
+
+            span?.Finish(SpanStatus.Ok);
+            return usage;
+        }
+        catch (Exception ex)
+        {
+            span?.Finish(ex);
+            throw;
+        }
+    }
+
     /// <summary>
     /// Starts a database span following Sentry's Queries module conventions.
     /// Includes query source attributes for the Sentry Queries module.

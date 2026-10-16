@@ -98,6 +98,13 @@ public class DailyDownloadPackageIdPublisher(
                 logger.LogDebug("Job {JobId}: Queue creation OK, with '{QueueName}', '{ConsumerCount}', '{MessageCount}'",
                     jobId, queueDeclareOk.QueueName, queueDeclareOk.ConsumerCount, queueDeclareOk.MessageCount);
 
+                if (queueDeclareOk.ConsumerCount == 0)
+                {
+                    // Publishing still succeeds, but the messages expire unprocessed and nothing else fails.
+                    logger.LogError("Job {JobId}: No consumers on queue '{QueueName}'. Published package IDs will expire unprocessed in 12 hours.",
+                        jobId, queueName);
+                }
+
                 var properties = channel.CreateBasicProperties();
                 properties.Persistent = true;
                 properties.Expiration = "43200000";

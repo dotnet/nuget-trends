@@ -57,4 +57,24 @@ internal static class JobScheduleConfig
         public const int MaxRuntimeMinutes = 120;
         public const int FailureIssueThreshold = 2;
     }
+
+    /// <summary>
+    /// Pipeline Health Check - runs hourly at :30 to report failures that are otherwise silent:
+    /// no daily download consumers, packages left unchecked after the nightly run, ClickHouse low on disk.
+    /// </summary>
+    internal static class PipelineHealthCheck
+    {
+        public const string MonitorSlug = "scheduler-pipeline-health";
+        public const int IntervalHours = 1;
+        public const int RunAtMinute = 30;
+        public const int CheckInMarginMinutes = 10;
+        public const int MaxRuntimeMinutes = 10;
+        public const int FailureIssueThreshold = 2;
+
+        /// <summary>
+        /// From this hour (UTC) on, the nightly run must have checked every package. A healthy run takes about
+        /// an hour after the publisher (01:00 UTC); its messages expire 12 hours after publishing.
+        /// </summary>
+        public const int DailyDownloadsDeadlineHourUtc = DailyDownloadPublisher.RunAtHourUtc + 3;
+    }
 }
