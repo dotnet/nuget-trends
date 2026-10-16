@@ -1,6 +1,6 @@
 #!/usr/bin/env dotnet
 
-#:package Microsoft.Playwright@1.52.0
+#:package Microsoft.Playwright@1.62.0
 #:property ManagePackageVersionsCentrally=false
 #:property PublishAot=false
 
@@ -146,7 +146,18 @@ try
         return 1;
     }
 
-    var criticalErrors = errors.Where(e => e.Contains("CtorNotLocated") || e.Contains("Unhandled exception rendering")).ToList();
+    // `typeof Blazor !== 'undefined'` is true as soon as blazor.web.js loads, even if the
+    // WASM runtime then fails to start, so the console is the only signal that the client
+    // is actually alive. Match runtime startup failures too, not just trimming ones.
+    string[] criticalPatterns =
+    [
+        "CtorNotLocated",
+        "Unhandled exception rendering",
+        "CompileError",              // WASM module rejected by the engine
+        "MONO_WASM",                 // mono runtime asserts
+        "Failed to start platform",  // Blazor boot failure
+    ];
+    var criticalErrors = errors.Where(e => criticalPatterns.Any(e.Contains)).ToList();
     if (criticalErrors.Count > 0)
     {
         Console.Error.WriteLine("FAIL: Critical rendering errors detected:");
