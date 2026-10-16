@@ -95,11 +95,18 @@ public class DailyDownloadWorkerResilienceTests(IntegrationTestFixture fixture)
         var worker = CreateWorker(connectionFactory, nuGet);
 
         await worker.StartAsync(CancellationToken.None);
-        await WaitForConsumer(connectionFactory);
-        Publish(connectionFactory, "Some.Package");
-        await WaitUntil(() => nuGet.Calls >= 1, "the worker never received the message");
-
-        await worker.StopAsync(CancellationToken.None);
+        try
+        {
+            await WaitForConsumer(connectionFactory);
+            Publish(connectionFactory, "Some.Package");
+            await WaitUntil(() => nuGet.Calls >= 1, "the worker never received the message");
+        }
+        finally
+        {
+            // Stopping mid-batch is the scenario under test; in finally so a failed wait can't leave a consumer
+            // blocking on the shared queue for later tests.
+            await worker.StopAsync(CancellationToken.None);
+        }
 
         // The interrupted delivery stays unacked until the connection closes. A nack would free the prefetch slot
         // and let the broker hand the message back to the stopping consumer (a narrow race before the close).
