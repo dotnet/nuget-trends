@@ -157,7 +157,7 @@ We lock the .NET SDK version via `global.json` to have a reference version and a
 If you don't have that exact version, usually anything with that major works just fine.
 If you just want to quickly build, try deleting `global.json`.
 
-The project currently targets **.NET 11 RC 1**, which ships under a
+The project currently targets **.NET 11 RC 2**, which ships under a
 [go-live license](https://dotnet.microsoft.com/platform/support/policy/dotnet-core) (supported in production).
 `global.json` pins the exact RC build; `rollForward: latestMinor` picks up the GA SDK once it releases.
 
