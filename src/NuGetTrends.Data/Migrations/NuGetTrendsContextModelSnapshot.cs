@@ -233,25 +233,6 @@ namespace NuGetTrends.Data.Migrations
                         });
                 });
 
-            modelBuilder.Entity("NuGetTrends.Data.DailyDownload", b =>
-                {
-                    b.Property<string>("PackageId")
-                        .HasColumnType("text")
-                        .HasColumnName("package_id");
-
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("date");
-
-                    b.Property<long?>("DownloadCount")
-                        .HasColumnType("bigint")
-                        .HasColumnName("download_count");
-
-                    b.HasKey("PackageId", "Date");
-
-                    b.ToTable("daily_downloads");
-                });
-
             modelBuilder.Entity("NuGetTrends.Data.DailyDownloadResult", b =>
                 {
                     b.Property<long?>("Count")
