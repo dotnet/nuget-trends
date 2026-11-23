@@ -12,6 +12,7 @@ on:
       - 'src/NuGetTrends.Web.Client/**'
       - 'src/NuGetTrends.Data/**'
       - 'src/NuGetTrends.PlaywrightTests/**'
+      - 'Directory.Packages.props'
       - '**/playwright-workflow.yml'
   pull_request:
     paths:
@@ -19,6 +20,7 @@ on:
       - 'src/NuGetTrends.Web.Client/**'
       - 'src/NuGetTrends.Data/**'
       - 'src/NuGetTrends.PlaywrightTests/**'
+      - 'Directory.Packages.props'
       - '**/playwright-workflow.yml'
   workflow_dispatch:
 
