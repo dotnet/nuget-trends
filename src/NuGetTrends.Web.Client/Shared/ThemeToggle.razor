@@ -16,25 +16,32 @@
     {
         if (firstRender)
         {
-            // Load saved preference from localStorage
-            var savedPreference = await JSRuntime.InvokeAsync<string?>("themeInterop.getPreference");
-            ThemeState.LoadPreference(savedPreference);
+            try
+            {
+                // Load saved preference from localStorage
+                var savedPreference = await JSRuntime.InvokeAsync<string?>("themeInterop.getPreference");
+                ThemeState.LoadPreference(savedPreference);
 
-            // Get system preference
-            var systemPrefersDark = await JSRuntime.InvokeAsync<bool>("themeInterop.getSystemPreference");
-            ThemeState.SetSystemPreference(systemPrefersDark);
+                // Get system preference
+                var systemPrefersDark = await JSRuntime.InvokeAsync<bool>("themeInterop.getSystemPreference");
+                ThemeState.SetSystemPreference(systemPrefersDark);
 
-            // Apply theme
-            await ApplyTheme();
+                // Apply theme
+                await ApplyTheme();
 
-            // Subscribe to theme changes
-            ThemeState.ThemeChanged += OnThemeChanged;
+                // Subscribe to theme changes
+                ThemeState.ThemeChanged += OnThemeChanged;
 
-            // Listen for system preference changes
-            _dotNetRef = DotNetObjectReference.Create(this);
-            await JSRuntime.InvokeVoidAsync("themeInterop.watchSystemPreference", _dotNetRef);
+                // Listen for system preference changes
+                _dotNetRef = DotNetObjectReference.Create(this);
+                await JSRuntime.InvokeVoidAsync("themeInterop.watchSystemPreference", _dotNetRef);
 
-            StateHasChanged();
+                StateHasChanged();
+            }
+            catch (JSDisconnectedException)
+            {
+                // Circuit disconnected before the theme could be initialized
+            }
         }
     }
 
@@ -65,13 +72,29 @@
     private async Task Toggle()
     {
         ThemeState.CycleTheme();
-        await JSRuntime.InvokeVoidAsync("themeInterop.setPreference", ThemeState.GetPreferenceString());
+
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("themeInterop.setPreference", ThemeState.GetPreferenceString());
+        }
+        catch (JSDisconnectedException)
+        {
+            // Circuit disconnected, the preference just won't be persisted
+        }
+
         await ApplyTheme();
     }
 
     private async Task ApplyTheme()
     {
-        await JSRuntime.InvokeVoidAsync("themeInterop.applyTheme", ThemeState.ResolvedTheme);
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("themeInterop.applyTheme", ThemeState.ResolvedTheme);
+        }
+        catch (JSDisconnectedException)
+        {
+            // Circuit disconnected, nothing left to apply the theme to
+        }
     }
 
     public async ValueTask DisposeAsync()

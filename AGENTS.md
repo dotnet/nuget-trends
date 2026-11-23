@@ -86,7 +86,7 @@ dotnet build NuGetTrends.slnx
 
 ## Technology Stack
 
-- **Backend**: .NET 10, ASP.NET Core, Entity Framework Core, Hangfire, Sentry
+- **Backend**: .NET 11, ASP.NET Core, Entity Framework Core, Hangfire, Sentry
 - **Frontend**: Blazor SSR + WebAssembly hybrid, Blazored.Toast, Blazor-ApexCharts
 - **Databases**: PostgreSQL (Npgsql), ClickHouse (ClickHouse.Driver)
 - **Infrastructure**: .NET Aspire, Docker, Kubernetes (GKE)

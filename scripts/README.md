@@ -6,7 +6,7 @@ Migrates the `daily_downloads` table from PostgreSQL to ClickHouse using a singl
 
 ### Prerequisites
 
-- .NET 10 SDK
+- .NET 11 SDK
 - PostgreSQL with `daily_downloads` table
 - ClickHouse with `nugettrends.daily_downloads` table
 
