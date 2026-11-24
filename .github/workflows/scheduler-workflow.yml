@@ -16,6 +16,7 @@ on:
       - 'src/NuGet.Protocol.Catalog/**'
       - 'src/Directory.Build.props'
       - 'global.json'
+      - 'Directory.Packages.props'
       - '**/scheduler-workflow.yml'
   pull_request:
     paths:
@@ -26,6 +27,7 @@ on:
       - 'src/NuGet.Protocol.Catalog/**'
       - 'src/Directory.Build.props'
       - 'global.json'
+      - 'Directory.Packages.props'
       - '**/scheduler-workflow.yml'
 jobs:
   build:
