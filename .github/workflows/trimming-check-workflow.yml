@@ -14,6 +14,7 @@ on:
       - 'src/Directory.Build.props'
       - '**/TrimmerRoots.xml'
       - 'global.json'
+      - 'Directory.Packages.props'
       - '**/trimming-check-workflow.yml'
       - 'scripts/verify-trimming.cs'
   pull_request:
@@ -24,6 +25,7 @@ on:
       - 'src/Directory.Build.props'
       - '**/TrimmerRoots.xml'
       - 'global.json'
+      - 'Directory.Packages.props'
       - '**/trimming-check-workflow.yml'
       - 'scripts/verify-trimming.cs'
   workflow_dispatch:

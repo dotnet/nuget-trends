@@ -14,6 +14,7 @@ on:
       - 'src/NuGetTrends.Data/**'
       - 'src/Directory.Build.props'
       - 'global.json'
+      - 'Directory.Packages.props'
       - '**/web-workflow.yml'
   pull_request:
     paths:
@@ -22,6 +23,7 @@ on:
       - 'src/NuGetTrends.Data/**'
       - 'src/Directory.Build.props'
       - 'global.json'
+      - 'Directory.Packages.props'
       - '**/web-workflow.yml'
   workflow_dispatch:
 jobs:
