@@ -12,7 +12,6 @@ builder.UseSentry(options =>
     options.TracesSampleRate = 1.0;
     options.AddExceptionFilterForType<OperationCanceledException>();
 });
-builder.Logging.AddSentry(o => o.InitializeSdk = false);
 
 // Loading state (scoped – one per circuit)
 builder.Services.AddScoped<LoadingState>();

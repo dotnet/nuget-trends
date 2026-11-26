@@ -28,6 +28,13 @@ var configuration = new ConfigurationBuilder()
     .AddEnvironmentVariables()
     .Build();
 
+// Reports crashes during startup. UseSentry takes over once the app is running.
+using var sentry = environment == Testing ? null : SentrySdk.Init(o =>
+{
+    o.Dsn = configuration["Sentry:Dsn"];
+    o.Environment = environment.ToLowerInvariant();
+});
+
 // In Testing environment, use a minimal logger without Sentry
 Log.Logger = environment == Testing
     ? new LoggerConfiguration()

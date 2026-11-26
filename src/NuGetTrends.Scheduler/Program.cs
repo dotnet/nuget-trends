@@ -19,6 +19,13 @@ public class Program
 
     public static int Main(string[] args)
     {
+        // Reports crashes during startup. UseSentry takes over once the app is running.
+        using var sentry = SentrySdk.Init(o =>
+        {
+            o.Dsn = Configuration["Sentry:Dsn"];
+            o.Environment = Environment.ToLowerInvariant();
+        });
+
         if (Environment != Production)
         {
             Serilog.Debugging.SelfLog.Enable(Console.Error);
