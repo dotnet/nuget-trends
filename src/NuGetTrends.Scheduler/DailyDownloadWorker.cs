@@ -391,7 +391,7 @@ public class DailyDownloadWorker : IHostedService
             var latencyMs = receiveTimestamp - enqueuedTime.Value;
             queueProcessSpan.SetData("messaging.message.receive.latency", (double)latencyMs);
 
-            SentrySdk.Experimental.Metrics.EmitDistribution<double>("worker.queue_latency", (double)latencyMs,
+            SentrySdk.Metrics.EmitDistribution<double>("worker.queue_latency", (double)latencyMs,
                 MeasurementUnit.Duration.Millisecond,
                 [new("queue", queueName)]);
         }
@@ -427,9 +427,9 @@ public class DailyDownloadWorker : IHostedService
 
             Settle(consumer.Model, ea.DeliveryTag, ack: true);
 
-            SentrySdk.Experimental.Metrics.EmitCounter<int>("worker.messages_processed", 1,
+            SentrySdk.Metrics.EmitCounter<int>("worker.messages_processed", 1,
                 [new("queue", queueName)]);
-            SentrySdk.Experimental.Metrics.EmitDistribution<int>("worker.batch_size", packageIds.Count,
+            SentrySdk.Metrics.EmitDistribution<int>("worker.batch_size", packageIds.Count,
                 MeasurementUnit.None, [new("queue", queueName)]);
 
             queueProcessSpan.Finish(SpanStatus.Ok);
@@ -450,7 +450,7 @@ public class DailyDownloadWorker : IHostedService
             _logger.LogWarning(e, "NuGet unavailable, requeueing batch of {Count} packages.", packageIds?.Count ?? 0);
             await DelayBeforeRequeueAsync(token);
             Requeue(consumer.Model, ea.DeliveryTag, token);
-            SentrySdk.Experimental.Metrics.EmitCounter<int>("worker.messages_requeued", 1,
+            SentrySdk.Metrics.EmitCounter<int>("worker.messages_requeued", 1,
                 [new("queue", queueName), new("reason", "nuget_unavailable")]);
             queueProcessSpan.Finish(SpanStatus.Unavailable);
             transaction.Finish(SpanStatus.Unavailable);
@@ -462,7 +462,7 @@ public class DailyDownloadWorker : IHostedService
             _logger.LogWarning(ae, "NuGet unavailable (multiple failures), requeueing batch of {Count} packages.", packageIds?.Count ?? 0);
             await DelayBeforeRequeueAsync(token);
             Requeue(consumer.Model, ea.DeliveryTag, token);
-            SentrySdk.Experimental.Metrics.EmitCounter<int>("worker.messages_requeued", 1,
+            SentrySdk.Metrics.EmitCounter<int>("worker.messages_requeued", 1,
                 [new("queue", queueName), new("reason", "nuget_unavailable")]);
             queueProcessSpan.Finish(SpanStatus.Unavailable);
             transaction.Finish(SpanStatus.Unavailable);
@@ -482,7 +482,7 @@ public class DailyDownloadWorker : IHostedService
             // the batch may be partially written to ClickHouse and weekly_downloads can't deduplicate a retry.
             // Its packages stay unchecked and are queued again by the next publisher run.
             Settle(consumer.Model, ea.DeliveryTag, ack: false, requeue: false);
-            SentrySdk.Experimental.Metrics.EmitCounter<int>("worker.messages_failed", 1,
+            SentrySdk.Metrics.EmitCounter<int>("worker.messages_failed", 1,
                 [new("queue", queueName)]);
         }
     }
@@ -556,10 +556,10 @@ public class DailyDownloadWorker : IHostedService
         processDataSpan.SetData("deleted_packages", deletedPackageIds.Count);
         processDataSpan.Finish(SpanStatus.Ok);
 
-        SentrySdk.Experimental.Metrics.EmitCounter<int>("worker.packages_processed", clickHouseDownloads.Count);
+        SentrySdk.Metrics.EmitCounter<int>("worker.packages_processed", clickHouseDownloads.Count);
         if (deletedPackageIds.Count > 0)
         {
-            SentrySdk.Experimental.Metrics.EmitCounter<int>("worker.packages_deleted", deletedPackageIds.Count);
+            SentrySdk.Metrics.EmitCounter<int>("worker.packages_deleted", deletedPackageIds.Count);
         }
 
         using var scope = _services.CreateScope();
